@@ -21,10 +21,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Platform, Animated, Dimensions, Easing } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, Animated, Dimensions, Easing, Modal, TouchableOpacity } from 'react-native';
 import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
+import { Icon } from '../components/Icon';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 const { width } = Dimensions.get('window');
@@ -37,10 +39,14 @@ const lifecoachImage = require('../assets/images/lifecoach.png');
 export const LoginPage: React.FC = () => {
   // Get auth functions from context
   const { 
+    signIn,
+    signUp,
+    signInWithMagicLink,
     signInWithApple,
     signInWithGoogle,
     signInWithOAuth, 
     loading, 
+    error,
     clearError 
   } = useAuthContext();
 
@@ -50,6 +56,12 @@ export const LoginPage: React.FC = () => {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  
+  // Email auth modal state
+  const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
 
   const messages = [
     { 
@@ -149,8 +161,53 @@ export const LoginPage: React.FC = () => {
   }, [slideAnim, fadeAnim, scaleAnim, messages.length, currentMessageIndex, width]);
 
   const handleEmailAuth = () => {
-    // Navigate to email auth screen or show modal
-    console.log('Email auth pressed');
+    setIsEmailModalVisible(true);
+  };
+
+  const handleCloseEmailModal = () => {
+    setIsEmailModalVisible(false);
+    setEmail('');
+    setPassword('');
+    setIsSignUpMode(false);
+    clearError();
+  };
+
+  const handleEmailAuthSubmit = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
+    clearError();
+    const result = isSignUpMode 
+      ? await signUp(email, password)
+      : await signIn(email, password);
+
+    if (result.success) {
+      handleCloseEmailModal();
+    } else {
+      Alert.alert('Authentication Error', result.error || 'Something went wrong');
+    }
+  };
+
+  const handleMagicLink = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    clearError();
+    const result = await signInWithMagicLink(email);
+
+    if (result.success) {
+      Alert.alert(
+        'Magic Link Sent!', 
+        'Check your email and click the link to sign in'
+      );
+      handleCloseEmailModal();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to send magic link');
+    }
   };
 
   const handleAppleSignIn = async () => {
@@ -247,16 +304,81 @@ export const LoginPage: React.FC = () => {
           style={styles.authButton}
         />
 
-        {/* Email Sign In Button */}
-        <Button
+        {/* Email Sign In Button - Temporarily Hidden */}
+        {/* <Button
           title="Continue with Email"
           icon="email"
           onPress={handleEmailAuth}
           variant="outline"
           disabled={loading}
           style={styles.authButton}
-        />
+        /> */}
       </View>
+
+      {/* Email Auth Modal */}
+      <Modal
+        visible={isEmailModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseEmailModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {isSignUpMode ? 'Create Account' : 'Sign In'}
+              </Text>
+              <TouchableOpacity onPress={handleCloseEmailModal} style={styles.closeButton}>
+                <Icon name="close" size={24} color={theme.colors.grey[600]} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalForm}>
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={error && error.includes('email') ? error : undefined}
+              />
+
+              <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter your password"
+                secureTextEntry
+                error={error && error.includes('password') ? error : undefined}
+              />
+
+              <Button
+                title={isSignUpMode ? 'Sign Up' : 'Sign In'}
+                onPress={handleEmailAuthSubmit}
+                disabled={loading}
+                style={styles.modalButton}
+              />
+
+              <Button
+                title={isSignUpMode ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+                onPress={() => setIsSignUpMode(!isSignUpMode)}
+                variant="outline"
+                disabled={loading}
+                style={styles.modalButton}
+              />
+
+              <Button
+                title="Send Magic Link"
+                onPress={handleMagicLink}
+                variant="outline"
+                disabled={loading || !email}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -325,6 +447,41 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface[50],
+    borderTopLeftRadius: theme.radius.xl,
+    borderTopRightRadius: theme.radius.xl,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  modalTitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.primary[600],
+  },
+  closeButton: {
+    padding: theme.spacing.xs,
+  },
+  modalForm: {
+    gap: theme.spacing.md,
+  },
+  modalButton: {
+    width: '100%',
   },
 });
 

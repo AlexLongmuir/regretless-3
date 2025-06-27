@@ -24,18 +24,15 @@ export const AuthLoadingPage: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        {/* App logo or branding could go here */}
+        {/* Minimal app branding */}
         <Text style={styles.appName}>Regretless</Text>
         
-        {/* Loading indicator */}
+        {/* Subtle loading indicator */}
         <ActivityIndicator 
-          size="large" 
-          color={theme.colors.primary[500]} 
+          size="small" 
+          color={theme.colors.primary[600]} 
           style={styles.spinner}
         />
-        
-        {/* Loading text */}
-        <Text style={styles.loadingText}>Getting things ready...</Text>
       </View>
     </View>
   );
@@ -50,26 +47,18 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
   },
   appName: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.largeTitle,
+    fontSize: theme.typography.fontSize.title1,
     fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: theme.typography.lineHeight.largeTitle,
+    lineHeight: theme.typography.lineHeight.title1,
     color: theme.colors.primary[600],
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+    letterSpacing: 1,
   },
   spinner: {
-    marginBottom: theme.spacing.md,
-  },
-  loadingText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.regular as any,
-    lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
-    textAlign: 'center',
+    marginTop: theme.spacing.sm,
   },
 });
 

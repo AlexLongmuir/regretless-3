@@ -145,6 +145,10 @@ export const theme = {
     apple: {
       library: 'FontAwesome' as const,
       name: 'apple'
+    },
+    close: {
+      library: 'MaterialIcons' as const,
+      name: 'close'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },
