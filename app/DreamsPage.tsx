@@ -9,6 +9,7 @@ interface Dream {
   title: string;
   progressPercentage: number;
   streakCount: number;
+  daysRemaining: number;
   backgroundImages: string[];
   recentPhotos: string[];
   nextMilestone?: {
@@ -20,10 +21,14 @@ interface Dream {
 const mockDreams: Dream[] = [
   {
     id: '1',
-    title: 'Learn Piano in 60 Days',
+    title: 'Learn Piano',
     progressPercentage: 75,
     streakCount: 12,
-    backgroundImages: ['https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop'],
+    daysRemaining: 45,
+    backgroundImages: [
+      'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
+    ],
     recentPhotos: [
       'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop',
       'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop',
@@ -41,7 +46,12 @@ const mockDreams: Dream[] = [
     title: 'Run a Marathon',
     progressPercentage: 45,
     streakCount: 8,
-    backgroundImages: ['https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop'],
+    daysRemaining: 82,
+    backgroundImages: [
+      'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop'
+    ],
     recentPhotos: [
       'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=100&h=100&fit=crop',
       'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop',
@@ -57,7 +67,13 @@ const mockDreams: Dream[] = [
     title: 'Master Japanese Conversation',
     progressPercentage: 30,
     streakCount: 25,
-    backgroundImages: ['https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop'],
+    daysRemaining: 156,
+    backgroundImages: [
+      'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
+    ],
     recentPhotos: [
       'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop',
       'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=100&h=100&fit=crop',
@@ -72,6 +88,7 @@ const mockDreams: Dream[] = [
     title: 'Build a Mobile App',
     progressPercentage: 60,
     streakCount: 5,
+    daysRemaining: 21,
     backgroundImages: ['https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=300&fit=crop'],
     recentPhotos: [],
     nextMilestone: {
