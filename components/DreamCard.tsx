@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   photoThumbnail: {
-    width: 80,
+    width: 64,
     height: 64,
     marginRight: theme.spacing.xs,
     borderRadius: theme.radius.md,
