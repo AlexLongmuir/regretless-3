@@ -15,8 +15,11 @@ interface BottomNavigationProps {
 }
 
 const tabs: NavigationTab[] = [
-  { key: 'Home', label: 'Home', icon: '🏠' },
   { key: 'Dreams', label: 'Dreams', icon: '✨' },
+  { key: 'Comps', label: 'Comps', icon: '🧩' },
+  { key: 'Today', label: 'Today', icon: '📅' },
+  { key: 'Journal', label: 'Journal', icon: '📔' },
+  { key: 'Utilities', label: 'Utilities', icon: '🔧' },
   { key: 'Profile', label: 'Profile', icon: '👤' },
 ];
 

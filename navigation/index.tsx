@@ -31,6 +31,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomePage from '../app/HomePage';
 import ProfilePage from '../app/ProfilePage';
 import DreamsPage from '../app/DreamsPage';
+import TodayPage from '../app/TodayPage';
+import JournalPage from '../app/JournalPage';
+import UtilitiesPage from '../app/UtilitiesPage';
 import LoginPage from '../app/LoginPage';
 import AuthLoadingPage from '../app/AuthLoadingPage';
 
@@ -74,7 +77,7 @@ const AuthNavigator = () => (
  * createBottomTabNavigator for more standard navigation patterns.
  */
 const MainNavigator = () => {
-  const [activeTab, setActiveTab] = useState('Home');
+  const [activeTab, setActiveTab] = useState('Dreams');
 
   /**
    * Handle tab press events
@@ -92,10 +95,18 @@ const MainNavigator = () => {
     switch (activeTab) {
       case 'Dreams':
         return DreamsPage;
+      case 'Comps':
+        return HomePage;
+      case 'Today':
+        return TodayPage;
+      case 'Journal':
+        return JournalPage;
+      case 'Utilities':
+        return UtilitiesPage;
       case 'Profile':
         return ProfilePage;
       default:
-        return HomePage;
+        return DreamsPage;
     }
   };
 

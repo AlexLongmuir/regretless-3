@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ImageBackground, ScrollView, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ImageBackground, ScrollView, Dimensions, Image } from 'react-native';
 import { theme } from '../utils/theme';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -11,6 +11,8 @@ interface Dream {
   progressPercentage: number;
   streakCount: number;
   daysRemaining: number;
+  currentDay: number;
+  totalDays: number;
   backgroundImages: string[];
   recentPhotos: string[];
   nextMilestone?: {
@@ -30,25 +32,22 @@ export const DreamCard: React.FC<DreamCardProps> = ({
   onPress,
   style,
 }) => {
-  const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0);
-  
-  const defaultBackground = {
-    uri: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=300&fit=crop'
-  };
+  const defaultImages = [
+    'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop',
+    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop'
+  ];
 
   const backgroundImages = dream.backgroundImages.length > 0 
     ? dream.backgroundImages 
-    : [defaultBackground.uri];
+    : defaultImages;
     
-  const currentBackground = { uri: backgroundImages[currentBackgroundIndex] };
+  const displayImages = backgroundImages.slice(0, 3);
 
   const cardWidth = screenWidth - (theme.spacing.md * 2);
   
-  const handleBackgroundScroll = (event: any) => {
-    const scrollPosition = event.nativeEvent.contentOffset.x;
-    const imageIndex = Math.round(scrollPosition / cardWidth);
-    setCurrentBackgroundIndex(imageIndex);
-  };
+  const latestPhotos = dream.recentPhotos.slice(-4);
+  const photoCarouselItemWidth = (cardWidth - (theme.spacing.md * 2) - (theme.spacing.xs * 4)) / 5;
 
   return (
     <View style={[styles.cardContainer, style]}>
@@ -56,123 +55,59 @@ export const DreamCard: React.FC<DreamCardProps> = ({
         style={styles.card}
         onPress={() => onPress(dream.id)}
       >
-        {backgroundImages.length > 1 ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleBackgroundScroll}
-            style={dream.recentPhotos.length > 0 ? styles.backgroundScrollContainer : styles.backgroundScrollContainerSmall}
-            contentContainerStyle={styles.backgroundScrollContent}
-          >
-            {backgroundImages.map((bgImage, index) => (
-              <ImageBackground
+        <View style={styles.topSection}>
+          <View style={styles.imageGrid}>
+            {displayImages.map((image, index) => (
+              <Image 
                 key={index}
-                source={{ uri: bgImage }}
-                style={[styles.backgroundImageItem, { width: cardWidth }]}
-                imageStyle={styles.backgroundImageStyle}
-              >
-                {index === currentBackgroundIndex && (
-                  <View style={dream.recentPhotos.length > 0 ? styles.overlay : styles.overlaySmall}>
-                    <View style={styles.topSection}>
-                      <View style={styles.headerRow}>
-                        <View style={styles.titleContainer}>
-                          <Text style={styles.dayCounter}>
-                            Day 15 of 90
-                          </Text>
-                          <Text style={styles.title} numberOfLines={2}>
-                            {dream.title}
-                          </Text>
-                        </View>
-                        <View style={styles.streakBadge}>
-                          <Text style={styles.streakText}>🔥 {dream.streakCount}d</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.spacer} />
-
-                    {dream.recentPhotos.length > 0 && (
-                      <View style={styles.photosContainer}>
-                        <ScrollView 
-                          horizontal 
-                          showsHorizontalScrollIndicator={false}
-                          pagingEnabled={false}
-                          decelerationRate="fast"
-                          contentContainerStyle={styles.photosScrollContainer}
-                        >
-                          {dream.recentPhotos.map((photo, photoIndex) => (
-                            <View key={photoIndex} style={styles.photoThumbnail}>
-                              <ImageBackground
-                                source={{ uri: photo }}
-                                style={styles.thumbnailImage}
-                                imageStyle={styles.thumbnailImageStyle}
-                              />
-                            </View>
-                          ))}
-                          <View style={{ width: theme.spacing.lg }} />
-                        </ScrollView>
-                      </View>
-                    )}
-
-                    <View style={styles.spacer} />
-                  </View>
-                )}
-              </ImageBackground>
+                source={{ uri: image }} 
+                style={[
+                  styles.squareImage,
+                  displayImages.length === 1 && styles.singleImageSquare,
+                  displayImages.length === 2 && styles.twoImageSquare,
+                  displayImages.length >= 3 && styles.threeImageSquare,
+                ]} 
+              />
             ))}
-          </ScrollView>
-        ) : (
-          <ImageBackground
-            source={currentBackground}
-            style={dream.recentPhotos.length > 0 ? styles.backgroundImage : styles.backgroundImageSmall}
-            imageStyle={styles.backgroundImageStyle}
-          >
-            <View style={dream.recentPhotos.length > 0 ? styles.overlay : styles.overlaySmall}>
-              <View style={styles.topSection}>
-                <View style={styles.headerRow}>
-                  <View style={styles.titleContainer}>
-                    <Text style={styles.dayCounter}>
-                      Day 15 of 90
-                    </Text>
-                    <Text style={styles.title} numberOfLines={2}>
-                      {dream.title}
-                    </Text>
+          </View>
+          
+          <View style={styles.overlayBadges}>
+            <View style={styles.dayCounterBadge}>
+              <Text style={styles.dayCounter}>
+                DAY {dream.currentDay} OF {dream.totalDays}
+              </Text>
+            </View>
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakText}>🔥 {dream.streakCount}D</Text>
+            </View>
+          </View>
+          
+          <View style={styles.gradientOverlay}>
+            <Text style={styles.title} numberOfLines={2}>
+              {dream.title}
+            </Text>
+            
+            <View style={styles.photosContainer}>
+              <View style={styles.photosRow}>
+                {latestPhotos.map((photo, photoIndex) => (
+                  <View key={photoIndex} style={[styles.photoCarouselItem, { width: photoCarouselItemWidth, height: photoCarouselItemWidth }]}>
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.photoCarouselImage}
+                    />
                   </View>
-                  <View style={styles.streakBadge}>
-                    <Text style={styles.streakText}>🔥 {dream.streakCount}d</Text>
-                  </View>
+                ))}
+                <View style={[styles.photoCarouselItem, styles.addPhotoButton, { width: photoCarouselItemWidth, height: photoCarouselItemWidth }]}>
+                  <Icon 
+                    name="add" 
+                    size={20} 
+                    color={theme.colors.surface[50]} 
+                  />
                 </View>
               </View>
-
-              <View style={styles.spacer} />
-
-              {dream.recentPhotos.length > 0 && (
-                <View style={styles.photosContainer}>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    pagingEnabled={false}
-                    decelerationRate="fast"
-                    contentContainerStyle={styles.photosScrollContainer}
-                  >
-                    {dream.recentPhotos.map((photo, index) => (
-                      <View key={index} style={styles.photoThumbnail}>
-                        <ImageBackground
-                          source={{ uri: photo }}
-                          style={styles.thumbnailImage}
-                          imageStyle={styles.thumbnailImageStyle}
-                        />
-                      </View>
-                    ))}
-                    <View style={{ width: theme.spacing.lg }} />
-                  </ScrollView>
-                </View>
-              )}
-
-              <View style={styles.spacer} />
             </View>
-          </ImageBackground>
-        )}
+          </View>
+        </View>
       </Pressable>
       
       {dream.nextMilestone && (
@@ -209,63 +144,61 @@ const styles = StyleSheet.create({
     borderTopRightRadius: theme.radius.xl,
     overflow: 'hidden',
   },
-  backgroundImage: {
-    justifyContent: 'space-between',
-  },
-  backgroundImageSmall: {
-    justifyContent: 'center',
-  },
-  backgroundScrollContainer: {
-    flex: 1,
-  },
-  backgroundScrollContainerSmall: {
-    flex: 1,
-  },
-  backgroundScrollContent: {
-    flexDirection: 'row',
-  },
-  backgroundImageItem: {
-    justifyContent: 'space-between',
-    minHeight: 180,
-  },
-  backgroundImageStyle: {
-    opacity: 0.9,
-  },
-  overlay: {
-    backgroundColor: `${theme.colors.primary[600]}80`,
-    padding: theme.spacing.md,
-    minHeight: 180,
-    justifyContent: 'space-between',
-  },
-  overlaySmall: {
-    backgroundColor: `${theme.colors.primary[600]}80`,
-    padding: theme.spacing.md,
-    minHeight: 180,
-    justifyContent: 'center',
-  },
-  spacer: {
-    flex: 1,
-  },
   topSection: {
-    flex: 0,
+    backgroundColor: theme.colors.primary[600],
+    position: 'relative',
   },
-  headerRow: {
+  imageGrid: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingBottom: 0,
+  },
+  squareImage: {
+    aspectRatio: 1,
+    borderRadius: theme.radius.md,
+  },
+  singleImageSquare: {
+    flex: 1,
+  },
+  twoImageSquare: {
+    flex: 1,
+  },
+  threeImageSquare: {
+    flex: 1,
+  },
+  overlayBadges: {
+    position: 'absolute',
+    top: 2,
+    left: 4,
+    right: 2,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.sm,
+    zIndex: 10,
   },
-  titleContainer: {
-    flex: 1,
-    paddingRight: theme.spacing.sm,
+  dayCounterBadge: {
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: theme.radius.lg,
+  },
+  gradientOverlay: {
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
   },
   dayCounter: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
-    fontWeight: theme.typography.fontWeight.semibold as any,
+    fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.primary[100],
-    marginBottom: theme.spacing.xs,
+    color: theme.colors.surface[50],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -275,25 +208,31 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.title2,
     color: theme.colors.surface[50],
+    marginBottom: theme.spacing.md,
+    marginTop: 0,
   },
   streakBadge: {
-    backgroundColor: `${theme.colors.warning[600]}80`,
-    paddingHorizontal: theme.spacing.xs,
-    paddingVertical: 2,
-    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: theme.radius.lg,
+    borderBottomRightRadius: 0,
   },
   streakText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
-    fontWeight: theme.typography.fontWeight.medium as any,
+    fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.caption1,
-    color: theme.colors.surface[50],
+    color: theme.colors.warning[500],
   },
   photosContainer: {
-    marginBottom: 0,
+    marginTop: 0,
   },
-  photosScrollContainer: {
-    paddingHorizontal: 0,
+  photosRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   photoThumbnail: {
     width: 64,
@@ -310,8 +249,23 @@ const styles = StyleSheet.create({
   thumbnailImageStyle: {
     borderRadius: theme.radius.md,
   },
+  photoCarouselItem: {
+    marginRight: theme.spacing.xs,
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+    backgroundColor: `${theme.colors.surface[50]}20`,
+  },
+  photoCarouselImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.radius.md,
+  },
+  addPhotoButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   nextActionContainer: {
-    backgroundColor: theme.colors.primary[50],
+    backgroundColor: theme.colors.primary[800],
     padding: theme.spacing.md,
     borderBottomLeftRadius: theme.radius.xl,
     borderBottomRightRadius: theme.radius.xl,
@@ -320,7 +274,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.primary[400],
+    color: theme.colors.primary[200],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.xs,
@@ -330,13 +284,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.primary[600],
+    color: theme.colors.surface[50],
     marginBottom: 2,
   },
   nextActionDue: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
     lineHeight: theme.typography.lineHeight.caption1,
-    color: theme.colors.primary[400],
+    color: theme.colors.primary[200],
   },
 });

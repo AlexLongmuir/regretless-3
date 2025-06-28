@@ -3,6 +3,7 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { theme } from '../utils/theme';
 import { DreamCard } from '../components/DreamCard';
 import { Button } from '../components/Button';
+import { IconButton } from '../components/IconButton';
 
 interface Dream {
   id: string;
@@ -10,6 +11,8 @@ interface Dream {
   progressPercentage: number;
   streakCount: number;
   daysRemaining: number;
+  currentDay: number;
+  totalDays: number;
   backgroundImages: string[];
   recentPhotos: string[];
   nextMilestone?: {
@@ -21,10 +24,12 @@ interface Dream {
 const mockDreams: Dream[] = [
   {
     id: '1',
-    title: 'Learn Piano',
+    title: 'Learn Piano in 90 days',
     progressPercentage: 75,
     streakCount: 12,
     daysRemaining: 45,
+    currentDay: 45,
+    totalDays: 90,
     backgroundImages: [
       'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop',
       'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
@@ -43,10 +48,12 @@ const mockDreams: Dream[] = [
   },
   {
     id: '2',
-    title: 'Run a Marathon',
+    title: 'Run a Marathon in 90 days',
     progressPercentage: 45,
     streakCount: 8,
     daysRemaining: 82,
+    currentDay: 8,
+    totalDays: 90,
     backgroundImages: [
       'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop',
       'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
@@ -64,10 +71,12 @@ const mockDreams: Dream[] = [
   },
   {
     id: '3',
-    title: 'Master Japanese Conversation',
+    title: 'Master Japanese Conversation in 200 days',
     progressPercentage: 30,
     streakCount: 25,
     daysRemaining: 156,
+    currentDay: 44,
+    totalDays: 200,
     backgroundImages: [
       'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop',
       'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop',
@@ -85,10 +94,12 @@ const mockDreams: Dream[] = [
   },
   {
     id: '4',
-    title: 'Build a Mobile App',
+    title: 'Build a Mobile App in 60 days',
     progressPercentage: 60,
     streakCount: 5,
     daysRemaining: 21,
+    currentDay: 39,
+    totalDays: 60,
     backgroundImages: ['https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=300&fit=crop'],
     recentPhotos: [],
     nextMilestone: {
@@ -131,10 +142,20 @@ const DreamsPage = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Your Dreams</Text>
-          <Text style={styles.subtitle}>
-            Keep pushing forward. Every step counts.
-          </Text>
+          <View style={styles.headerContent}>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Your Dreams</Text>
+              <Text style={styles.subtitle}>
+                Keep pushing forward. Every step counts.
+              </Text>
+            </View>
+            <IconButton
+              icon="add"
+              onPress={handleAddFirstDream}
+              variant="primary"
+              size="md"
+            />
+          </View>
         </View>
 
         {mockDreams.map((dream) => (
@@ -145,13 +166,6 @@ const DreamsPage = () => {
           />
         ))}
 
-        <View style={styles.footer}>
-          <Button
-            title="Add New Dream"
-            variant="outline"
-            onPress={handleAddFirstDream}
-          />
-        </View>
       </ScrollView>
     </View>
   );
@@ -172,6 +186,14 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: theme.spacing.lg,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 32,
