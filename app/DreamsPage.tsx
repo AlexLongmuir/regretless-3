@@ -152,7 +152,7 @@ const DreamsPage = () => {
             <IconButton
               icon="add"
               onPress={handleAddFirstDream}
-              variant="primary"
+              variant="secondary"
               size="md"
             />
           </View>

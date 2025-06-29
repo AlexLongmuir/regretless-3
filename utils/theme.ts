@@ -130,6 +130,8 @@ export const theme = {
       800: '#1F2937',
       900: '#111827',
     },
+    // Default grey for secondary buttons - iOS-style grey that stands out on white
+    defaultGrey: '#E5E7EB', // grey[300] - light enough to feel secondary but dark enough to be visible
   },
   // Icon system - Professional icon library using react-native-vector-icons
   // Use these icon configurations consistently throughout the app
@@ -154,6 +156,58 @@ export const theme = {
     add: {
       library: 'MaterialIcons' as const,
       name: 'add'
+    },
+    chevron_left: {
+      library: 'MaterialIcons' as const,
+      name: 'keyboard-arrow-left'
+    },
+    chevron_right: {
+      library: 'MaterialIcons' as const,
+      name: 'keyboard-arrow-right'
+    },
+    check_circle: {
+      library: 'MaterialIcons' as const,
+      name: 'check_circle'
+    },
+    remove_circle: {
+      library: 'MaterialIcons' as const,
+      name: 'remove_circle'
+    },
+    radio_button_unchecked: {
+      library: 'MaterialIcons' as const,
+      name: 'radio_button_unchecked'
+    },
+    keyboard_arrow_left: {
+      library: 'MaterialIcons' as const,
+      name: 'keyboard_arrow_left'
+    },
+    arrow_forward: {
+      library: 'MaterialIcons' as const,
+      name: 'arrow_forward'
+    },
+    notifications: {
+      library: 'MaterialIcons' as const,
+      name: 'notifications'
+    },
+    contact_support: {
+      library: 'MaterialIcons' as const,
+      name: 'support'
+    },
+    policy: {
+      library: 'MaterialIcons' as const,
+      name: 'description'
+    },
+    privacy_tip: {
+      library: 'MaterialIcons' as const,
+      name: 'security'
+    },
+    logout: {
+      library: 'MaterialIcons' as const,
+      name: 'exit-to-app'
+    },
+    delete_forever: {
+      library: 'MaterialIcons' as const,
+      name: 'delete'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },

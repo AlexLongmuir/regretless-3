@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
-import { Button } from '../components/Button';
-import { Icon } from '../components/Icon';
+import { ListRow } from '../components/ListRow';
 
 const ProfilePage = () => {
   const { user, signOut, loading } = useAuthContext();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -69,44 +69,67 @@ const ProfilePage = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-        </View>
-
-        {/* User Info */}
-        <View style={styles.userSection}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
+        {/* Profile Picture */}
+        <View style={styles.profilePictureContainer}>
+          <View style={styles.profilePicture}>
+            <Text style={styles.profilePictureText}>
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </Text>
           </View>
-          <Text style={styles.userEmail}>{user?.email || 'No email'}</Text>
-          <Text style={styles.userJoined}>
-            Member since {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
-          </Text>
         </View>
 
-        {/* Account Actions */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          
-          <Button
-            title="Sign Out"
-            onPress={handleLogout}
-            variant="outline"
-            disabled={loading}
-            style={styles.actionButton}
-          />
+        {/* User Name */}
+        <Text style={styles.userName}>
+          {user?.email?.split('@')[0] || 'User'}
+        </Text>
 
-          <Button
+        {/* Join Date */}
+        <Text style={styles.joinDate}>
+          Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '01/01/2020'}
+        </Text>
+
+        {/* Stats */}
+        <Text style={styles.stats}>
+          6 Dreams Created • 3 Completed
+        </Text>
+
+        {/* Settings List */}
+        <View style={styles.listContainer}>
+          <ListRow
+            title="Enable Notifications"
+            leftIcon="notifications"
+            rightElement="toggle"
+            toggleValue={notificationsEnabled}
+            onToggleChange={setNotificationsEnabled}
+            isFirst={true}
+          />
+          <ListRow
+            title="Contact Us"
+            leftIcon="contact_support"
+            onPress={() => Alert.alert('Contact Us', 'Feature coming soon')}
+          />
+          <ListRow
+            title="Terms & Services"
+            leftIcon="policy"
+            onPress={() => Alert.alert('Terms & Services', 'Feature coming soon')}
+          />
+          <ListRow
+            title="Privacy Policy"
+            leftIcon="privacy_tip"
+            onPress={() => Alert.alert('Privacy Policy', 'Feature coming soon')}
+          />
+          <ListRow
+            title="Log Out"
+            leftIcon="logout"
+            onPress={handleLogout}
+            variant="destructive"
+          />
+          <ListRow
             title="Delete Account"
+            leftIcon="delete_forever"
             onPress={handleDeleteAccount}
-            variant="outline"
-            disabled={loading}
-            style={[styles.actionButton, styles.deleteButton]}
+            variant="destructive"
+            isLast={true}
           />
         </View>
       </ScrollView>
@@ -120,71 +143,60 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface[50],
   },
   content: {
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: 0,
   },
-  header: {
-    marginBottom: theme.spacing.xl,
+  profilePictureContainer: {
+    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+    width: '100%',
   },
-  title: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.largeTitle,
-    fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: theme.typography.lineHeight.largeTitle,
-    color: theme.colors.primary[600],
-  },
-  userSection: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl * 2,
-  },
-  avatarContainer: {
-    marginBottom: theme.spacing.md,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  profilePicture: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 10,
     backgroundColor: theme.colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: {
+  profilePictureText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title1,
+    fontSize: 160,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.surface[50],
   },
-  userEmail: {
+  userName: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title3,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    lineHeight: theme.typography.lineHeight.title3,
+    fontSize: theme.typography.fontSize.title1,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    lineHeight: theme.typography.lineHeight.title1,
     color: theme.colors.grey[800],
     marginBottom: theme.spacing.xs,
+    textAlign: 'left',
   },
-  userJoined: {
+  joinDate: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
     color: theme.colors.grey[600],
+    marginBottom: theme.spacing.xs,
+    textAlign: 'left',
   },
-  actionsSection: {
-    marginTop: theme.spacing.lg,
-  },
-  sectionTitle: {
+  stats: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.headline,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    lineHeight: theme.typography.lineHeight.headline,
-    color: theme.colors.grey[800],
-    marginBottom: theme.spacing.md,
+    fontSize: theme.typography.fontSize.subheadline,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: theme.typography.lineHeight.subheadline,
+    color: theme.colors.grey[600],
+    marginBottom: theme.spacing.lg,
+    textAlign: 'left',
   },
-  actionButton: {
+  listContainer: {
     width: '100%',
-    marginBottom: theme.spacing.md,
-  },
-  deleteButton: {
-    borderColor: theme.colors.error[500],
+    backgroundColor: theme.colors.primary[50],
+    borderRadius: 10,
+    overflow: 'hidden',
   },
 });
 

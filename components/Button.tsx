@@ -7,7 +7,7 @@ interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   style?: ViewStyle;
   icon?: keyof typeof theme.icons;
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Icon 
             name={icon} 
             size={20} 
-            color="white"
+            color={variant === 'secondary' ? theme.colors.grey[800] : "white"}
           />
         )}
         <Text style={[
@@ -61,6 +61,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: theme.radius.md,
   },
+  xs: {
+    paddingHorizontal: theme.spacing.xs,
+    paddingVertical: 2,
+    minHeight: 24,
+  },
   sm: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
@@ -80,7 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[600],
   },
   secondary: {
-    backgroundColor: theme.colors.secondary[500],
+    backgroundColor: theme.colors.defaultGrey,
   },
   outline: {
     backgroundColor: theme.colors.primary[600],
@@ -101,7 +106,7 @@ const styles = StyleSheet.create({
     color: theme.colors.surface[50],
   },
   secondaryText: {
-    color: theme.colors.surface[50],
+    color: theme.colors.grey[800],
   },
   outlineText: {
     color: theme.colors.surface[50],

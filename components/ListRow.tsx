@@ -1,0 +1,165 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { theme } from '../utils/theme';
+import { Icon } from './Icon';
+
+interface ListRowProps {
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  showChevron?: boolean;
+  leftIcon?: string;
+  rightElement?: 'chevron' | 'toggle' | React.ReactNode;
+  toggleValue?: boolean;
+  onToggleChange?: (value: boolean) => void;
+  variant?: 'default' | 'destructive';
+  isFirst?: boolean;
+  isLast?: boolean;
+}
+
+export const ListRow: React.FC<ListRowProps> = ({
+  title,
+  subtitle,
+  onPress,
+  leftIcon,
+  rightElement = 'chevron',
+  toggleValue = false,
+  onToggleChange,
+  variant = 'default',
+  isFirst = false,
+  isLast = false,
+}) => {
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    }
+  };
+
+  const renderRightElement = () => {
+    if (rightElement === 'toggle') {
+      return (
+        <Switch
+          value={toggleValue}
+          onValueChange={onToggleChange}
+          trackColor={{ false: theme.colors.grey[300], true: theme.colors.primary[500] }}
+          thumbColor={toggleValue ? theme.colors.primary[600] : theme.colors.surface[50]}
+        />
+      );
+    }
+    
+    if (rightElement === 'chevron') {
+      return (
+        <Icon 
+          name="chevron_right" 
+          size={24} 
+          color={theme.colors.grey[400]} 
+        />
+      );
+    }
+
+    if (React.isValidElement(rightElement)) {
+      return rightElement;
+    }
+
+    return null;
+  };
+
+  const containerStyle = [
+    styles.container,
+    isFirst && styles.firstRow,
+    isLast && styles.lastRow,
+    variant === 'destructive' && styles.destructiveRow,
+  ];
+
+  const titleStyle = [
+    styles.title,
+    variant === 'destructive' && styles.destructiveTitle,
+  ];
+
+  return (
+    <TouchableOpacity
+      style={containerStyle}
+      onPress={handlePress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
+      <View style={styles.content}>
+        {leftIcon && (
+          <View style={styles.leftIconContainer}>
+            <Icon 
+              name={leftIcon} 
+              size={20} 
+              color={variant === 'destructive' ? theme.colors.error[500] : theme.colors.grey[600]} 
+            />
+          </View>
+        )}
+        
+        <View style={styles.textContainer}>
+          <Text style={titleStyle}>{title}</Text>
+          {subtitle && (
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          )}
+        </View>
+        
+        <View style={styles.rightContainer}>
+          {renderRightElement()}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0.5,
+    borderBottomColor: theme.colors.primary[100],
+    minHeight: 44,
+  },
+  firstRow: {
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  lastRow: {
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    borderBottomWidth: 0,
+  },
+  destructiveRow: {
+    // No additional styling needed, handled by text color
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    minHeight: 44,
+  },
+  leftIconContainer: {
+    marginRight: theme.spacing.sm,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  title: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.body,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: theme.typography.lineHeight.body,
+    color: theme.colors.grey[800],
+  },
+  destructiveTitle: {
+    color: theme.colors.error[500],
+  },
+  subtitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.caption1,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: theme.typography.lineHeight.caption1,
+    color: theme.colors.grey[600],
+    marginTop: 2,
+  },
+  rightContainer: {
+    marginLeft: theme.spacing.sm,
+  },
+});

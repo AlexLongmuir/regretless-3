@@ -23,6 +23,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   const iconSize = size === 'sm' ? 18 : size === 'lg' ? 28 : 24;
   const iconColor = variant === 'ghost' 
     ? theme.colors.grey[700] 
+    : variant === 'secondary'
+    ? theme.colors.grey[800]
     : theme.colors.surface[50];
 
   return (
@@ -68,7 +70,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[600],
   },
   secondary: {
-    backgroundColor: theme.colors.secondary[500],
+    backgroundColor: theme.colors.defaultGrey,
   },
   ghost: {
     backgroundColor: 'transparent',

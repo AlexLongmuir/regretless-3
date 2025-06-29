@@ -1,16 +1,56 @@
 import React from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { theme } from '../utils/theme';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+
+interface UtilityTool {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  onPress: () => void;
+}
 
 const UtilitiesPage = () => {
+  const tools: UtilityTool[] = [
+    {
+      id: 'dream-board-converter',
+      title: 'Dream Board Converter',
+      description: 'Convert dream boards into suggested goals',
+      icon: 'transform',
+      onPress: () => console.log('Dream Board Converter pressed'),
+    },
+  ];
+
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Utilities</Text>
-        <Text style={styles.subtitle}>Helpful tools and utilities</Text>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>Tools</Text>
+              <Text style={styles.subtitle}>Helpful tools and utilities</Text>
+            </View>
+          </View>
+        </View>
         
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>Utility tools will be available here</Text>
+        <View style={styles.toolsGrid}>
+          {tools.map((tool) => (
+            <Pressable
+              key={tool.id}
+              style={styles.toolCard}
+              onPress={tool.onPress}
+            >
+              <View style={styles.toolIconContainer}>
+                <Icon name={tool.icon} size={40} color={theme.colors.surface[50]} />
+              </View>
+              <View style={styles.toolContent}>
+                <Text style={styles.toolTitle}>{tool.title}</Text>
+                <Text style={styles.toolDescription}>{tool.description}</Text>
+              </View>
+            </Pressable>
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -26,35 +66,76 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: 60,
+    paddingBottom: theme.spacing.xl,
+  },
+  header: {
+    marginBottom: theme.spacing.lg,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.grey[900],
-    marginBottom: theme.spacing.sm,
-    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
     color: theme.colors.grey[600],
-    marginBottom: theme.spacing.lg,
-    textAlign: 'center',
+    lineHeight: 22,
+    textAlign: 'left',
   },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
+  toolsGrid: {
+    gap: theme.spacing.md,
+  },
+  toolCard: {
+    backgroundColor: theme.colors.primary[600],
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.xl,
-    marginTop: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+    elevation: 4,
+    shadowColor: theme.colors.primary[900],
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  placeholderText: {
-    fontSize: 16,
-    color: theme.colors.grey[500],
-    textAlign: 'center',
+  toolIconContainer: {
+    marginRight: theme.spacing.lg,
+  },
+  toolContent: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  toolTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.surface[50],
+    marginBottom: theme.spacing.sm,
+    textAlign: 'left',
+    flexWrap: 'wrap',
+  },
+  toolDescription: {
+    fontSize: 14,
+    color: theme.colors.surface[50],
+    opacity: 0.9,
+    textAlign: 'left',
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
 });
 
