@@ -4,7 +4,7 @@ import { theme } from '../utils/theme';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { JournalCard } from '../components/JournalCard';
 
-const JournalPage = () => {
+const JournalPage = ({ navigation }: { navigation?: any }) => {
   const [journalTitle, setJournalTitle] = useState('');
   const [journalContent, setJournalContent] = useState('');
   const [moodRating, setMoodRating] = useState(5);

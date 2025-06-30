@@ -11,7 +11,7 @@ interface UtilityTool {
   onPress: () => void;
 }
 
-const UtilitiesPage = () => {
+const UtilitiesPage = ({ navigation }: { navigation?: any }) => {
   const tools: UtilityTool[] = [
     {
       id: 'dream-board-converter',

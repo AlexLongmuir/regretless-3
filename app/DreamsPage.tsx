@@ -109,9 +109,37 @@ const mockDreams: Dream[] = [
   },
 ];
 
-const DreamsPage = () => {
+const DreamsPage = ({ navigation }: { navigation?: any }) => {
   const handleDreamPress = (dreamId: string) => {
-    console.log('Dream pressed:', dreamId);
+    const dream = mockDreams.find(d => d.id === dreamId);
+    if (dream && navigation?.navigate) {
+      navigation.navigate('Dream', {
+        dreamId: dream.id,
+        title: dream.title,
+        progressPercentage: dream.progressPercentage,
+        streakCount: dream.streakCount,
+        daysRemaining: dream.daysRemaining,
+        currentDay: dream.currentDay,
+        totalDays: dream.totalDays,
+        backgroundImages: dream.backgroundImages,
+        recentPhotos: dream.recentPhotos,
+        completedActions: Math.floor(dream.progressPercentage / 100 * 15), // Mock calculation
+        totalActions: 15, // Mock total actions
+        recentCompletedActions: [
+          { id: '1', title: 'Practice daily routine', completedDate: 'Today' },
+          { id: '2', title: 'Complete milestone task', completedDate: 'Yesterday' },
+          { id: '3', title: 'Record progress', completedDate: '2 days ago' },
+          { id: '4', title: 'Review goals', completedDate: '3 days ago' }
+        ],
+        actions: [
+          { id: '1', title: `Practice ${dream.title.split(' ')[1] || 'skills'}`, description: 'Focus on daily practice routine', dueDate: 'Today', estimatedTime: 45, status: 'todo' },
+          { id: '2', title: 'Review technique', description: 'Study and improve current methods', dueDate: 'Tomorrow', estimatedTime: 30, status: 'todo' },
+          { id: '3', title: 'Record progress', description: 'Document current achievements', dueDate: 'This week', estimatedTime: 20, status: 'todo' },
+          { id: '4', title: 'Plan next steps', description: 'Outline upcoming goals and milestones', dueDate: 'This week', estimatedTime: 25, status: 'todo' }
+        ],
+        nextMilestone: dream.nextMilestone,
+      });
+    }
   };
 
   const handleAddFirstDream = () => {

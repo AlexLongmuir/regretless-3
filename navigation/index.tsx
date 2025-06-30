@@ -36,6 +36,8 @@ import JournalPage from '../app/JournalPage';
 import UtilitiesPage from '../app/UtilitiesPage';
 import LoginPage from '../app/LoginPage';
 import AuthLoadingPage from '../app/AuthLoadingPage';
+import ActionPage from '../app/ActionPage';
+import DreamPage from '../app/DreamPage';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -62,9 +64,9 @@ const AuthNavigator = () => (
 );
 
 /**
- * MainNavigator - Navigation for authenticated users
+ * TabNavigator - Tab-based navigation for authenticated users
  * 
- * This navigator handles the main app experience for logged-in users.
+ * This navigator handles the main tab-based experience for logged-in users.
  * It uses a custom tab navigation approach rather than React Navigation's
  * bottom tabs to match your existing design.
  * 
@@ -72,11 +74,8 @@ const AuthNavigator = () => (
  * 1. State tracks which tab is active
  * 2. BottomNavigation component handles tab switching
  * 3. Screen content changes based on active tab
- * 
- * Alternative approach: You could replace this with React Navigation's
- * createBottomTabNavigator for more standard navigation patterns.
  */
-const MainNavigator = () => {
+const TabNavigator = ({ navigation }: any) => {
   const [activeTab, setActiveTab] = useState('Dreams');
 
   /**
@@ -88,36 +87,34 @@ const MainNavigator = () => {
   };
 
   /**
-   * Get the appropriate screen component based on active tab
-   * This is a simple way to handle tab navigation without React Navigation tabs
+   * Render screen component with navigation prop
    */
-  const getScreenComponent = () => {
+  const renderScreen = () => {
+    const commonProps = { navigation };
+    
     switch (activeTab) {
       case 'Dreams':
-        return DreamsPage;
+        return <DreamsPage {...commonProps} />;
       case 'Comps':
-        return HomePage;
+        return <HomePage {...commonProps} />;
       case 'Today':
-        return TodayPage;
+        return <TodayPage {...commonProps} />;
       case 'Journal':
-        return JournalPage;
+        return <JournalPage {...commonProps} />;
       case 'Utilities':
-        return UtilitiesPage;
+        return <UtilitiesPage {...commonProps} />;
       case 'Profile':
-        return ProfilePage;
+        return <ProfilePage {...commonProps} />;
       default:
-        return DreamsPage;
+        return <DreamsPage {...commonProps} />;
     }
   };
-
-  // Get the component for the currently active tab
-  const ScreenComponent = getScreenComponent();
 
   return (
     <View style={styles.container}>
       {/* Main content area - renders the active tab's screen */}
       <View style={styles.screenContainer}>
-        <ScreenComponent />
+        {renderScreen()}
       </View>
       
       {/* Bottom navigation - always visible for authenticated users */}
@@ -128,6 +125,20 @@ const MainNavigator = () => {
     </View>
   );
 };
+
+/**
+ * MainNavigator - Stack navigation for authenticated users
+ * 
+ * This navigator handles the main app navigation with stack-based routing.
+ * It includes the main tab-based interface and modal/detail screens.
+ */
+const MainNavigator = () => (
+  <MainStack.Navigator screenOptions={{ headerShown: false }}>
+    <MainStack.Screen name="Tabs" component={TabNavigator} />
+    <MainStack.Screen name="Action" component={ActionPage} />
+    <MainStack.Screen name="Dream" component={DreamPage} />
+  </MainStack.Navigator>
+);
 
 /**
  * AppNavigator - Main app navigation logic
@@ -235,7 +246,7 @@ const styles = StyleSheet.create({
   },
 });
 
-/**
+/**d
  * Root Navigation Component
  * 
  * This is the main export that gets used in App.tsx or layout.tsx.

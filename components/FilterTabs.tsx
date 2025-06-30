@@ -5,7 +5,7 @@ import { theme } from '../utils/theme';
 interface FilterOption {
   key: string;
   label: string;
-  count: number;
+  count?: number;
 }
 
 interface FilterTabsProps {
@@ -39,17 +39,19 @@ export const FilterTabs: React.FC<FilterTabsProps> = ({
             ]}>
               {option.label}
             </Text>
-            <View style={[
-              styles.countBadge,
-              isActive && styles.activeCountBadge,
-            ]}>
-              <Text style={[
-                styles.count,
-                isActive && styles.activeCount,
+            {option.count !== undefined && (
+              <View style={[
+                styles.countBadge,
+                isActive && styles.activeCountBadge,
               ]}>
-                {option.count}
-              </Text>
-            </View>
+                <Text style={[
+                  styles.count,
+                  isActive && styles.activeCount,
+                ]}>
+                  {option.count}
+                </Text>
+              </View>
+            )}
           </Pressable>
         );
       })}

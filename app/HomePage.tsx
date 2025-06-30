@@ -12,7 +12,7 @@ import { LoaderOverlay } from '../components/LoaderOverlay';
 import { Progress } from '../components/Progress';
 import { Switch } from '../components/Switch';
 
-const HomePage = () => {
+const HomePage = ({ navigation }: { navigation?: any }) => {
   const [inputValue, setInputValue] = useState('');
   const [switchValue, setSwitchValue] = useState(false);
   const [selectedChip, setSelectedChip] = useState(false);

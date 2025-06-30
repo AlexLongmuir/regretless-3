@@ -11,6 +11,7 @@ interface ActionItem {
   description?: string;
   status: 'todo' | 'done' | 'skipped';
   priority: 'low' | 'medium' | 'high';
+  dueDate?: string;
 }
 
 const inspirationalQuotes = [
@@ -26,42 +27,39 @@ const inspirationalQuotes = [
 const mockActions: ActionItem[] = [
   {
     id: '1',
-    title: 'Practice piano for 30 minutes',
-    description: 'Focus on Chopin Etude No. 1',
+    title: 'Practice Piano',
+    description: 'Focus on daily practice routine',
     status: 'todo',
-    priority: 'high'
+    priority: 'high',
+    dueDate: '2025-01-07'
   },
   {
     id: '2',
-    title: 'Morning run - 5km',
-    description: 'Track pace and heart rate',
-    status: 'done',
-    priority: 'high'
+    title: 'Review technique',
+    description: 'Study and improve current methods',
+    status: 'todo',
+    priority: 'high',
+    dueDate: '2025-01-08'
   },
   {
     id: '3',
-    title: 'Japanese flashcards review',
-    description: '50 new vocabulary words',
-    status: 'todo',
-    priority: 'medium'
+    title: 'Record progress',
+    description: 'Document current achievements',
+    status: 'done',
+    priority: 'medium',
+    dueDate: '2025-01-06'
   },
   {
     id: '4',
-    title: 'Code review session',
-    description: 'Review authentication module',
-    status: 'skipped',
-    priority: 'low'
-  },
-  {
-    id: '5',
-    title: 'Read for 20 minutes',
-    description: 'Continue "Atomic Habits"',
+    title: 'Plan next steps',
+    description: 'Outline upcoming goals and milestones',
     status: 'todo',
-    priority: 'low'
+    priority: 'low',
+    dueDate: '2025-01-09'
   }
 ];
 
-const TodayPage = () => {
+const TodayPage = ({ navigation }: { navigation?: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeFilter, setActiveFilter] = useState('todo');
   const [actions, setActions] = useState<ActionItem[]>(mockActions);
@@ -107,7 +105,24 @@ const TodayPage = () => {
   const filteredActions = actions.filter(action => action.status === activeFilter);
 
   const handleActionPress = (actionId: string) => {
-    console.log('Action pressed:', actionId);
+    const action = actions.find(a => a.id === actionId);
+    if (action && navigation) {
+      navigation.navigate('Action', {
+        actionId: action.id,
+        goalName: 'Learn Piano in 90 days', // This would come from the action's associated goal
+        actionTitle: action.title,
+        actionDescription: action.description || 'Complete this action to progress toward your goal.',
+        aiTip: `Here's a tip for "${action.title}": Break this task into smaller 15-minute chunks to make it more manageable and build momentum.`,
+        dueDate: 'Today',
+        frequency: 'daily',
+        estimatedTime: 30,
+        inspirationImages: [
+          'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop',
+          'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop'
+        ]
+      });
+    }
   };
 
   const handleStatusChange = (actionId: string, newStatus: 'todo' | 'done' | 'skipped') => {
@@ -182,6 +197,7 @@ const TodayPage = () => {
               description={action.description}
               status={action.status}
               priority={action.priority}
+              dueDate={action.dueDate}
               onPress={handleActionPress}
               onStatusChange={handleStatusChange}
             />

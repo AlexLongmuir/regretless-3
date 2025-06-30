@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
     height: 40,
   },
   lg: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
   },
   primary: {
     backgroundColor: theme.colors.primary[600],

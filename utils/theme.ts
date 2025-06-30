@@ -11,7 +11,7 @@ export const theme = {
       500: '#1991B9',
       600: '#0F2A3F', // Main primary color - Dark mysterious blue
       700: '#0C2235',
-      800: '#091A2B',
+      800: '#091A2B', // Second primary color - Darker blue
       900: '#061221',
     },
     secondary: {
@@ -132,6 +132,13 @@ export const theme = {
     },
     // Default grey for secondary buttons - iOS-style grey that stands out on white
     defaultGrey: '#E5E7EB', // grey[300] - light enough to feel secondary but dark enough to be visible
+  },
+  gradients: {
+    magical: {
+      colors: ['primary.200', 'primary.100', 'success.100', 'pink.200'],
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
+    },
   },
   // Icon system - Professional icon library using react-native-vector-icons
   // Use these icon configurations consistently throughout the app

@@ -15,6 +15,7 @@ interface ActionCardProps {
   repeatInterval?: number;
   estimatedTime?: number;
   inspirationImages?: string[];
+  dueDate?: string;
   onPress: (id: string) => void;
   onStatusChange: (id: string, status: 'todo' | 'done' | 'skipped') => void;
 }
@@ -30,6 +31,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   repeatInterval,
   estimatedTime,
   inspirationImages = [],
+  dueDate,
   onPress,
   onStatusChange,
 }) => {
@@ -59,7 +61,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   };
 
   const getFrequencyIcon = () => {
-    if (frequency === 'once') return 'today';
+    if (frequency === 'once') return 'repeat';
     return 'repeat';
   };
 
@@ -103,25 +105,18 @@ export const ActionCard: React.FC<ActionCardProps> = ({
   const defaultImages = selectedDream.images;
   const finalDreamTitle = dreamTitle || selectedDream.title;
 
-  const backgroundImages = inspirationImages.length > 0 ? inspirationImages : defaultImages;
-  const primaryImage = backgroundImages[0];
+  // Prioritize user-uploaded images over dream example images
+  const primaryImage = inspirationImages.length > 0 ? inspirationImages[0] : defaultImages[0];
 
-  const handleStatusPress = () => {
-    const nextStatus = status === 'todo' ? 'done' : status === 'done' ? 'skipped' : 'todo';
-    onStatusChange(id, nextStatus);
+  const formatDueDate = () => {
+    if (!dueDate) return { day: '', month: '' };
+    const date = new Date(dueDate);
+    if (isNaN(date.getTime())) return { day: '', month: '' };
+    const day = date.getDate().toString();
+    const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+    return { day, month };
   };
 
-  const getStatusButtonText = () => {
-    switch (status) {
-      case 'done':
-        return 'Undo';
-      case 'skipped':
-        return 'Undo';
-      case 'todo':
-      default:
-        return 'Mark Done';
-    }
-  };
 
   return (
     <View style={[
@@ -133,52 +128,50 @@ export const ActionCard: React.FC<ActionCardProps> = ({
         style={styles.card}
         onPress={() => onPress(id)}
       >
-        <View style={styles.dreamTitleSection}>
-          <Text style={styles.dreamTitle} numberOfLines={1}>
-            {finalDreamTitle}
-          </Text>
-        </View>
-        
-        <View style={styles.imageSection}>
-          <Image 
-            source={{ uri: primaryImage }} 
-            style={styles.backgroundImage}
-          />
-          
-          <View style={styles.imageOverlay}>
-            <View style={styles.actionDetailsSection}>
-              <Text style={styles.actionTitle} numberOfLines={2}>
-                {title}
-              </Text>
-              
-              {description && (
-                <Text style={styles.actionDescription} numberOfLines={3}>
-                  {description}
-                </Text>
-              )}
-              
-              <View style={styles.metaRow}>
-                <View style={styles.metaLeft}>
-                  <View style={styles.metaContainer}>
-                    <View style={styles.frequencyContainer}>
-                      <Icon name={getFrequencyIcon()} size={16} color={theme.colors.grey[300]} />
-                      <Text style={styles.frequencyText}>{getFrequencyText()}</Text>
-                    </View>
-                    
-                    <View style={styles.timeContainer}>
-                      <Icon name="schedule" size={16} color={theme.colors.grey[300]} />
-                      <Text style={styles.timeText}>{estimatedTime ? formatEstimatedTime() : '5min'}</Text>
-                    </View>
-                  </View>
+        <View style={[
+          styles.actionSection,
+          status === 'done' && styles.doneActionSection
+        ]}>
+          <View style={styles.imageContainer}>
+            <Image 
+              source={{ uri: primaryImage }} 
+              style={styles.actionImage}
+            />
+            {status === 'done' && (
+              <View style={styles.doneOverlay}>
+                <View style={styles.checkCircle}>
+                  <Icon name="check" size={20} color={theme.colors.surface[50]} />
                 </View>
-                
-                <Button
-                  title={getStatusButtonText()}
-                  onPress={handleStatusPress}
-                  variant="secondary"
-                  size="xs"
-                  style={styles.statusButton}
-                />
+              </View>
+            )}
+            {status === 'todo' && dueDate && (
+              <View style={styles.dueDateOverlay}>
+                <Text style={styles.dueDateDay}>{formatDueDate().day}</Text>
+                <Text style={styles.dueDateMonth}>{formatDueDate().month}</Text>
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.actionDetailsSection}>
+            <Text style={styles.actionTitle} numberOfLines={2}>
+              {title}
+            </Text>
+            
+            {description && (
+              <Text style={styles.actionDescription} numberOfLines={3}>
+                {description}
+              </Text>
+            )}
+            
+            <View style={styles.metaContainer}>
+              <View style={styles.frequencyContainer}>
+                <Icon name={getFrequencyIcon()} size={16} color={status === 'done' ? theme.colors.surface[50] : theme.colors.grey[500]} />
+                <Text style={styles.frequencyText}>{getFrequencyText()}</Text>
+              </View>
+              
+              <View style={styles.timeContainer}>
+                <Icon name="schedule" size={16} color={status === 'done' ? theme.colors.surface[50] : theme.colors.grey[500]} />
+                <Text style={styles.timeText}>{estimatedTime ? formatEstimatedTime() : '5min'}</Text>
               </View>
             </View>
           </View>
@@ -190,7 +183,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     borderRadius: theme.radius.xl,
     overflow: 'hidden',
     elevation: 8,
@@ -205,7 +198,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.grey[300],
   },
   doneContainer: {
-    opacity: 0.7,
+    borderColor: theme.colors.success[300],
+    borderWidth: 2,
   },
   skippedContainer: {
     opacity: 0.5,
@@ -214,48 +208,49 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     overflow: 'hidden',
   },
-  dreamTitleSection: {
+  actionSection: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.primary[600],
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    padding: theme.spacing.sm,
+    alignItems: 'center',
+    gap: theme.spacing.md,
   },
-  dreamTitle: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.subheadline,
-    fontWeight: theme.typography.fontWeight.regular as any,
-    lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.surface[50],
-    textAlign: 'left',
+  doneActionSection: {
+    backgroundColor: theme.colors.success[600],
   },
-  imageSection: {
+  imageContainer: {
     position: 'relative',
-    minHeight: 120,
   },
-  backgroundImage: {
+  actionImage: {
+    width: 90,
+    height: 90,
+    borderRadius: theme.radius.lg,
+  },
+  doneOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    width: '100%',
-    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: theme.radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  imageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: `${theme.colors.primary[600]}CC`,
-    padding: theme.spacing.md,
-    justifyContent: 'flex-start',
+  checkCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.success[500],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionDetailsSection: {
-    marginBottom: theme.spacing.md,
+    flex: 1,
   },
   actionTitle: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title3,
+    fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.surface[50],
     marginBottom: theme.spacing.sm,
@@ -263,19 +258,11 @@ const styles = StyleSheet.create({
   },
   actionDescription: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.callout,
+    fontSize: theme.typography.fontSize.footnote,
     color: theme.colors.surface[50],
     marginBottom: theme.spacing.md,
     textAlign: 'left',
     opacity: 0.9,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  metaLeft: {
-    flex: 1,
   },
   metaContainer: {
     flexDirection: 'row',
@@ -290,7 +277,7 @@ const styles = StyleSheet.create({
   frequencyText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
-    color: theme.colors.grey[300],
+    color: theme.colors.grey[200],
     fontWeight: theme.typography.fontWeight.medium as any,
   },
   timeContainer: {
@@ -301,10 +288,41 @@ const styles = StyleSheet.create({
   timeText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
-    color: theme.colors.grey[300],
+    color: theme.colors.grey[200],
     fontWeight: theme.typography.fontWeight.medium as any,
   },
-  statusButton: {
-    // xs size and secondary variant styles will be applied automatically
+  dueDateOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 32,
+  },
+  dueDateDay: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 28,
+    color: theme.colors.surface[50],
+    fontWeight: theme.typography.fontWeight.bold as any,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    lineHeight: 28,
+  },
+  dueDateMonth: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.caption2,
+    color: theme.colors.surface[50],
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    textTransform: 'uppercase',
+    lineHeight: 12,
+    marginTop: -2,
   },
 });

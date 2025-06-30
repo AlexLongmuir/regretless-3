@@ -5,7 +5,7 @@ import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { ListRow } from '../components/ListRow';
 
-const ProfilePage = () => {
+const ProfilePage = ({ navigation }: { navigation?: any }) => {
   const { user, signOut, loading } = useAuthContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
