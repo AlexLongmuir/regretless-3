@@ -1,15 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, Image } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { OptionsPopover } from '../components/OptionsPopover';
-import { PhotoProgressCard } from '../components/PhotoProgressCard';
-import { ActionsPreviewCard } from '../components/ActionsPreviewCard';
 import { FilterTabs } from '../components/FilterTabs';
 import { ActionCard } from '../components/ActionCard';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { ListRow } from '../components/ListRow';
+import { AITip } from '../components/AITip';
 
 interface DreamPageProps {
   route?: {
@@ -56,20 +56,9 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     title = 'Sample Dream',
     progressPercentage = 45,
     streakCount = 12,
-    daysRemaining = 45,
     currentDay = 45,
     totalDays = 90,
-    backgroundImages = [],
-    recentPhotos = [],
-    completedActions = 8,
-    totalActions = 12,
-    recentCompletedActions = [
-      { id: '1', title: 'Practice scales for 30 minutes', completedDate: 'Today' },
-      { id: '2', title: 'Learn new chord progression', completedDate: 'Yesterday' },
-      { id: '3', title: 'Record practice session', completedDate: '2 days ago' },
-      { id: '4', title: 'Watch piano tutorial video', completedDate: '3 days ago' }
-    ],
-    nextMilestone
+    backgroundImages = []
   } = params;
 
   const defaultActions: Array<{
@@ -80,37 +69,22 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     estimatedTime: number;
     status: 'todo' | 'done' | 'skipped';
   }> = [
-    { id: '1', title: 'Practice Chopin Etude No. 1', description: 'Focus on finger technique and tempo control', dueDate: '2025-01-07', estimatedTime: 45, status: 'todo' },
-    { id: '2', title: 'Learn new chord progression', description: 'Practice C-Am-F-G progression with different rhythms', dueDate: '2025-01-08', estimatedTime: 30, status: 'todo' },
-    { id: '3', title: 'Record practice session', description: 'Record yourself playing the current piece for review', dueDate: '2025-01-09', estimatedTime: 20, status: 'done' },
-    { id: '4', title: 'Watch advanced technique video', description: 'Study hand positioning and dynamics', dueDate: '2025-01-10', estimatedTime: 25, status: 'todo' }
+    { id: '1', title: 'Practice Chopin Etude No. 1', description: 'Focus on finger technique and tempo control', dueDate: '2025-01-07', estimatedTime: 45, status: 'done' },
+    { id: '2', title: 'Learn new chord progression', description: 'Practice C-Am-F-G progression with different rhythms', dueDate: '2025-01-08', estimatedTime: 30, status: 'done' },
+    { id: '3', title: 'Record practice session', description: 'Record yourself playing the current piece for review', dueDate: '2025-01-09', estimatedTime: 20, status: 'todo' },
+    { id: '4', title: 'Watch advanced technique video', description: 'Study hand positioning and dynamics', dueDate: '2025-01-10', estimatedTime: 25, status: 'todo' },
+    { id: '5', title: 'Practice scales and arpeggios', description: 'Work on major and minor scales with proper fingering', dueDate: '2025-01-11', estimatedTime: 35, status: 'todo' }
   ];
 
   const [actions, setActions] = useState(defaultActions);
   
   console.log('DreamPage actions:', actions.map(a => ({ id: a.id, title: a.title, status: a.status })));
-  const [inputText, setInputText] = useState('');
   const [showOptionsModal, setShowOptionsModal] = useState(false);
-  const [hasPhotos, setHasPhotos] = useState(recentPhotos.length > 0);
-  const [photoButtonPosition, setPhotoButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>(undefined);
-  const photoButtonRef = useRef<View>(null);
-  const [activeTab, setActiveTab] = useState('action');
   const [activeFilter, setActiveFilter] = useState('all');
 
   const handleBack = () => {
     if (navigation?.goBack) {
       navigation.goBack();
-    }
-  };
-
-  const handleAddPhoto = () => {
-    if (photoButtonRef.current) {
-      photoButtonRef.current.measure((_, __, width, height, pageX, pageY) => {
-        setPhotoButtonPosition({ x: pageX, y: pageY, width, height });
-        setShowOptionsModal(true);
-      });
-    } else {
-      setShowOptionsModal(true);
     }
   };
 
@@ -126,13 +100,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
 
   const handleRemovePhotos = () => {
     console.log('Remove photos pressed');
-    setHasPhotos(false);
     // TODO: Implement remove photos functionality
-  };
-
-  const handleAddProgress = () => {
-    // TODO: Implement add progress functionality
-    console.log('Add progress pressed');
   };
 
   const handleAddAction = () => {
@@ -151,12 +119,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     ));
   };
 
-  const getTabOptions = () => {
-    return [
-      { key: 'action', label: 'Action' },
-      { key: 'progress', label: 'Progress' }
-    ];
-  };
 
   const getFilterCounts = () => {
     const todo = actions.filter(a => a.status === 'todo').length;
@@ -175,7 +137,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     : actions.filter(action => action.status === activeFilter);
 
   const getPhotoOptions = () => {
-    const options = [
+    return [
       {
         id: 'take-photo',
         icon: 'camera-alt',
@@ -188,19 +150,13 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         title: 'Photo Library',
         onPress: handlePhotoLibrary,
       },
-    ];
-
-    if (hasPhotos) {
-      options.push({
+      {
         id: 'remove-photos',
         icon: 'delete',
         title: 'Remove Photos',
-        destructive: true,
         onPress: handleRemovePhotos,
-      });
-    }
-
-    return options;
+      },
+    ];
   };
 
   const defaultImages = [
@@ -213,11 +169,14 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
 
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+    <>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <SafeAreaView style={styles.topSafeArea} />
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <View style={styles.header}>
           <IconButton
             icon="chevron_left"
@@ -229,108 +188,95 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-          <View style={styles.imagesSection}>
-            <View style={styles.imageGrid}>
-              {displayImages.map((image, index) => (
-                <Image 
-                  key={index}
-                  source={{ uri: image }} 
-                  style={[
-                    styles.inspirationImage,
-                    displayImages.length === 1 && styles.singleImage,
-                    displayImages.length === 2 && styles.twoImages,
-                    displayImages.length >= 3 && styles.threeImages,
-                  ]} 
-                />
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.titleSection}>
-            <Text style={styles.dayProgress}>DAY {currentDay} OF {totalDays}</Text>
-            <Text style={styles.dreamTitle}>{title}</Text>
-            
-            <View style={styles.metaRow}>
-              <Text style={styles.streakText}>🔥 {streakCount}D</Text>
-              <Text style={styles.interpunct}>•</Text>
-              
-              <Text style={styles.progressText}>{progressPercentage}% complete</Text>
-            </View>
-          </View>
-
-          <View style={styles.tabsContainer}>
-            <FilterTabs
-              options={getTabOptions()}
-              activeFilter={activeTab}
-              onFilterChange={setActiveTab}
-            />
-          </View>
-
-          {activeTab === 'action' && (
-            <>
-              <ActionsPreviewCard
-                actions={actions}
-                recentCompletedActions={recentCompletedActions}
-                onActionPress={(actionId) => {
-                  console.log('Action pressed:', actionId);
-                  // TODO: Navigate to ActionPage with action details
-                }}
-              />
-
-              <View style={styles.filtersContainer}>
-                <View style={styles.filtersWrapper}>
-                  <FilterTabs
-                    options={getFilterCounts()}
-                    activeFilter={activeFilter}
-                    onFilterChange={setActiveFilter}
-                  />
-                </View>
-                <IconButton
-                  icon="add"
-                  onPress={handleAddAction}
-                  variant="secondary"
-                  size="md"
-                  style={styles.addButton}
-                />
-              </View>
-
-              <View style={styles.actionsContainer}>
-                {filteredActions.map((action) => (
-                  <ActionCard
-                    key={action.id}
-                    id={action.id}
-                    title={action.title}
-                    description={action.description}
-                    status={action.status}
-                    dueDate={action.dueDate}
-                    estimatedTime={action.estimatedTime}
-                    onPress={handleActionPress}
-                    onStatusChange={handleStatusChange}
+          <View style={styles.topSection}>
+            <View style={styles.imagesSection}>
+              <View style={styles.imageGrid}>
+                {displayImages.map((image, index) => (
+                  <Image 
+                    key={index}
+                    source={{ uri: image }} 
+                    style={[
+                      styles.inspirationImage,
+                      displayImages.length === 1 && styles.singleImage,
+                      displayImages.length === 2 && styles.twoImages,
+                      displayImages.length >= 3 && styles.threeImages,
+                    ]} 
                   />
                 ))}
-                
-                {filteredActions.length === 0 && (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateText}>
-                      No {activeFilter} actions
-                    </Text>
-                  </View>
-                )}
               </View>
-            </>
-          )}
+            </View>
 
-          {activeTab === 'progress' && (
-            <PhotoProgressCard
-              recentImages={recentPhotos}
-              onAddPhoto={handleAddPhoto}
-              onTakePhoto={handleTakePhoto}
-              onPhotoLibrary={handlePhotoLibrary}
-              onAddProgress={handleAddProgress}
-              inputText={inputText}
-              onInputChange={setInputText}
+            <View style={styles.titleSection}>
+              <Text style={styles.dayProgress}>DAY {currentDay} OF {totalDays}</Text>
+              <Text style={styles.dreamTitle}>{title}</Text>
+              
+              <View style={styles.metaRow}>
+                <Text style={styles.streakText}>🔥 {streakCount}D</Text>
+                <Text style={styles.interpunct}>•</Text>
+                
+                <Text style={styles.progressText}>{progressPercentage}% complete</Text>
+              </View>
+            </View>
+
+            <View style={styles.progressSection}>
+              <ListRow
+                title="Progress"
+                leftIcon="analytics"
+                onPress={() => navigation?.navigate?.('Progress')}
+                rightElement="chevron"
+                variant="dark"
+                isFirst
+                isLast
+              />
+            </View>
+
+            <AITip 
+              tip="Keep going strong - you're making real progress!"
+              variant="dark"
+              style={styles.aiTipContainer}
             />
-          )}
+          </View>
+
+          <View style={styles.filtersContainer}>
+            <View style={styles.filtersWrapper}>
+              <FilterTabs
+                options={getFilterCounts()}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+              />
+            </View>
+            <IconButton
+              icon="add"
+              onPress={handleAddAction}
+              variant="secondary"
+              size="md"
+              style={styles.addButton}
+            />
+          </View>
+
+          <View style={styles.actionsContainer}>
+            {filteredActions.map((action) => (
+              <ActionCard
+                key={action.id}
+                id={action.id}
+                title={action.title}
+                description={action.description}
+                status={action.status}
+                dueDate={action.dueDate}
+                estimatedTime={action.estimatedTime}
+                onPress={handleActionPress}
+                onStatusChange={handleStatusChange}
+              />
+            ))}
+            
+            {filteredActions.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>
+                  No {activeFilter} actions
+                </Text>
+              </View>
+            )}
+          </View>
 
         </ScrollView>
 
@@ -338,22 +284,27 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           visible={showOptionsModal}
           onClose={() => setShowOptionsModal(false)}
           options={getPhotoOptions()}
-          triggerPosition={photoButtonPosition}
         />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
+  topSafeArea: {
+    flex: 0,
+    backgroundColor: theme.colors.primary[600],
+  },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: 'transparent',
   },
   keyboardContainer: {
     flex: 1,
   },
   header: {
+    backgroundColor: theme.colors.primary[600],
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
@@ -367,6 +318,15 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.surface[100],
+  },
+  topSection: {
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    marginHorizontal: -theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   imagesSection: {
     marginBottom: theme.spacing.lg,
@@ -394,14 +354,14 @@ const styles = StyleSheet.create({
   dayProgress: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.surface[50],
     marginBottom: theme.spacing.xs,
     textAlign: 'left',
   },
   dreamTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.surface[50],
     marginBottom: theme.spacing.sm,
     textAlign: 'left',
   },
@@ -409,35 +369,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.xs,
   },
   streakText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
-    color: theme.colors.warning[500],
+    color: theme.colors.warning[300],
     fontWeight: theme.typography.fontWeight.bold as any,
   },
   interpunct: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
-    color: theme.colors.grey[400],
+    color: theme.colors.surface[200],
     fontWeight: theme.typography.fontWeight.medium as any,
   },
   progressText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
-    color: theme.colors.grey[600],
+    color: theme.colors.surface[200],
     fontWeight: theme.typography.fontWeight.medium as any,
   },
-  tabsContainer: {
-    marginBottom: theme.spacing.lg,
+  progressSection: {
+    backgroundColor: theme.colors.primary[700],
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
   },
   filtersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   filtersWrapper: {
     flex: 1,
@@ -464,6 +425,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.callout,
     color: theme.colors.grey[500],
     textAlign: 'center',
+  },
+  aiTipContainer: {
+    marginTop: theme.spacing.lg,
   },
 });
 

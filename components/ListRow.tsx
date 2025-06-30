@@ -12,7 +12,7 @@ interface ListRowProps {
   rightElement?: 'chevron' | 'toggle' | React.ReactNode;
   toggleValue?: boolean;
   onToggleChange?: (value: boolean) => void;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'destructive' | 'dark';
   isFirst?: boolean;
   isLast?: boolean;
 }
@@ -52,7 +52,7 @@ export const ListRow: React.FC<ListRowProps> = ({
         <Icon 
           name="chevron_right" 
           size={24} 
-          color={theme.colors.grey[400]} 
+          color={variant === 'dark' ? theme.colors.surface[200] : theme.colors.grey[400]} 
         />
       );
     }
@@ -74,6 +74,7 @@ export const ListRow: React.FC<ListRowProps> = ({
   const titleStyle = [
     styles.title,
     variant === 'destructive' && styles.destructiveTitle,
+    variant === 'dark' && styles.darkTitle,
   ];
 
   return (
@@ -89,7 +90,7 @@ export const ListRow: React.FC<ListRowProps> = ({
             <Icon 
               name={leftIcon} 
               size={20} 
-              color={variant === 'destructive' ? theme.colors.error[500] : theme.colors.grey[600]} 
+              color={variant === 'destructive' ? theme.colors.error[500] : variant === 'dark' ? theme.colors.surface[50] : theme.colors.grey[600]} 
             />
           </View>
         )}
@@ -150,6 +151,9 @@ const styles = StyleSheet.create({
   },
   destructiveTitle: {
     color: theme.colors.error[500],
+  },
+  darkTitle: {
+    color: theme.colors.surface[50],
   },
   subtitle: {
     fontFamily: theme.typography.fontFamily.system,

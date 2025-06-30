@@ -215,6 +215,10 @@ export const theme = {
     delete_forever: {
       library: 'MaterialIcons' as const,
       name: 'delete'
+    },
+    analytics: {
+      library: 'MaterialIcons' as const,
+      name: 'bar-chart'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },
