@@ -38,6 +38,7 @@ import LoginPage from '../app/LoginPage';
 import AuthLoadingPage from '../app/AuthLoadingPage';
 import ActionPage from '../app/ActionPage';
 import DreamPage from '../app/DreamPage';
+import ProgressPage from '../app/ProgressPage';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -137,6 +138,7 @@ const MainNavigator = () => (
     <MainStack.Screen name="Tabs" component={TabNavigator} />
     <MainStack.Screen name="Action" component={ActionPage} />
     <MainStack.Screen name="Dream" component={DreamPage} />
+    <MainStack.Screen name="Progress" component={ProgressPage} />
   </MainStack.Navigator>
 );
 

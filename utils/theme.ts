@@ -219,6 +219,22 @@ export const theme = {
     analytics: {
       library: 'MaterialIcons' as const,
       name: 'bar-chart'
+    },
+    edit: {
+      library: 'MaterialIcons' as const,
+      name: 'edit'
+    },
+    delete: {
+      library: 'MaterialIcons' as const,
+      name: 'delete'
+    },
+    check: {
+      library: 'MaterialIcons' as const,
+      name: 'check'
+    },
+    photo: {
+      library: 'MaterialIcons' as const,
+      name: 'photo'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },
