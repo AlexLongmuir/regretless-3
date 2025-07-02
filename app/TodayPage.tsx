@@ -155,7 +155,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
                     size="md"
                   />
                   <IconButton
-                    icon="chevron_right"
+                    icon="send"
                     onPress={() => navigateDate('next')}
                     variant="secondary"
                     size="md"

@@ -172,6 +172,14 @@ export const theme = {
       library: 'MaterialIcons' as const,
       name: 'keyboard-arrow-right'
     },
+    arrow_upward: {
+      library: 'MaterialIcons' as const,
+      name: 'arrow_upward'
+    },
+    send: {
+      library: 'MaterialIcons' as const,
+      name: 'send'
+    },
     check_circle: {
       library: 'MaterialIcons' as const,
       name: 'check_circle'
@@ -235,6 +243,10 @@ export const theme = {
     photo: {
       library: 'MaterialIcons' as const,
       name: 'photo'
+    },
+    calendar: {
+      library: 'MaterialIcons' as const,
+      name: 'today'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },

@@ -28,7 +28,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Import pages
-import HomePage from '../app/HomePage';
 import ProfilePage from '../app/ProfilePage';
 import DreamsPage from '../app/DreamsPage';
 import TodayPage from '../app/TodayPage';
@@ -39,6 +38,7 @@ import AuthLoadingPage from '../app/AuthLoadingPage';
 import ActionPage from '../app/ActionPage';
 import DreamPage from '../app/DreamPage';
 import ProgressPage from '../app/ProgressPage';
+import AddGoalFlow from '../app/AddGoalFlow';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -96,8 +96,6 @@ const TabNavigator = ({ navigation }: any) => {
     switch (activeTab) {
       case 'Dreams':
         return <DreamsPage {...commonProps} />;
-      case 'Comps':
-        return <HomePage {...commonProps} />;
       case 'Today':
         return <TodayPage {...commonProps} />;
       case 'Journal':
@@ -139,6 +137,7 @@ const MainNavigator = () => (
     <MainStack.Screen name="Action" component={ActionPage} />
     <MainStack.Screen name="Dream" component={DreamPage} />
     <MainStack.Screen name="Progress" component={ProgressPage} />
+    <MainStack.Screen name="AddGoalFlow" component={AddGoalFlow} />
   </MainStack.Navigator>
 );
 

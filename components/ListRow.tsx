@@ -13,6 +13,7 @@ interface ListRowProps {
   toggleValue?: boolean;
   onToggleChange?: (value: boolean) => void;
   variant?: 'default' | 'destructive' | 'dark';
+  size?: 'default' | 'small';
   isFirst?: boolean;
   isLast?: boolean;
 }
@@ -26,6 +27,7 @@ export const ListRow: React.FC<ListRowProps> = ({
   toggleValue = false,
   onToggleChange,
   variant = 'default',
+  size = 'default',
   isFirst = false,
   isLast = false,
 }) => {
@@ -66,6 +68,7 @@ export const ListRow: React.FC<ListRowProps> = ({
 
   const containerStyle = [
     styles.container,
+    size === 'small' && styles.smallContainer,
     isFirst && styles.firstRow,
     isLast && styles.lastRow,
     variant === 'destructive' && styles.destructiveRow,
@@ -73,8 +76,14 @@ export const ListRow: React.FC<ListRowProps> = ({
 
   const titleStyle = [
     styles.title,
+    size === 'small' && styles.smallTitle,
     variant === 'destructive' && styles.destructiveTitle,
     variant === 'dark' && styles.darkTitle,
+  ];
+
+  const contentStyle = [
+    styles.content,
+    size === 'small' && styles.smallContent,
   ];
 
   return (
@@ -84,7 +93,7 @@ export const ListRow: React.FC<ListRowProps> = ({
       disabled={!onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
-      <View style={styles.content}>
+      <View style={contentStyle}>
         {leftIcon && (
           <View style={styles.leftIconContainer}>
             <Icon 
@@ -117,6 +126,16 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.primary[100],
     minHeight: 44,
   },
+  smallContainer: {
+    backgroundColor: theme.colors.surface[100],
+    borderRadius: 12,
+    marginBottom: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.grey[200],
+    borderWidth: 1,
+    borderColor: theme.colors.grey[200],
+    minHeight: 36,
+  },
   firstRow: {
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
@@ -136,6 +155,11 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     minHeight: 44,
   },
+  smallContent: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    minHeight: 36,
+  },
   leftIconContainer: {
     marginRight: theme.spacing.sm,
   },
@@ -148,6 +172,12 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
     color: theme.colors.grey[800],
+  },
+  smallTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    color: theme.colors.grey[900],
   },
   destructiveTitle: {
     color: theme.colors.error[500],

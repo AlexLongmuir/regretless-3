@@ -5,6 +5,7 @@ import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { IconButton } from './IconButton';
 import { Button } from './Button';
 import { OptionsPopover } from './OptionsPopover';
+import { ImageGallery } from './ImageGallery';
 import * as ImagePicker from 'expo-image-picker';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -32,9 +33,6 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
   const [isEditing, setIsEditing] = useState(isNewEntry);
   const [editText, setEditText] = useState(entry.text);
   const [editImages, setEditImages] = useState(entry.images);
-  const [showImageOptions, setShowImageOptions] = useState(false);
-  const [addButtonPosition, setAddButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
-  const addButtonRef = useRef<View>(null);
 
   // Reset editing state when entry changes
   useEffect(() => {
@@ -42,15 +40,10 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
     setIsEditing(newEntryCheck);
     setEditText(entry.text);
     setEditImages(entry.images);
-    setShowImageOptions(false);
   }, [entry]);
 
   const cardWidth = screenWidth - (theme.spacing.md * 2);
-  
-  // Fixed 4-column grid sizing
-  const imagesPerRow = 4;
-  const availableWidth = cardWidth - (theme.spacing.md * 2) - (theme.spacing.sm * (imagesPerRow - 1));
-  const imageSize = availableWidth / imagesPerRow;
+  const imageGalleryWidth = cardWidth - (theme.spacing.md * 2);
 
   const formatDisplayDate = () => {
     const date = new Date(entry.date);
@@ -91,110 +84,6 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
     );
   };
 
-  const handleAddImage = () => {
-    // Capture button position for popover positioning
-    if (addButtonRef.current) {
-      addButtonRef.current.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-        setAddButtonPosition({ x: pageX, y: pageY, width, height });
-        setShowImageOptions(true);
-      });
-    } else {
-      setShowImageOptions(true);
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      // Request camera permissions
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera access is required to take photos.');
-        return;
-      }
-
-      // Launch camera
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setEditImages(prev => [...prev, result.assets[0].uri]);
-      }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
-
-  const handlePhotoLibrary = async () => {
-    try {
-      console.log('Starting photo library selection...');
-      setShowImageOptions(false); // Close popover immediately
-      
-      // Always request permissions explicitly first
-      console.log('Requesting media library permissions...');
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission request result:', status);
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Photo library access is required to select photos.');
-        return;
-      }
-      
-      // Small delay to ensure permissions are processed
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('Launching image library...');
-      const result = await Promise.race([
-        ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-          allowsMultipleSelection: false,
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Image picker timeout')), 10000)
-        )
-      ]);
-
-      console.log('Image picker result:', result);
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        console.log('Adding image:', result.assets[0].uri);
-        setEditImages(prev => [...prev, result.assets[0].uri]);
-      } else {
-        console.log('Image selection canceled or no assets');
-      }
-    } catch (error) {
-      console.error('Error selecting photo:', error);
-      Alert.alert('Error', `Failed to select photo: ${error.message}`);
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setEditImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getImageOptions = () => {
-    return [
-      {
-        id: 'take-photo',
-        icon: 'camera-alt',
-        title: 'Take Photo',
-        onPress: handleTakePhoto,
-      },
-      {
-        id: 'photo-library',
-        icon: 'photo',
-        title: 'Photo Library',
-        onPress: handlePhotoLibrary,
-      },
-    ];
-  };
 
   return (
     <View style={[styles.cardContainer, style]}>
@@ -247,30 +136,14 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
           <View style={styles.editContainer}>
             <View style={styles.imagesEditSection}>
               <Text style={styles.sectionLabel}>Images</Text>
-              <View style={styles.imagesGridContainer}>
-                {editImages.map((image, index) => (
-                  <View key={index} style={styles.editImageContainer}>
-                    <Image 
-                      source={{ uri: image }} 
-                      style={[styles.editImage, { width: imageSize, height: imageSize }]} 
-                    />
-                    <Pressable
-                      style={styles.removeImageButton}
-                      onPress={() => handleRemoveImage(index)}
-                    >
-                      <MaterialIcon name="close" size={16} color={theme.colors.surface[50]} />
-                    </Pressable>
-                  </View>
-                ))}
-                <Pressable 
-                  ref={addButtonRef}
-                  style={[styles.addImageButton, { width: imageSize, height: imageSize }]} 
-                  onPress={handleAddImage}
-                >
-                  <MaterialIcon name="add" size={20} color={theme.colors.grey[500]} />
-                  <Text style={styles.addImageText}>Add Photo</Text>
-                </Pressable>
-              </View>
+              <ImageGallery
+                images={editImages}
+                onImagesChange={setEditImages}
+                containerWidth={imageGalleryWidth}
+                addButtonText="Add Photo"
+                emptyStateTitle="No photos added yet"
+                emptyStateDescription="Tap add to include progress photos"
+              />
             </View>
 
             <View style={styles.textEditSection}>
@@ -291,15 +164,13 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
           <View style={styles.displayContainer}>
             {entry.images.length > 0 && (
               <View style={styles.imagesSection}>
-                <View style={styles.imagesGridContainer}>
-                  {entry.images.map((image, index) => (
-                    <Image
-                      key={index}
-                      source={{ uri: image }}
-                      style={[styles.displayImage, { width: imageSize, height: imageSize }]}
-                    />
-                  ))}
-                </View>
+                <ImageGallery
+                  images={entry.images}
+                  onImagesChange={() => {}}
+                  containerWidth={imageGalleryWidth}
+                  editable={false}
+                  showAddButton={false}
+                />
               </View>
             )}
 
@@ -320,12 +191,6 @@ export const ProgressEntryCard: React.FC<ProgressEntryCardProps> = ({
         )}
       </View>
 
-      <OptionsPopover
-        visible={showImageOptions}
-        onClose={() => setShowImageOptions(false)}
-        options={getImageOptions()}
-        triggerPosition={addButtonPosition}
-      />
     </View>
   );
 };
@@ -398,50 +263,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: theme.colors.grey[700],
     marginBottom: theme.spacing.sm,
-  },
-  imagesGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  editImageContainer: {
-    position: 'relative',
-  },
-  editImage: {
-    borderRadius: theme.radius.md,
-  },
-  displayImage: {
-    borderRadius: theme.radius.md,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.colors.error[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.surface[50],
-  },
-  addImageButton: {
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.grey[100],
-    borderWidth: 2,
-    borderColor: theme.colors.grey[300],
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addImageText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.caption2,
-    color: theme.colors.grey[500],
-    marginTop: theme.spacing.xs,
-    textAlign: 'center',
-    lineHeight: 12,
   },
   textEditSection: {
     // No additional margin needed

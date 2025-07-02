@@ -143,7 +143,9 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
   };
 
   const handleAddFirstDream = () => {
-    console.log('Add first dream pressed');
+    if (navigation?.navigate) {
+      navigation.navigate('AddGoalFlow');
+    }
   };
 
   if (mockDreams.length === 0) {
