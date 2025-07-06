@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../utils/theme';
 import { Button } from '../components/Button';
@@ -9,7 +9,6 @@ import { SchedulePicker } from '../components/SchedulePicker';
 import { Pills } from '../components/Pills';
 import { ListRow } from '../components/ListRow';
 import { ImageGallery } from '../components/ImageGallery';
-import { Input } from '../components/Input';
 import { SvgXml } from 'react-native-svg';
 
 const arisAvatar = `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -212,92 +211,6 @@ const initialSteps: ConversationStep[] = [
   },
 ];
 
-const TypingIndicator = () => {
-  const scale1 = useRef(new Animated.Value(0.4)).current;
-  const scale2 = useRef(new Animated.Value(0.4)).current;
-  const scale3 = useRef(new Animated.Value(0.4)).current;
-  const opacity1 = useRef(new Animated.Value(0.4)).current;
-  const opacity2 = useRef(new Animated.Value(0.4)).current;
-  const opacity3 = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    const createBounce = (scaleValue: Animated.Value, opacityValue: Animated.Value, delay: number) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.parallel([
-            Animated.timing(scaleValue, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacityValue, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.parallel([
-            Animated.timing(scaleValue, {
-              toValue: 0.4,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacityValue, {
-              toValue: 0.4,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ]),
-          Animated.delay(800), // Pause before next cycle
-        ])
-      );
-    };
-
-    const animation = Animated.parallel([
-      createBounce(scale1, opacity1, 0),
-      createBounce(scale2, opacity2, 160),
-      createBounce(scale3, opacity3, 320),
-    ]);
-
-    animation.start();
-
-    return () => animation.stop();
-  }, [scale1, scale2, scale3, opacity1, opacity2, opacity3]);
-
-  return (
-    <View style={styles.typingIndicator}>
-      <Animated.View 
-        style={[
-          styles.typingDot, 
-          { 
-            transform: [{ scale: scale1 }],
-            opacity: opacity1 
-          }
-        ]} 
-      />
-      <Animated.View 
-        style={[
-          styles.typingDot, 
-          { 
-            transform: [{ scale: scale2 }],
-            opacity: opacity2 
-          }
-        ]} 
-      />
-      <Animated.View 
-        style={[
-          styles.typingDot, 
-          { 
-            transform: [{ scale: scale3 }],
-            opacity: opacity3 
-          }
-        ]} 
-      />
-    </View>
-  );
-};
-
 const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationSteps, setConversationSteps] = useState<ConversationStep[]>(initialSteps);
@@ -320,10 +233,6 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
   });
   const [currentInput, setCurrentInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [showInputArea, setShowInputArea] = useState(false);
-  const [inputDisabled, setInputDisabled] = useState(false);
-  const inputOpacity = useRef(new Animated.Value(0)).current;
   const [selectedCategory, setSelectedCategory] = useState('popular');
   const [filteredDreams, setFilteredDreams] = useState(popularDreams.filter(dream => dream.category === 'popular'));
   const [daysInput, setDaysInput] = useState('');
@@ -341,34 +250,16 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
   useEffect(() => {
     if (messages.length === 0 && conversationSteps.length > 0) {
       const firstStep = conversationSteps[0];
-      
-      // Start typing animation
-      setIsTyping(true);
-      
-      // Show typing for a brief moment, then show message
-      setTimeout(() => {
-        const initialMessage: Message = {
-          id: '1',
-          text: firstStep.question,
-          isAris: true,
-          timestamp: new Date(),
-        };
-        setMessages([initialMessage]);
-        setIsTyping(false);
-        setTotalProgress(1);
-        
-        // Show input area after message appears with smooth transition
-        setTimeout(() => {
-          setShowInputArea(true);
-          Animated.timing(inputOpacity, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }).start();
-        }, 300);
-      }, 1000);
+      const initialMessage: Message = {
+        id: '1',
+        text: firstStep.question,
+        isAris: true,
+        timestamp: new Date(),
+      };
+      setMessages([initialMessage]);
+      setTotalProgress(1);
     }
-  }, [inputOpacity]);
+  }, []);
 
   const getCurrentStep = () => {
     return conversationSteps[currentStepIndex];
@@ -386,18 +277,9 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     setTotalProgress(prev => prev + 1);
 
     if (nextIndex < conversationSteps.length) {
-      // Disable current input and fade it out
-      setInputDisabled(true);
-      Animated.timing(inputOpacity, {
-        toValue: 0.3,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      setCurrentStepIndex(nextIndex);
       
-      // Start typing animation
-      setIsTyping(true);
-      
-      // Add Aris's next message with typing animation
+      // Add Aris's next message
       setTimeout(() => {
         const nextStep = conversationSteps[nextIndex];
         const arisMessage: Message = {
@@ -407,18 +289,6 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, arisMessage]);
-        setIsTyping(false);
-        
-        // Update to next step and show new input type
-        setTimeout(() => {
-          setCurrentStepIndex(nextIndex);
-          setInputDisabled(false);
-          Animated.timing(inputOpacity, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }).start();
-        }, 300);
       }, 1000);
     } else {
       // All steps completed, move to action generation
@@ -737,21 +607,20 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
                       key={dream.id}
                       title={dream.title}
                       onPress={() => handleDreamSelection(dream.title)}
-                      size="small"
-                      rightElement={null}
                     />
                   ))}
                 </View>
               </View>
               
               <View style={styles.inputRow}>
-                <Input
+                <TextInput
+                  style={styles.dynamicInput}
                   value={currentInput}
                   onChangeText={setCurrentInput}
                   placeholder="Enter your own dream..."
-                  type="singleline"
-                  size="small"
-                  style={styles.flexInput}
+                  placeholderTextColor={theme.colors.grey[400]}
+                  multiline
+                  maxLength={500}
                 />
                 <IconButton
                   icon="send"
@@ -767,13 +636,14 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         
         return (
           <View style={styles.inputContainer}>
-            <Input
+            <TextInput 
+              style={styles.dynamicInput}
               value={currentInput}
               onChangeText={setCurrentInput}
               placeholder="Type your response..."
-              type="singleline"
-              size="small"
-              style={styles.flexInput}
+              placeholderTextColor={theme.colors.grey[400]}
+              multiline
+              maxLength={500}
             />
             <IconButton
               icon="send"
@@ -798,20 +668,22 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
               />
             </View>
             <View style={styles.inputRow}>
-              <Input
-                value={formatDateDisplay(startDateInput)}
-                onChangeText={handleStartDateInputChange}
-                placeholder="Select a date"
-                type="date"
-                size="small"
-                showDatePicker={showDatePicker}
-                onToggleDatePicker={handleCalendarPress}
-                onDateChange={(date) => {
-                  const dateString = date.toISOString().split('T')[0];
-                  setStartDateInput(dateString);
-                }}
-                style={styles.flexInput}
-              />
+              <View style={styles.inputWithIcon}>
+                <TextInput
+                  style={styles.dynamicInputWithIcon}
+                  value={formatDateDisplay(startDateInput)}
+                  onChangeText={handleStartDateInputChange}
+                  placeholder="Select a date"
+                  placeholderTextColor={theme.colors.grey[400]}
+                  editable={false}
+                />
+                <IconButton
+                  icon="calendar"
+                  onPress={handleCalendarPress}
+                  variant="ghost"
+                  size="sm"
+                />
+              </View>
               <IconButton
                 icon="send"
                 onPress={handleStartDateSubmit}
@@ -836,30 +708,40 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
               />
             </View>
             <View style={styles.inputRow}>
-              <Input
+              <TextInput
+                style={styles.dynamicInput}
                 value={daysInput}
                 onChangeText={handleDaysInputChange}
                 placeholder="Enter number of days..."
-                type="date"
-                size="small"
-                showDatePicker={showEndDatePicker}
-                onToggleDatePicker={handleEndDateCalendarPress}
-                onDateChange={(date) => {
-                  const dateString = date.toISOString().split('T')[0];
-                  setEndDateInput(dateString);
-                  
-                  // Calculate days between start and end date
-                  const startDate = new Date(goalData.startDate);
-                  const endDate = new Date(dateString);
-                  const timeDifference = endDate.getTime() - startDate.getTime();
-                  const daysDifference = Math.ceil(timeDifference / (1000 * 3600 * 24)) + 1;
-                  
-                  if (daysDifference > 0) {
-                    setDaysInput(daysDifference.toString());
-                  }
-                }}
-                style={styles.flexInput}
+                placeholderTextColor={theme.colors.grey[400]}
+                keyboardType="numeric"
+                maxLength={4}
               />
+              <IconButton
+                icon="send"
+                onPress={handleDaysSubmit}
+                variant="primary"
+                size="md"
+                disabled={!daysInput.trim()}
+              />
+            </View>
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.inputRow}>
+              <View style={styles.inputWithIcon}>
+                <TextInput
+                  style={styles.dynamicInputWithIcon}
+                  value={endDateInput ? formatDateDisplay(endDateInput) : ''}
+                  placeholder="Select end date"
+                  placeholderTextColor={theme.colors.grey[400]}
+                  editable={false}
+                />
+                <IconButton
+                  icon="calendar"
+                  onPress={handleEndDateCalendarPress}
+                  variant="ghost"
+                  size="sm"
+                />
+              </View>
               <IconButton
                 icon="send"
                 onPress={handleDaysSubmit}
@@ -991,30 +873,41 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
           </View>
         ))}
         
-        {(isProcessing || isTyping) && (
+        {isProcessing && (
           <View style={styles.processingContainer}>
             <View style={styles.avatarContainer}>
               <SvgXml xml={arisAvatar} width={40} height={40} />
             </View>
             <View style={styles.processingBubble}>
-              {isProcessing ? (
-                <Text style={styles.processingText}>
-                  I'm creating your personalized action plan...
-                </Text>
-              ) : (
-                <TypingIndicator />
-              )}
+              <Text style={styles.processingText}>
+                I'm creating your personalized action plan...
+              </Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {!isProcessing && showInputArea && (
-        <Animated.View style={{ opacity: inputOpacity }} pointerEvents={inputDisabled ? 'none' : 'auto'}>
-          {renderInputComponent()}
-        </Animated.View>
+      {!isProcessing && renderInputComponent()}
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date(startDateInput)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDatePickerChange}
+          minimumDate={new Date()}
+        />
       )}
 
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={endDateInput ? new Date(endDateInput) : new Date(goalData.startDate)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleEndDatePickerChange}
+          minimumDate={new Date(goalData.startDate)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 };
@@ -1186,10 +1079,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    height: 40,
-  },
-  flexInput: {
-    flex: 1,
   },
   pillsContainer: {
     marginBottom: theme.spacing.md,
@@ -1214,20 +1103,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     minHeight: 40,
     textAlignVertical: 'center',
-  },
-  typingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.sm,
-  },
-  typingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.grey[600],
-    marginHorizontal: 3,
   },
 });
 

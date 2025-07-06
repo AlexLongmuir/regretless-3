@@ -39,6 +39,7 @@ import ActionPage from '../app/ActionPage';
 import DreamPage from '../app/DreamPage';
 import ProgressPage from '../app/ProgressPage';
 import AddGoalFlow from '../app/AddGoalFlow';
+import AddJourneyEntryPage from '../app/AddJourneyEntryPage';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -138,6 +139,7 @@ const MainNavigator = () => (
     <MainStack.Screen name="Dream" component={DreamPage} />
     <MainStack.Screen name="Progress" component={ProgressPage} />
     <MainStack.Screen name="AddGoalFlow" component={AddGoalFlow} />
+    <MainStack.Screen name="AddJourneyEntryPage" component={AddJourneyEntryPage} />
   </MainStack.Navigator>
 );
 

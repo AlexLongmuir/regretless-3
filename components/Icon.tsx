@@ -17,6 +17,11 @@ export const Icon: React.FC<IconProps> = ({
 }) => {
   const iconConfig = theme.icons[name];
   
+  if (!iconConfig) {
+    console.warn(`Icon "${name}" not found in theme.icons`);
+    return null;
+  }
+  
   if (iconConfig.library === 'MaterialIcons') {
     return (
       <MaterialIcons 

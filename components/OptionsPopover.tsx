@@ -8,6 +8,7 @@ interface OptionItem {
   icon: string;
   title: string;
   destructive?: boolean;
+  selected?: boolean;
   onPress: () => void;
 }
 
@@ -92,7 +93,10 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
               {options.map((option) => (
                 <Pressable
                   key={option.id}
-                  style={styles.option}
+                  style={[
+                    styles.option,
+                    option.selected && styles.selectedOption
+                  ]}
                   onPress={() => {
                     option.onPress();
                     onClose();
@@ -101,14 +105,24 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
                   <Icon 
                     name={option.icon} 
                     size={20} 
-                    color={option.destructive ? theme.colors.error[500] : theme.colors.surface[50]} 
+                    color={option.destructive ? theme.colors.error[500] : 
+                           option.selected ? theme.colors.primary[400] : theme.colors.surface[50]} 
                   />
                   <Text style={[
                     styles.optionText,
-                    option.destructive && styles.destructiveText
+                    option.destructive && styles.destructiveText,
+                    option.selected && styles.selectedText
                   ]}>
                     {option.title}
                   </Text>
+                  {option.selected && (
+                    <Icon 
+                      name="check" 
+                      size={16} 
+                      color={theme.colors.primary[400]} 
+                      style={styles.checkIcon}
+                    />
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -152,5 +166,15 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: theme.colors.error[500],
+  },
+  selectedOption: {
+    backgroundColor: theme.colors.primary[700],
+  },
+  selectedText: {
+    color: theme.colors.primary[400],
+    fontWeight: theme.typography.fontWeight.semibold as any,
+  },
+  checkIcon: {
+    marginLeft: 'auto',
   },
 });

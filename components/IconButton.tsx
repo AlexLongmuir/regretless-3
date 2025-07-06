@@ -10,6 +10,7 @@ interface IconButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost';
   disabled?: boolean;
   style?: ViewStyle;
+  iconColor?: string;
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
@@ -19,13 +20,14 @@ export const IconButton: React.FC<IconButtonProps> = ({
   variant = 'primary',
   disabled = false,
   style,
+  iconColor: customIconColor,
 }) => {
   const iconSize = size === 'sm' ? 18 : size === 'lg' ? 28 : 24;
-  const iconColor = variant === 'ghost' 
+  const iconColor = customIconColor || (variant === 'ghost' 
     ? theme.colors.grey[700] 
     : variant === 'secondary'
     ? theme.colors.grey[800]
-    : theme.colors.surface[50];
+    : theme.colors.surface[50]);
 
   return (
     <Pressable

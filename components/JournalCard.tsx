@@ -30,18 +30,33 @@ export const JournalCard: React.FC<JournalCardProps> = ({
   const displayImages = entry.images.slice(0, 3);
   
   const getMoodEmoji = (rating: number) => {
-    if (rating >= 9) return '😊';
-    if (rating >= 7) return '🙂';
-    if (rating >= 5) return '😐';
-    if (rating >= 3) return '😕';
+    if (rating === 5) return '😊';
+    if (rating === 4) return '🙂';
+    if (rating === 3) return '😐';
+    if (rating === 2) return '😕';
     return '😢';
   };
 
+  const getMoodLabel = (rating: number) => {
+    if (rating === 5) return 'Great';
+    if (rating === 4) return 'Good';
+    if (rating === 3) return 'Okay';
+    if (rating === 2) return 'Not good';
+    return 'Bad';
+  };
+
   const getMoodColor = (rating: number) => {
-    if (rating >= 8) return theme.colors.success[500];
-    if (rating >= 6) return theme.colors.warning[500];
-    if (rating >= 4) return theme.colors.primary[500];
-    return theme.colors.error[500];
+    // Always use dark blue for the badge background
+    return theme.colors.primary[800];
+  };
+
+  const getMoodTextColor = (rating: number) => {
+    // Text color changes based on rating
+    if (rating === 5) return theme.colors.success[400];
+    if (rating === 4) return theme.colors.success[400];
+    if (rating === 3) return theme.colors.surface[50];
+    if (rating === 2) return theme.colors.warning[400];
+    return theme.colors.error[400];
   };
 
   return (
@@ -74,8 +89,12 @@ export const JournalCard: React.FC<JournalCardProps> = ({
                 {entry.date}
               </Text>
             </View>
-            <View style={[styles.moodBadge, { backgroundColor: getMoodColor(entry.moodRating) }]}>
-              <Text style={styles.moodText}>{getMoodEmoji(entry.moodRating)} {entry.moodRating}/10</Text>
+            <View style={styles.rightBadges}>
+              <View style={[styles.moodBadge, { backgroundColor: getMoodColor(entry.moodRating) }]}>
+                <Text style={[styles.moodText, { color: getMoodTextColor(entry.moodRating) }]}>
+                  {getMoodEmoji(entry.moodRating)} {getMoodLabel(entry.moodRating)}
+                </Text>
+              </View>
             </View>
           </View>
           
@@ -166,6 +185,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     zIndex: 10,
   },
+  rightBadges: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.xs,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+  },
+  actionButton: {
+    backgroundColor: theme.colors.primary[700],
+    borderRadius: theme.radius.sm,
+    padding: theme.spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: theme.colors.error[600],
+  },
   dateBadge: {
     backgroundColor: theme.colors.primary[600],
     paddingHorizontal: theme.spacing.md,
@@ -197,7 +235,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.caption1,
-    color: theme.colors.surface[50],
+    // Color is now set dynamically based on rating
   },
   gradientOverlay: {
     backgroundColor: theme.colors.primary[600],

@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, Dimensions, Image, Alert } from 'rea
 import { theme } from '../utils/theme';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { OptionsPopover } from './OptionsPopover';
+import { ProgressGalleryItem } from './ProgressGalleryItem';
 import * as ImagePicker from 'expo-image-picker';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -17,6 +18,10 @@ interface ImageGalleryProps {
   addButtonText?: string;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+  showDreamTagging?: boolean;
+  dreams?: Array<{ id: string; title: string; }>;
+  imageDreamTags?: { [imageIndex: number]: string };
+  onImageDreamTagChange?: (imageIndex: number, dreamId: string) => void;
 }
 
 export const ImageGallery: React.FC<ImageGalleryProps> = ({
@@ -29,6 +34,10 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   addButtonText = "Add Photo",
   emptyStateTitle = "No images added yet",
   emptyStateDescription = "Tap the add button to get started",
+  showDreamTagging = false,
+  dreams = [],
+  imageDreamTags = {},
+  onImageDreamTagChange,
 }) => {
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [addButtonPosition, setAddButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
@@ -90,6 +99,11 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
     try {
       console.log('Starting photo library selection...');
       setShowImageOptions(false); // Close popover immediately
+      
+      // Add placeholder image for testing
+      const placeholderImage = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=400&fit=crop';
+      onImagesChange([...images, placeholderImage]);
+      return;
       
       // Always request permissions explicitly first
       console.log('Requesting media library permissions...');
@@ -168,20 +182,36 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
     <View style={styles.container}>
       <View style={styles.imagesGridContainer}>
         {images.map((image, index) => (
-          <View key={index} style={styles.imageContainer}>
-            <Image 
-              source={{ uri: image }} 
-              style={[styles.image, { width: imageSize, height: imageSize }]} 
+          showDreamTagging ? (
+            <ProgressGalleryItem
+              key={index}
+              date={new Date()}
+              hasImage={true}
+              imageUri={image}
+              isSelected={false}
+              onPress={() => {}}
+              size={imageSize}
+              showDreamTagging={true}
+              selectedDream={imageDreamTags[index]}
+              onDreamSelect={(dreamId) => onImageDreamTagChange?.(index, dreamId)}
+              dreams={dreams}
             />
-            {editable && (
-              <Pressable
-                style={styles.removeImageButton}
-                onPress={() => handleRemoveImage(index)}
-              >
-                <MaterialIcon name="close" size={16} color={theme.colors.surface[50]} />
-              </Pressable>
-            )}
-          </View>
+          ) : (
+            <View key={index} style={styles.imageContainer}>
+              <Image 
+                source={{ uri: image }} 
+                style={[styles.image, { width: imageSize, height: imageSize }]} 
+              />
+              {editable && (
+                <Pressable
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemoveImage(index)}
+                >
+                  <MaterialIcon name="close" size={16} color={theme.colors.surface[50]} />
+                </Pressable>
+              )}
+            </View>
+          )
         ))}
         
         {editable && showAddButton && images.length < maxImages && (

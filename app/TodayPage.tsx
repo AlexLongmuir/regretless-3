@@ -9,7 +9,7 @@ interface ActionItem {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'done' | 'skipped';
+  status: 'todo' | 'done' | 'overdue';
   priority: 'low' | 'medium' | 'high';
   dueDate?: string;
 }
@@ -93,12 +93,12 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
   const getFilterCounts = () => {
     const todo = actions.filter(a => a.status === 'todo').length;
     const done = actions.filter(a => a.status === 'done').length;
-    const skipped = actions.filter(a => a.status === 'skipped').length;
+    const overdue = actions.filter(a => a.status === 'overdue').length;
     
     return [
       { key: 'todo', label: 'To Do', count: todo },
       { key: 'done', label: 'Done', count: done },
-      { key: 'skipped', label: 'Skipped', count: skipped }
+      { key: 'overdue', label: 'Overdue', count: overdue }
     ];
   };
 
@@ -125,7 +125,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     }
   };
 
-  const handleStatusChange = (actionId: string, newStatus: 'todo' | 'done' | 'skipped') => {
+  const handleStatusChange = (actionId: string, newStatus: 'todo' | 'done' | 'overdue') => {
     setActions(prev => prev.map(action => 
       action.id === actionId ? { ...action, status: newStatus } : action
     ));
@@ -155,7 +155,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
                     size="md"
                   />
                   <IconButton
-                    icon="send"
+                    icon="chevron_right"
                     onPress={() => navigateDate('next')}
                     variant="secondary"
                     size="md"

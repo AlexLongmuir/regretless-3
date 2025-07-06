@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ImageBackground, ScrollView, Dimensions, Image } from 'react-native';
 import { theme } from '../utils/theme';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -44,10 +43,7 @@ export const DreamCard: React.FC<DreamCardProps> = ({
     
   const displayImages = backgroundImages.slice(0, 3);
 
-  const cardWidth = screenWidth - (theme.spacing.md * 2);
   
-  const latestPhotos = dream.recentPhotos.slice(-4);
-  const photoCarouselItemWidth = (cardWidth - (theme.spacing.md * 2) - (theme.spacing.xs * 4)) / 5;
 
   return (
     <View style={[styles.cardContainer, style]}>
@@ -87,25 +83,6 @@ export const DreamCard: React.FC<DreamCardProps> = ({
               {dream.title}
             </Text>
             
-            <View style={styles.photosContainer}>
-              <View style={styles.photosRow}>
-                {latestPhotos.map((photo, photoIndex) => (
-                  <View key={photoIndex} style={[styles.photoCarouselItem, { width: photoCarouselItemWidth, height: photoCarouselItemWidth }]}>
-                    <Image
-                      source={{ uri: photo }}
-                      style={styles.photoCarouselImage}
-                    />
-                  </View>
-                ))}
-                <View style={[styles.photoCarouselItem, styles.addPhotoButton, { width: photoCarouselItemWidth, height: photoCarouselItemWidth }]}>
-                  <Icon 
-                    name="add" 
-                    size={20} 
-                    color={theme.colors.surface[50]} 
-                  />
-                </View>
-              </View>
-            </View>
           </View>
         </View>
       </Pressable>
@@ -208,7 +185,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.title2,
     color: theme.colors.surface[50],
-    marginBottom: theme.spacing.md,
+    marginBottom: 0,
     marginTop: 0,
   },
   streakBadge: {
@@ -226,43 +203,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.caption1,
     color: theme.colors.warning[500],
-  },
-  photosContainer: {
-    marginTop: 0,
-  },
-  photosRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  photoThumbnail: {
-    width: 64,
-    height: 64,
-    marginRight: theme.spacing.xs,
-    borderRadius: theme.radius.md,
-    overflow: 'hidden',
-    backgroundColor: `${theme.colors.surface[50]}20`,
-  },
-  thumbnailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  thumbnailImageStyle: {
-    borderRadius: theme.radius.md,
-  },
-  photoCarouselItem: {
-    marginRight: theme.spacing.xs,
-    borderRadius: theme.radius.md,
-    overflow: 'hidden',
-    backgroundColor: `${theme.colors.surface[50]}20`,
-  },
-  photoCarouselImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: theme.radius.md,
-  },
-  addPhotoButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   nextActionContainer: {
     backgroundColor: theme.colors.primary[800],

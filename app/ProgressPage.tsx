@@ -144,6 +144,7 @@ const ProgressPage: React.FC<ProgressPageProps> = ({ route, navigation }) => {
     setSelectedDayIndex(null);
   };
 
+
   const defaultImages = [
     'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=300&fit=crop',
     'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop',

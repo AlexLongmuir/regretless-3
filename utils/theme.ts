@@ -176,6 +176,14 @@ export const theme = {
       library: 'MaterialIcons' as const,
       name: 'arrow_upward'
     },
+    expand_more: {
+      library: 'MaterialIcons' as const,
+      name: 'expand_more'
+    },
+    expand_less: {
+      library: 'MaterialIcons' as const,
+      name: 'keyboard-arrow-up'
+    },
     send: {
       library: 'MaterialIcons' as const,
       name: 'send'
