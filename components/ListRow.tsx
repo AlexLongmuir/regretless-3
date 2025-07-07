@@ -67,10 +67,9 @@ export const ListRow: React.FC<ListRowProps> = ({
   };
 
   const containerStyle = [
-    styles.container,
-    size === 'small' && styles.smallContainer,
-    isFirst && styles.firstRow,
-    isLast && styles.lastRow,
+    size === 'small' ? styles.smallContainer : styles.container,
+    size !== 'small' && isFirst && styles.firstRow,
+    size !== 'small' && isLast && styles.lastRow,
     variant === 'destructive' && styles.destructiveRow,
   ];
 
@@ -127,13 +126,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   smallContainer: {
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.surface[50],
     borderRadius: 12,
     marginBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.grey[200],
-    borderWidth: 1,
-    borderColor: theme.colors.grey[200],
     minHeight: 36,
   },
   firstRow: {
