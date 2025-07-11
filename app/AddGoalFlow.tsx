@@ -11,7 +11,6 @@ import { ListRow } from '../components/ListRow';
 import { ImageGallery } from '../components/ImageGallery';
 import { ActionCard } from '../components/ActionCard';
 import ScheduleSelector from '../components/ScheduleSelector';
-import { ChatContainer, ChatMessage } from '../components/Chat';
 import { dreamCategories, popularDreams, dayOptions, getStartDateOptions, formatDateDisplay, arisAvatar } from '../constants/AddGoalFlowConstants';
 
 // iOS-style typing indicator component
@@ -86,6 +85,9 @@ interface GoalData {
   selectedGoalOption?: 'original' | 'alternative' | 'custom';
   customTitle?: string;
   customDays?: number;
+  feedbackAttempts?: number;
+  feedbackImprove?: string;
+  feedbackDislike?: string;
 }
 
 interface Action {
@@ -94,11 +96,12 @@ interface Action {
   description: string;
   estimatedTime: number;
   day: number;
+  dueDate?: string;
 }
 
 interface ConversationStep {
   id: string;
-  type: 'text' | 'daySelection' | 'schedule' | 'actions' | 'images' | 'startDate' | 'goalSuggestions';
+  type: 'text' | 'daySelection' | 'schedule' | 'actions' | 'images' | 'startDate' | 'goalSuggestions' | 'actionFeedback';
   question: string;
   completed: boolean;
   skippable?: boolean;
@@ -196,6 +199,10 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [endDateInput, setEndDateInput] = useState('');
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [feedbackImprove, setFeedbackImprove] = useState('');
+  const [feedbackDislike, setFeedbackDislike] = useState('');
+  const [actionFeedbackAttempts, setActionFeedbackAttempts] = useState(0);
+  const [showActionFeedback, setShowActionFeedback] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Update filtered dreams when category changes
@@ -568,29 +575,22 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     // Simulate AI action generation
     // In real implementation, this would call your AI API
     setTimeout(() => {
-      const mockActions: Action[] = [
-        {
-          id: '1',
-          title: `Practice ${goalData.title.toLowerCase()}`,
-          description: 'Daily practice session to build fundamental skills',
-          estimatedTime: 30,
-          day: 1,
-        },
-        {
-          id: '2',
-          title: 'Research and study',
-          description: 'Learn theory and best practices',
-          estimatedTime: 45,
-          day: 2,
-        },
-        {
-          id: '3',
-          title: 'Apply what you learned',
-          description: 'Practical application of new knowledge',
-          estimatedTime: 60,
-          day: 3,
-        },
-      ];
+      const mockActions: Action[] = [];
+      const startDate = new Date(goalData.startDate);
+      
+      for (let i = 1; i <= 20; i++) {
+        const actionDate = new Date(startDate);
+        actionDate.setDate(startDate.getDate() + i - 1);
+        
+        mockActions.push({
+          id: i.toString(),
+          title: `${goalData.title.toLowerCase()} - Day ${i}`,
+          description: `Daily practice session focusing on ${i <= 5 ? 'fundamentals' : i <= 10 ? 'intermediate skills' : i <= 15 ? 'advanced techniques' : 'mastery refinement'}`,
+          estimatedTime: 30 + (i % 3) * 15, // Varying time: 30, 45, 60 minutes
+          day: i,
+          dueDate: actionDate.toISOString().split('T')[0],
+        });
+      }
 
       const newGoalData = { ...goalData };
       newGoalData.actions = mockActions;
@@ -605,7 +605,133 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
       addAnimatedMessage(arisMessage);
       
       setIsProcessing(false);
+      setShowActionFeedback(true);
       setTotalProgress(prev => prev + 1);
+    }, 2000);
+  };
+
+  const handleActionFeedbackApprove = () => {
+    setShowActionFeedback(false);
+    setPhase('complete');
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: "This looks good, let's go with this plan!",
+      isAris: false,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(userMessage);
+    
+    const arisMessage: Message = {
+      id: Date.now().toString(),
+      text: "Excellent! Your goal has been created and you're all set to start your journey. Good luck!",
+      isAris: true,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(arisMessage);
+    
+    // Auto-submit the goal after a short delay
+    setTimeout(() => {
+      handleFinish();
+    }, 2000);
+  };
+
+  const handleActionFeedbackImprove = () => {
+    setShowActionFeedback(false);
+    setActionFeedbackAttempts(prev => prev + 1);
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: "I think this could be improved",
+      isAris: false,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(userMessage);
+    
+    const arisMessage: Message = {
+      id: Date.now().toString(),
+      text: "Thanks! Could you let me know what you did & didn't like about this & I can adjust it accordingly?",
+      isAris: true,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(arisMessage);
+    
+    // Set up the feedback input form
+    setPhase('feedback');
+  };
+
+  const handleFeedbackSubmit = () => {
+    if (!feedbackImprove.trim() && !feedbackDislike.trim()) return;
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: `What I liked: ${feedbackImprove.trim() || 'No specific feedback'}\n\nWhat I didn't like: ${feedbackDislike.trim() || 'No specific feedback'}`,
+      isAris: false,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(userMessage);
+    
+    setFeedbackImprove('');
+    setFeedbackDislike('');
+    
+    // Check if we've reached the maximum attempts
+    if (actionFeedbackAttempts >= 3) {
+      // Auto-submit after 3 attempts
+      const arisMessage: Message = {
+        id: Date.now().toString(),
+        text: "Thank you for your feedback! I've incorporated your suggestions into a refined action plan. Your goal is now ready to begin!",
+        isAris: true,
+        timestamp: new Date(),
+      };
+      addAnimatedMessage(arisMessage);
+      
+      setPhase('complete');
+      setTimeout(() => {
+        handleFinish();
+      }, 2000);
+    } else {
+      // Generate improved actions
+      setPhase('actions');
+      regenerateActions();
+    }
+  };
+
+  const regenerateActions = () => {
+    setIsProcessing(true);
+    
+    // Simulate AI regeneration with user feedback
+    setTimeout(() => {
+      const improvedActions: Action[] = [];
+      const startDate = new Date(goalData.startDate);
+      
+      for (let i = 1; i <= 20; i++) {
+        const actionDate = new Date(startDate);
+        actionDate.setDate(startDate.getDate() + i - 1);
+        
+        improvedActions.push({
+          id: i.toString(),
+          title: `Enhanced ${goalData.title.toLowerCase()} - Day ${i}`,
+          description: `Improved practice session based on feedback - ${i <= 5 ? 'building foundations' : i <= 10 ? 'developing skills' : i <= 15 ? 'advanced practice' : 'perfecting mastery'}`,
+          estimatedTime: 25 + (i % 4) * 10, // Varying time: 25, 35, 45, 55 minutes
+          day: i,
+          dueDate: actionDate.toISOString().split('T')[0],
+        });
+      }
+
+      const newGoalData = { ...goalData };
+      newGoalData.actions = improvedActions;
+      setGoalData(newGoalData);
+
+      const arisMessage: Message = {
+        id: Date.now().toString(),
+        text: "Great! I've updated your action plan based on your feedback. Here's the improved version:",
+        isAris: true,
+        timestamp: new Date(),
+      };
+      addAnimatedMessage(arisMessage);
+      
+      setIsProcessing(false);
+      setShowActionFeedback(true);
     }, 2000);
   };
 
@@ -850,19 +976,19 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
             id: '1',
             title: `Master ${goalData.title.toLowerCase()} fundamentals`,
             days: Math.max(Math.floor((goalData.duration || 30) * 0.7), 14),
-            description: 'Focus on building a strong foundation with core skills and techniques'
+            description: `${Math.floor(((goalData.duration || 30) - Math.max(Math.floor((goalData.duration || 30) * 0.7), 14)) / (goalData.duration || 30) * 100)}% shorter, focuses on core skills`
           },
           {
             id: '2', 
             title: `Complete ${goalData.title.toLowerCase()} challenge`,
             days: goalData.duration || 30,
-            description: 'Structured approach with daily practice and weekly milestones'
+            description: 'Same timeline, structured approach'
           },
           {
             id: '3',
             title: `Advanced ${goalData.title.toLowerCase()} mastery`,
             days: Math.min(Math.floor((goalData.duration || 30) * 1.5), 90),
-            description: 'Comprehensive program including advanced techniques and real-world application'
+            description: `${Math.floor((Math.min(Math.floor((goalData.duration || 30) * 1.5), 90) - (goalData.duration || 30)) / (goalData.duration || 30) * 100)}% longer, advanced techniques`
           }
         ];
 
@@ -883,7 +1009,7 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
 
               {/* Suggested Goals Section */}
               <View style={styles.goalSection}>
-                <Text style={styles.sectionTitle}>Suggested Goals</Text>
+                <Text style={styles.sectionTitle}>Suggested Improvements</Text>
                 {mockSuggestions.map((suggestion) => (
                   <ListRow
                     key={suggestion.id}
@@ -899,7 +1025,6 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
 
             {/* Custom Goal Input */}
             <View style={styles.customGoalSection}>
-              <Text style={styles.sectionTitle}>Or Create Your Own</Text>
               <View style={styles.inputRow}>
                 <TextInput
                   style={[styles.goalTitleInput, isDisabled && styles.disabledInput]}
@@ -935,24 +1060,8 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         );
 
       case 'actions':
-        return (
-          <View style={styles.actionsContainer}>
-            {goalData.actions?.map((action) => (
-              <View key={action.id} style={styles.actionCard}>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionDescription}>{action.description}</Text>
-                <Text style={styles.actionTime}>
-                  Day {action.day} • {action.estimatedTime} min
-                </Text>
-              </View>
-            ))}
-            <Button
-              title="Create Goal"
-              onPress={handleFinish}
-              style={styles.finishButton}
-            />
-          </View>
-        );
+        return null; // Actions are now displayed in the chat messages area
+
 
       default:
         return null;
@@ -1082,14 +1191,89 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
             </View>
           </View>
         )}
+        
+        {goalData.actions && goalData.actions.length > 0 && phase === 'actions' && (
+          <View style={styles.actionPlanContainer}>
+            <ScrollView 
+              horizontal={false}
+              showsVerticalScrollIndicator={false}
+              style={styles.actionsList}
+            >
+              {goalData.actions.map((action) => (
+                <ActionCard
+                  key={action.id}
+                  id={action.id}
+                  title={action.title}
+                  description={action.description}
+                  status="todo"
+                  estimatedTime={action.estimatedTime}
+                  dreamTitle={goalData.title}
+                  inspirationImages={goalData.images}
+                  dueDate={action.dueDate}
+                  onPress={() => {}} // No action needed for preview
+                  onStatusChange={() => {}} // No action needed for preview
+                />
+              ))}
+            </ScrollView>
+            
+            {showActionFeedback && (
+              <View style={styles.feedbackButtons}>
+                <Button
+                  title="This looks good!"
+                  onPress={handleActionFeedbackApprove}
+                  style={styles.approveButton}
+                />
+                <Button
+                  title="I think this could be improved"
+                  onPress={handleActionFeedbackImprove}
+                  variant="secondary"
+                  style={styles.improveButton}
+                />
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
-      {!isProcessing && (
+      {!isProcessing && (phase === 'feedback' || (getCurrentStep() && phase !== 'actions')) && (
         <Animated.View style={{ 
           opacity: fadeAnim,
           flex: getCurrentStep()?.type === 'schedule' ? 1 : 0, // Expand for schedule, normal for others
         }}>
-          {renderInputComponent()}
+          {phase === 'feedback' ? (
+            <View style={styles.feedbackContainer}>
+              <View style={styles.feedbackForm}>
+                <Text style={styles.feedbackLabel}>What did you like about this plan?</Text>
+                <TextInput
+                  style={styles.feedbackInput}
+                  value={feedbackImprove}
+                  onChangeText={setFeedbackImprove}
+                  placeholder="Tell me what worked well..."
+                  placeholderTextColor={theme.colors.grey[400]}
+                  multiline
+                  maxLength={500}
+                />
+                
+                <Text style={styles.feedbackLabel}>What didn't you like?</Text>
+                <TextInput
+                  style={styles.feedbackInput}
+                  value={feedbackDislike}
+                  onChangeText={setFeedbackDislike}
+                  placeholder="Tell me what could be improved..."
+                  placeholderTextColor={theme.colors.grey[400]}
+                  multiline
+                  maxLength={500}
+                />
+                
+                <Button
+                  title="Submit Feedback"
+                  onPress={handleFeedbackSubmit}
+                  style={styles.submitFeedbackButton}
+                  disabled={!feedbackImprove.trim() && !feedbackDislike.trim()}
+                />
+              </View>
+            </View>
+          ) : renderInputComponent()}
         </Animated.View>
       )}
 
@@ -1289,7 +1473,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
     minHeight: 40, // Ensure consistent row height
   },
   pillsContainer: {
@@ -1452,11 +1636,11 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs, // Reduced from md to xs
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.grey[900],
-    marginBottom: theme.spacing.sm,
-    marginTop: theme.spacing.md,
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.grey[500],
+    marginBottom: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
   },
   daysContainer: {
     flexDirection: 'row',
@@ -1577,15 +1761,10 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[600],
   },
   goalSuggestionsContent: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
   },
   goalSection: {
-    marginBottom: theme.spacing.lg,
-  },
-  customGoalSection: {
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.grey[200],
-    paddingTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   goalTitleInput: {
     flex: 1,
@@ -1615,6 +1794,61 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     textAlign: 'center',
     marginRight: theme.spacing.sm,
+  },
+  customGoalSection: {
+    paddingTop: theme.spacing.md,
+  },
+  actionPlanContainer: {
+    marginBottom: theme.spacing.lg,
+  },
+  actionsList: {
+    maxHeight: 600,
+    paddingHorizontal: theme.spacing.sm,
+  },
+  feedbackButtons: {
+    flexDirection: 'column',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+  },
+  approveButton: {
+    marginBottom: theme.spacing.sm,
+  },
+  improveButton: {
+    marginBottom: theme.spacing.sm,
+  },
+  feedbackContainer: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.surface[100],
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.grey[200],
+  },
+  feedbackForm: {
+    gap: theme.spacing.md,
+  },
+  feedbackLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.grey[900],
+    marginBottom: theme.spacing.xs,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.grey[300],
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: 16,
+    color: theme.colors.grey[900],
+    backgroundColor: theme.colors.surface[50],
+    minHeight: 80,
+    maxHeight: 120,
+    textAlignVertical: 'top',
+  },
+  submitFeedbackButton: {
+    marginTop: theme.spacing.md,
   },
 });
 
