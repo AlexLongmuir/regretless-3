@@ -178,7 +178,7 @@ export const theme = {
     },
     expand_more: {
       library: 'MaterialIcons' as const,
-      name: 'expand_more'
+      name: 'keyboard-arrow-down'
     },
     expand_less: {
       library: 'MaterialIcons' as const,
@@ -255,6 +255,10 @@ export const theme = {
     calendar: {
       library: 'MaterialIcons' as const,
       name: 'today'
+    },
+    microphone: {
+      library: 'MaterialIcons' as const,
+      name: 'mic'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },

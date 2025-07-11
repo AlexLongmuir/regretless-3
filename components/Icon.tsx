@@ -8,12 +8,14 @@ interface IconProps {
   name: keyof typeof theme.icons;
   size?: number;
   color?: string;
+  style?: any;
 }
 
 export const Icon: React.FC<IconProps> = ({ 
   name, 
   size = 24, 
-  color = 'white' 
+  color = 'white',
+  style 
 }) => {
   const iconConfig = theme.icons[name];
   
@@ -28,7 +30,7 @@ export const Icon: React.FC<IconProps> = ({
         name={iconConfig.name} 
         size={size} 
         color={color}
-        style={styles.icon}
+        style={[styles.icon, style]}
       />
     );
   }
@@ -39,7 +41,7 @@ export const Icon: React.FC<IconProps> = ({
         name={iconConfig.name} 
         size={size} 
         color={color}
-        style={styles.icon}
+        style={[styles.icon, style]}
       />
     );
   }

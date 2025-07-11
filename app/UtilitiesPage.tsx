@@ -20,6 +20,20 @@ const UtilitiesPage = ({ navigation }: { navigation?: any }) => {
       icon: 'transform',
       onPress: () => console.log('Dream Board Converter pressed'),
     },
+    {
+      id: 'celebrity-goals',
+      title: 'Celebrity Goals',
+      description: 'Choose a celebrity and create goals inspired by their lifestyle',
+      icon: 'star',
+      onPress: () => console.log('Celebrity Goals pressed'),
+    },
+    {
+      id: 'social-media-analyzer',
+      title: 'Social Media Analyzer',
+      description: 'Share a reel, post, or tweet to create aligned goals',
+      icon: 'share',
+      onPress: () => console.log('Social Media Analyzer pressed'),
+    },
   ];
 
 

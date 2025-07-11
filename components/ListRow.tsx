@@ -6,6 +6,8 @@ import { Icon } from './Icon';
 interface ListRowProps {
   title: string;
   subtitle?: string;
+  overline?: string;
+  description?: string;
   onPress?: () => void;
   showChevron?: boolean;
   leftIcon?: string;
@@ -21,6 +23,8 @@ interface ListRowProps {
 export const ListRow: React.FC<ListRowProps> = ({
   title,
   subtitle,
+  overline,
+  description,
   onPress,
   leftIcon,
   rightElement = 'chevron',
@@ -104,6 +108,12 @@ export const ListRow: React.FC<ListRowProps> = ({
         )}
         
         <View style={styles.textContainer}>
+          {description && (
+            <Text style={styles.description}>{description}</Text>
+          )}
+          {overline && (
+            <Text style={styles.overline}>{overline}</Text>
+          )}
           <Text style={titleStyle}>{title}</Text>
           {subtitle && (
             <Text style={styles.subtitle}>{subtitle}</Text>
@@ -180,6 +190,15 @@ const styles = StyleSheet.create({
   darkTitle: {
     color: theme.colors.surface[50],
   },
+  overline: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: 16,
+    color: theme.colors.grey[500],
+    marginBottom: 2,
+    fontStyle: 'italic',
+  },
   subtitle: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
@@ -190,5 +209,13 @@ const styles = StyleSheet.create({
   },
   rightContainer: {
     marginLeft: theme.spacing.sm,
+  },
+  description: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: 16,
+    color: theme.colors.grey[600],
+    marginBottom: 4,
   },
 });

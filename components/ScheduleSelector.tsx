@@ -1,384 +1,461 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Icon } from './Icon';
 import { theme } from '../utils/theme';
-import { IconButton } from './IconButton';
-
-interface TimeSlot {
-  start: string;
-  end: string;
-}
 
 interface Schedule {
-  id: string;
+  id: number;
   name: string;
-  days: string[];
-  timeSlots: TimeSlot[];
+  days: number[];
+  timeBlocks: number[];
+  expanded: boolean;
 }
 
 interface ScheduleSelectorProps {
   schedules: Schedule[];
-  onSchedulesChange: (schedules: Schedule[]) => void;
-  maxSchedules?: number;
+  onScheduleChange: (schedules: Schedule[]) => void;
+  disabled?: boolean;
 }
 
-const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-const TIME_GRID_HOURS = [
-  ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00'],
-  ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00'],
-  ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
-  ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'],
-];
-
-export const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
+const ScheduleSelector: React.FC<ScheduleSelectorProps> = ({
   schedules,
-  onSchedulesChange,
-  maxSchedules = 3,
+  onScheduleChange,
+  disabled = false,
 }) => {
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<Record<string, TimeSlot[]>>({});
-  
-  console.log('ScheduleSelector rendered with schedules:', schedules);
-
-  const formatTimeSlots = (timeSlots: TimeSlot[]): string => {
-    if (timeSlots.length === 0) {
-      return 'No time selected';
-    }
-    
-    return timeSlots.map(slot => `${slot.start}-${slot.end}`).join(', ');
+  const handleScheduleUpdate = (scheduleIndex: number, updates: Partial<Schedule>) => {
+    const newSchedules = [...schedules];
+    newSchedules[scheduleIndex] = { ...newSchedules[scheduleIndex], ...updates };
+    onScheduleChange(newSchedules);
   };
 
-  const isTimeSlotSelected = (scheduleId: string, startTime: string, endTime: string): boolean => {
-    const slots = selectedTimeSlots[scheduleId] || [];
-    return slots.some(slot => slot.start === startTime && slot.end === endTime);
+  const handleDeleteSchedule = (scheduleId: number) => {
+    if (disabled) return;
+    
+    Alert.alert(
+      'Delete Schedule',
+      'Are you sure you want to delete this schedule?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const newSchedules = schedules.filter(s => s.id !== scheduleId);
+            onScheduleChange(newSchedules);
+          },
+        },
+      ]
+    );
   };
 
-  const toggleTimeSlot = (scheduleId: string, startTime: string, endTime: string) => {
-    const currentSlots = selectedTimeSlots[scheduleId] || [];
-    const isSelected = isTimeSlotSelected(scheduleId, startTime, endTime);
-    
-    let newSlots: TimeSlot[];
-    if (isSelected) {
-      newSlots = currentSlots.filter(slot => !(slot.start === startTime && slot.end === endTime));
-    } else {
-      newSlots = [...currentSlots, { start: startTime, end: endTime }];
-    }
-    
-    setSelectedTimeSlots(prev => ({
-      ...prev,
-      [scheduleId]: newSlots,
+  const handleToggleExpanded = (scheduleIndex: number) => {
+    if (disabled) return;
+    const newSchedules = schedules.map((s, idx) => ({
+      ...s,
+      expanded: idx === scheduleIndex ? !s.expanded : false
     }));
-    
-    // Update the schedule in the schedules array
-    const updatedSchedules = schedules.map(schedule => 
-      schedule.id === scheduleId 
-        ? { ...schedule, timeSlots: newSlots }
-        : schedule
-    );
-    onSchedulesChange(updatedSchedules);
+    onScheduleChange(newSchedules);
   };
 
-  const toggleDay = (scheduleId: string, dayIndex: number) => {
-    const dayName = DAY_NAMES[dayIndex];
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (!schedule) return;
-
-    const isSelected = schedule.days.includes(dayName);
-    let newDays: string[];
+  const handleDayToggle = (scheduleIndex: number, dayIndex: number) => {
+    if (disabled) return;
+    const currentDays = schedules[scheduleIndex].days || [];
+    const newDays = currentDays.includes(dayIndex)
+      ? currentDays.filter((d: number) => d !== dayIndex)
+      : [...currentDays, dayIndex];
     
-    if (isSelected) {
-      newDays = schedule.days.filter(day => day !== dayName);
-    } else {
-      newDays = [...schedule.days, dayName];
-    }
-
-    const updatedSchedules = schedules.map(s => 
-      s.id === scheduleId 
-        ? { ...s, days: newDays }
-        : s
-    );
-    onSchedulesChange(updatedSchedules);
+    handleScheduleUpdate(scheduleIndex, { days: newDays });
   };
 
-  const addSchedule = () => {
-    if (schedules.length >= maxSchedules) return;
+  const handleTimeSlotToggle = (scheduleIndex: number, slotId: number) => {
+    if (disabled) return;
+    const currentBlocks = schedules[scheduleIndex].timeBlocks || [];
+    const newBlocks = currentBlocks.includes(slotId)
+      ? currentBlocks.filter((b: number) => b !== slotId)
+      : [...currentBlocks, slotId];
     
+    handleScheduleUpdate(scheduleIndex, { timeBlocks: newBlocks });
+  };
+
+  const addNewSchedule = () => {
+    if (disabled) return;
     const newSchedule: Schedule = {
-      id: Date.now().toString(),
-      name: `Schedule ${schedules.length + 1}`,
+      id: Date.now(),
+      name: `Schedule #${schedules.length + 1}`,
       days: [],
-      timeSlots: [],
+      timeBlocks: [],
+      expanded: true
     };
-    
-    setSelectedTimeSlots(prev => ({
-      ...prev,
-      [newSchedule.id]: [],
-    }));
-    
-    onSchedulesChange([...schedules, newSchedule]);
-  };
-
-  const deleteSchedule = (scheduleId: string) => {
-    const updatedSchedules = schedules.filter(s => s.id !== scheduleId);
-    const updatedTimeSlots = { ...selectedTimeSlots };
-    delete updatedTimeSlots[scheduleId];
-    
-    setSelectedTimeSlots(updatedTimeSlots);
-    onSchedulesChange(updatedSchedules);
-  };
-
-  const collapseSchedule = (scheduleId: string) => {
-    // For now, just a placeholder - could implement actual collapse functionality
-  };
-
-  const getTimeSlotEndTime = (startTime: string): string => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const endHour = (hours + 1) % 24;
-    return `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const newSchedules = schedules.map(s => ({ ...s, expanded: false }));
+    newSchedules.push(newSchedule);
+    onScheduleChange(newSchedules);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.debugText}>ScheduleSelector is rendering with {schedules.length} schedules</Text>
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {schedules.map((schedule) => (
+      <ScrollView 
+        showsVerticalScrollIndicator={true} 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled={true}
+        scrollEnabled={true}
+      >
+      {schedules.map((schedule, scheduleIndex) => {
+        console.log(`Schedule ${scheduleIndex}:`, schedule);
+        return (
         <View key={schedule.id} style={styles.scheduleCard}>
+          {/* Schedule Header */}
           <View style={styles.scheduleHeader}>
-            <View style={styles.scheduleInfo}>
-              <Text style={styles.scheduleTitle}>{schedule.name}</Text>
-              <Text style={styles.scheduleSubtitle}>
-                {formatTimeSlots(selectedTimeSlots[schedule.id] || [])}
-              </Text>
+            <View style={styles.scheduleHeaderLeft}>
+              <Text style={styles.scheduleCardTitle}>Schedule #{scheduleIndex + 1}</Text>
             </View>
-            <View style={styles.scheduleActions}>
-              <IconButton
-                icon="delete"
-                onPress={() => deleteSchedule(schedule.id)}
-                variant="ghost"
-                size="sm"
-              />
-              <IconButton
-                icon="expand_less"
-                onPress={() => collapseSchedule(schedule.id)}
-                variant="ghost"
-                size="sm"
-              />
-            </View>
-          </View>
-
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Days</Text>
-            <View style={styles.daysContainer}>
-              {DAYS.map((day, index) => (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.dayButton,
-                    schedule.days.includes(DAY_NAMES[index]) && styles.dayButtonSelected,
-                  ]}
-                  onPress={() => toggleDay(schedule.id, index)}
+            <View style={styles.scheduleHeaderRight}>
+              {schedules.length > 1 && (
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteSchedule(schedule.id)}
+                  disabled={disabled}
                 >
-                  <Text
-                    style={[
-                      styles.dayButtonText,
-                      schedule.days.includes(DAY_NAMES[index]) && styles.dayButtonTextSelected,
-                    ]}
-                  >
-                    {day}
-                  </Text>
-                </Pressable>
-              ))}
+                  <Icon name="delete_forever" size={18} color={theme.colors.error[500]} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.expandButton}
+                onPress={() => handleToggleExpanded(scheduleIndex)}
+                disabled={disabled}
+              >
+                <Icon 
+                  name="expand_less" 
+                  size={20} 
+                  color={theme.colors.grey[700]} 
+                  style={schedule.expanded ? {} : { transform: [{ rotate: '180deg' }] }}
+                />
+              </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Time</Text>
-            <View style={styles.timeGrid}>
-              {TIME_GRID_HOURS.map((row, rowIndex) => (
-                <View key={rowIndex} style={styles.timeRow}>
-                  <Text style={styles.timeLabel}>
-                    {row[0]}
-                  </Text>
-                  <View style={styles.timeSlots}>
-                    {row.map((time, timeIndex) => {
-                      const endTime = getTimeSlotEndTime(time);
-                      const isSelected = isTimeSlotSelected(schedule.id, time, endTime);
+          {/* Expanded Content */}
+          {schedule.expanded && (
+            <View style={styles.scheduleContent}>
+              {/* Days Section */}
+              <View style={styles.daysContainer}>
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, dayIndex) => {
+                  const isSelected = schedule.days?.includes(dayIndex) || false;
+                  return (
+                    <TouchableOpacity
+                      key={dayIndex}
+                      style={[
+                        styles.dayCircle,
+                        isSelected && styles.selectedDayCircle,
+                      ]}
+                      onPress={() => handleDayToggle(scheduleIndex, dayIndex)}
+                      disabled={disabled}
+                    >
+                      <Text style={[
+                        styles.dayCircleText,
+                        isSelected && styles.selectedDayCircleText,
+                      ]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Time Section */}
+              <View style={styles.timeGridContainer}>
+                {[
+                  { startHour: 0, endHour: 6 },
+                  { startHour: 6, endHour: 12 },
+                  { startHour: 12, endHour: 18 },
+                  { startHour: 18, endHour: 24 },
+                ].map((timeRange, rangeIndex) => (
+                  <View key={rangeIndex} style={styles.timeRangeBlock}>
+                    <View style={styles.timeRangeHeader}>
+                      <Text style={styles.timeRangeStart}>
+                        {timeRange.startHour.toString().padStart(2, '0')}:00
+                      </Text>
+                      <Text style={styles.timeRangeEnd}>
+                        {timeRange.endHour === 24 ? '00:00' : timeRange.endHour.toString().padStart(2, '0') + ':00'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.timeSlotsContainer}>
+                      {Array.from({ length: (timeRange.endHour - timeRange.startHour) * 2 }, (_, index) => {
+                        const hour = timeRange.startHour + Math.floor(index / 2);
+                        const minute = (index % 2) * 30;
+                        const slotId = hour * 2 + (minute / 30);
+                        
+                        return (
+                          <TouchableOpacity
+                            key={slotId}
+                            style={styles.timeSlot}
+                            onPress={() => handleTimeSlotToggle(scheduleIndex, slotId)}
+                            disabled={disabled}
+                            activeOpacity={0.7}
+                          />
+                        );
+                      })}
                       
-                      return (
-                        <Pressable
-                          key={timeIndex}
-                          style={[
-                            styles.timeSlot,
-                            isSelected && styles.timeSlotSelected,
-                          ]}
-                          onPress={() => toggleTimeSlot(schedule.id, time, endTime)}
-                        >
-                          {isSelected && (
-                            <View style={styles.selectedTimeSlotContent}>
-                              <Text style={styles.selectedTimeText}>
-                                {time}
-                              </Text>
-                              <Text style={styles.selectedTimeText}>
-                                {endTime}
-                              </Text>
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    })}
+                      {/* Render selected time ranges as blue overlays */}
+                      {schedule.timeBlocks && schedule.timeBlocks.length > 0 && (
+                        <>
+                          {(() => {
+                            // Group consecutive slots into ranges
+                            const sortedBlocks = [...schedule.timeBlocks].sort((a, b) => a - b);
+                            const ranges = [];
+                            let currentRange = [sortedBlocks[0]];
+                            
+                            for (let i = 1; i < sortedBlocks.length; i++) {
+                              if (sortedBlocks[i] === sortedBlocks[i-1] + 1) {
+                                currentRange.push(sortedBlocks[i]);
+                              } else {
+                                ranges.push(currentRange);
+                                currentRange = [sortedBlocks[i]];
+                              }
+                            }
+                            ranges.push(currentRange);
+                            
+                            return ranges.map((range, rangeIdx) => {
+                              const startSlot = range[0];
+                              const endSlot = range[range.length - 1];
+                              
+                              // Calculate position within this time range
+                              const startHour = Math.floor(startSlot / 2);
+                              const startMinute = (startSlot % 2) * 30;
+                              const endHour = Math.floor(endSlot / 2);
+                              const endMinute = (endSlot % 2) * 30 + 30;
+                              
+                              // Only show if in current time range
+                              if (startHour < timeRange.startHour || startHour >= timeRange.endHour) {
+                                return null;
+                              }
+                              
+                              const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+                              const endTime = endMinute >= 60 ? 
+                                `${(endHour + 1).toString().padStart(2, '0')}:${(endMinute - 60).toString().padStart(2, '0')}` :
+                                `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                              
+                              // Calculate position and size
+                              const slotsInRange = (timeRange.endHour - timeRange.startHour) * 2;
+                              const slotWidth = 100 / slotsInRange;
+                              const startPosition = (startSlot - timeRange.startHour * 2) * slotWidth;
+                              const width = range.length * slotWidth;
+                              
+                              return (
+                                <View
+                                  key={rangeIdx}
+                                  style={[
+                                    styles.selectedTimeRange,
+                                    {
+                                      left: `${startPosition}%`,
+                                      width: `${width}%`,
+                                    }
+                                  ]}
+                                  pointerEvents="none"
+                                >
+                                  {range.length === 1 ? (
+                                    <Text style={styles.selectedSingleTimeRangeText}>
+                                      {startTime}
+                                      {'\n'}
+                                      {endTime}
+                                    </Text>
+                                  ) : (
+                                    <>
+                                      <Text style={styles.selectedTimeRangeText}>
+                                        {startTime}
+                                      </Text>
+                                      <Text style={styles.selectedTimeRangeText}>
+                                        {endTime}
+                                      </Text>
+                                    </>
+                                  )}
+                                </View>
+                              );
+                            });
+                          })()}
+                        </>
+                      )}
+                    </View>
                   </View>
-                  <Text style={styles.timeLabel}>
-                    {row[row.length - 1] === '23:00' ? '00:00' : getTimeSlotEndTime(row[row.length - 1])}
-                  </Text>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
-          </View>
+          )}
         </View>
-      ))}
+        );
+      })}
 
-      {schedules.length < maxSchedules && (
-        <Pressable style={styles.addScheduleButton} onPress={addSchedule}>
-          <Text style={styles.addScheduleText}>+ Add Another Schedule</Text>
-        </Pressable>
-      )}
-      </ScrollView>
+      {/* Add Another Schedule Button */}
+      <TouchableOpacity
+        style={styles.addScheduleButton}
+        onPress={addNewSchedule}
+        disabled={disabled}
+      >
+        <Text style={styles.addScheduleButtonText}>+ Add Another Schedule</Text>
+      </TouchableOpacity>
+    </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    maxHeight: 400,
+    flex: 1, // Fill parent container
   },
-  debugText: {
-    fontSize: 16,
-    color: 'red',
-    padding: 10,
-    textAlign: 'center',
+  scrollView: {
+    flex: 1,
+    marginBottom: theme.spacing.sm,
   },
-  scrollContainer: {
-    maxHeight: 350,
+  scrollContent: {
+    paddingBottom: theme.spacing.md,
   },
   scheduleCard: {
     backgroundColor: theme.colors.surface[50],
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
+    borderRadius: 12,
     marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.grey[200],
+    overflow: 'hidden',
   },
   scheduleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.grey[100],
   },
-  scheduleInfo: {
+  scheduleHeaderLeft: {
     flex: 1,
   },
-  scheduleTitle: {
-    fontSize: 18,
+  scheduleHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  scheduleCardTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: theme.colors.grey[900],
-    marginBottom: theme.spacing.xs,
+    marginBottom: 2,
   },
-  scheduleSubtitle: {
+  scheduleCardSubtitle: {
     fontSize: 14,
     color: theme.colors.grey[600],
   },
-  scheduleActions: {
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
+  deleteButton: {
+    padding: theme.spacing.xs,
   },
-  sectionContainer: {
-    marginBottom: theme.spacing.lg,
+  expandButton: {
+    padding: theme.spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.grey[900],
-    marginBottom: theme.spacing.sm,
+  scheduleContent: {
+    padding: theme.spacing.md,
+    paddingTop: theme.spacing.md,
   },
   daysContainer: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
   },
-  dayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  dayCircle: {
+    flex: 1,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: theme.colors.grey[200],
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: 2,
   },
-  dayButtonSelected: {
-    backgroundColor: theme.colors.primary[600],
+  selectedDayCircle: {
+    backgroundColor: theme.colors.primary[500],
   },
-  dayButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+  dayCircleText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: theme.colors.grey[700],
   },
-  dayButtonTextSelected: {
-    color: theme.colors.surface[100],
+  selectedDayCircleText: {
+    color: theme.colors.surface[50],
   },
-  timeGrid: {
-    gap: theme.spacing.xs,
+  timeGridContainer: {
+    gap: theme.spacing.sm,
   },
-  timeRow: {
+  timeRangeBlock: {
+    marginBottom: theme.spacing.sm,
+  },
+  timeRangeHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    height: 80,
+    marginBottom: theme.spacing.sm,
   },
-  timeLabel: {
+  timeRangeStart: {
     fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.grey[900],
-    width: 50,
-    textAlign: 'center',
+    fontWeight: '400',
+    color: theme.colors.grey[700],
   },
-  timeSlots: {
-    flex: 1,
-    flexDirection: 'row',
-    marginHorizontal: theme.spacing.sm,
+  timeRangeEnd: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: theme.colors.grey[700],
+  },
+  timeSlotsContainer: {
+    position: 'relative',
+    height: 36,
     backgroundColor: theme.colors.grey[200],
-    borderRadius: theme.radius.sm,
-    height: 60,
+    borderRadius: 8,
+    flexDirection: 'row',
   },
   timeSlot: {
     flex: 1,
+    height: '100%',
     backgroundColor: 'transparent',
-    borderRadius: theme.radius.sm,
-    margin: 2,
+  },
+  selectedTimeRange: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 4,
   },
-  timeSlotSelected: {
-    backgroundColor: theme.colors.primary[600],
-  },
-  selectedTimeSlotContent: {
-    alignItems: 'center',
-  },
-  selectedTimeText: {
-    color: theme.colors.surface[100],
+  selectedTimeRangeText: {
     fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 14,
+    fontWeight: '600',
+    color: theme.colors.surface[50],
+    textAlign: 'center',
+  },
+  selectedSingleTimeRangeText: {
+    fontSize: 5,
+    fontWeight: '400',
+    color: theme.colors.surface[50],
+    textAlign: 'center',
+    lineHeight: 6,
   },
   addScheduleButton: {
     borderWidth: 2,
     borderColor: theme.colors.grey[300],
     borderStyle: 'dashed',
-    borderRadius: theme.radius.lg,
+    borderRadius: 12,
     padding: theme.spacing.lg,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.surface[50],
+    marginBottom: theme.spacing.md,
   },
-  addScheduleText: {
+  addScheduleButtonText: {
     fontSize: 16,
     fontWeight: '500',
     color: theme.colors.grey[600],
   },
 });
+
+export default ScheduleSelector;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TextInput, Animated, ScrollView } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../utils/theme';
 import { Button } from '../components/Button';
@@ -8,7 +9,10 @@ import { ProgressIndicator } from '../components/ProgressIndicator';
 import { Pills } from '../components/Pills';
 import { ListRow } from '../components/ListRow';
 import { ImageGallery } from '../components/ImageGallery';
-import { SvgXml } from 'react-native-svg';
+import { ActionCard } from '../components/ActionCard';
+import ScheduleSelector from '../components/ScheduleSelector';
+import { ChatContainer, ChatMessage } from '../components/Chat';
+import { dreamCategories, popularDreams, dayOptions, getStartDateOptions, formatDateDisplay, arisAvatar } from '../constants/AddGoalFlowConstants';
 
 // iOS-style typing indicator component
 const TypingIndicator = () => {
@@ -55,36 +59,6 @@ const TypingIndicator = () => {
   );
 };
 
-const arisAvatar = `<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
-<svg width="800px" height="800px" viewBox="0 0 64 64" id="wizard" xmlns="http://www.w3.org/2000/svg" fill="#000000">
-<g id="SVGRepo_bgCarrier" stroke-width="0"/>
-<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
-<g id="SVGRepo_iconCarrier">
-<title>wizard</title>
-<circle cx="33" cy="23" r="23" style="fill:#D1E9F1"/>
-<line x1="7" y1="17" x2="7" y2="19" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<line x1="7" y1="23" x2="7" y2="25" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<path d="M21.778,47H47.222A8.778,8.778,0,0,1,56,55.778V61a0,0,0,0,1,0,0H13a0,0,0,0,1,0,0V55.778A8.778,8.778,0,0,1,21.778,47Z" style="fill:#0F2A3F;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<polygon points="32 61 28 61 34 49 38 49 32 61" style="fill:#ffffff;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<path d="M59,39H11v4.236A5.763,5.763,0,0,0,16.764,49L34,55l19.236-6A5.763,5.763,0,0,0,59,43.236Z" style="fill:#0F2A3F;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<line x1="3" y1="21" x2="5" y2="21" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<line x1="9" y1="21" x2="11" y2="21" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<circle cx="55.5" cy="6.5" r="2.5" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<circle cx="13.984" cy="6.603" r="1.069" style="fill:#091A2B"/>
-<ellipse cx="35" cy="39" rx="24" ry="6" style="fill:#091A2B;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<circle cx="5.984" cy="30.603" r="1.069" style="fill:#091A2B"/>
-<path d="M48,13V10.143A6.143,6.143,0,0,0,41.857,4H27.143A6.143,6.143,0,0,0,21,10.143V13" style="fill:#0F2A3F;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<rect x="20" y="17.81" width="29" height="14.19" style="fill:#ffe8dc;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<path d="M41.972,13H48a4,4,0,0,1,4,4h0a4,4,0,0,1-4,4H21a4,4,0,0,1-4-4h0a4,4,0,0,1,4-4H37" style="fill:#ffffff;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<circle cx="39.5" cy="25.5" r="1.136" style="fill:#091A2B"/>
-<circle cx="29.5" cy="25.5" r="1.136" style="fill:#091A2B"/>
-<path d="M43.875,32a6.472,6.472,0,0,0-5.219-2.2A5.2,5.2,0,0,0,35,31.974,5.2,5.2,0,0,0,31.344,29.8,6.472,6.472,0,0,0,26.125,32H20v4.5a14.5,14.5,0,0,0,29,0V32Z" style="fill:#ffffff;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<line x1="33" y1="36" x2="37" y2="36" style="fill:none;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-<rect x="32" y="10" width="5" height="5" transform="translate(1.266 28.056) rotate(-45)" style="fill:#75BDD5;stroke:#091A2B;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px"/>
-</g>
-</svg>`;
-
 interface Message {
   id: string;
   text: string;
@@ -92,6 +66,9 @@ interface Message {
   timestamp: Date;
   animatedValue?: Animated.Value;
 }
+
+
+
 
 interface GoalData {
   title: string;
@@ -106,6 +83,9 @@ interface GoalData {
   preferences: string;
   actions: Action[] | null;
   actionFeedback: string;
+  selectedGoalOption?: 'original' | 'alternative' | 'custom';
+  customTitle?: string;
+  customDays?: number;
 }
 
 interface Action {
@@ -118,253 +98,13 @@ interface Action {
 
 interface ConversationStep {
   id: string;
-  type: 'text' | 'daySelection' | 'schedule' | 'actions' | 'images' | 'startDate';
+  type: 'text' | 'daySelection' | 'schedule' | 'actions' | 'images' | 'startDate' | 'goalSuggestions';
   question: string;
   completed: boolean;
   skippable?: boolean;
 }
 
 type ConversationPhase = 'discovery' | 'planning' | 'actions' | 'feedback' | 'complete';
-
-const dreamCategories = [
-  { id: 'tech', label: 'Tech' },
-  { id: 'marketing', label: 'Marketing' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'design', label: 'Design' },
-  { id: 'healthcare', label: 'Healthcare' },
-  { id: 'self-development', label: 'Self-Development' },
-  { id: 'popular', label: 'Popular' },
-];
-
-const popularDreams = [
-  // Popular dreams
-  {
-    id: 'guitar',
-    title: 'Learn to play guitar and perform at an open mic night',
-    category: 'popular',
-  },
-  {
-    id: 'marathon',
-    title: 'Run a half marathon in under 2 hours',
-    category: 'popular',
-  },
-  {
-    id: 'cooking',
-    title: 'Master cooking and host dinner parties',
-    category: 'popular',
-  },
-  {
-    id: 'photography',
-    title: 'Learn photography and create a stunning portfolio',
-    category: 'popular',
-  },
-  {
-    id: 'fitness',
-    title: 'Get in the best shape of my life',
-    category: 'popular',
-  },
-  
-  // Tech dreams
-  {
-    id: 'app',
-    title: 'Build and launch my first mobile app',
-    category: 'tech',
-  },
-  {
-    id: 'coding',
-    title: 'Learn to code and switch to a tech career',
-    category: 'tech',
-  },
-  {
-    id: 'ai',
-    title: 'Master AI and machine learning fundamentals',
-    category: 'tech',
-  },
-  {
-    id: 'website',
-    title: 'Create a professional website from scratch',
-    category: 'tech',
-  },
-  {
-    id: 'blockchain',
-    title: 'Understand blockchain and cryptocurrency',
-    category: 'tech',
-  },
-  
-  // Finance dreams
-  {
-    id: 'business',
-    title: 'Start a side business and make $1000/month',
-    category: 'finance',
-  },
-  {
-    id: 'investing',
-    title: 'Learn investing and build a portfolio',
-    category: 'finance',
-  },
-  {
-    id: 'debt',
-    title: 'Pay off all my debt and become debt-free',
-    category: 'finance',
-  },
-  {
-    id: 'emergency',
-    title: 'Build a 6-month emergency fund',
-    category: 'finance',
-  },
-  {
-    id: 'property',
-    title: 'Save for and buy my first property',
-    category: 'finance',
-  },
-  
-  // Design dreams
-  {
-    id: 'graphic',
-    title: 'Master graphic design and create stunning visuals',
-    category: 'design',
-  },
-  {
-    id: 'ux',
-    title: 'Learn UX/UI design and land a design job',
-    category: 'design',
-  },
-  {
-    id: 'illustration',
-    title: 'Develop my illustration skills and style',
-    category: 'design',
-  },
-  {
-    id: 'branding',
-    title: 'Create a complete brand identity system',
-    category: 'design',
-  },
-  {
-    id: 'portfolio',
-    title: 'Build a professional design portfolio',
-    category: 'design',
-  },
-  
-  // Self-development dreams
-  {
-    id: 'spanish',
-    title: 'Learn Spanish fluently for travel',
-    category: 'self-development',
-  },
-  {
-    id: 'meditation',
-    title: 'Establish a daily meditation practice',
-    category: 'self-development',
-  },
-  {
-    id: 'reading',
-    title: 'Read 50 books this year',
-    category: 'self-development',
-  },
-  {
-    id: 'confidence',
-    title: 'Build unshakeable self-confidence',
-    category: 'self-development',
-  },
-  {
-    id: 'speaking',
-    title: 'Overcome fear of public speaking',
-    category: 'self-development',
-  },
-  
-  // Marketing dreams
-  {
-    id: 'social',
-    title: 'Build a strong social media presence',
-    category: 'marketing',
-  },
-  {
-    id: 'content',
-    title: 'Create viral content and grow my audience',
-    category: 'marketing',
-  },
-  {
-    id: 'brand',
-    title: 'Launch and market my personal brand',
-    category: 'marketing',
-  },
-  {
-    id: 'newsletter',
-    title: 'Start a successful email newsletter',
-    category: 'marketing',
-  },
-  {
-    id: 'influencer',
-    title: 'Become an influencer in my niche',
-    category: 'marketing',
-  },
-  
-  // Healthcare dreams
-  {
-    id: 'nutrition',
-    title: 'Master nutrition and transform my health',
-    category: 'healthcare',
-  },
-  {
-    id: 'sleep',
-    title: 'Improve my sleep quality and energy levels',
-    category: 'healthcare',
-  },
-  {
-    id: 'yoga',
-    title: 'Become proficient in yoga and mindfulness',
-    category: 'healthcare',
-  },
-  {
-    id: 'mental',
-    title: 'Improve my mental health and wellbeing',
-    category: 'healthcare',
-  },
-  {
-    id: 'habits',
-    title: 'Build healthy daily habits that stick',
-    category: 'healthcare',
-  },
-];
-
-const dayOptions = [
-  { id: '30', label: '30 days' },
-  { id: '60', label: '60 days' },
-  { id: '90', label: '90 days' },
-];
-
-const getStartDateOptions = () => {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
-
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
-  const getDayName = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'long' });
-
-  return [
-    { id: formatDate(today), label: 'Today' },
-    { id: formatDate(tomorrow), label: 'Tomorrow' },
-    { id: formatDate(dayAfterTomorrow), label: getDayName(dayAfterTomorrow) },
-  ];
-};
-
-const formatDateDisplay = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    
-    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
-    const day = date.getDate();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const year = date.getFullYear();
-    
-    return `${weekday} ${day} ${month} ${year}`;
-  } catch {
-    return dateString;
-  }
-};
 
 const initialSteps: ConversationStep[] = [
   {
@@ -401,7 +141,7 @@ const initialSteps: ConversationStep[] = [
   {
     id: 'reason',
     type: 'text',
-    question: "Great! What's the main reason this goal is important to you?",
+    question: "Great! Research by Dr. Gail Matthews at Dominican University shows that people who write down their motivation are 42% more likely to achieve their goals. What's the main reason this goal is important to you?",
     completed: false,
   },
   {
@@ -416,6 +156,12 @@ const initialSteps: ConversationStep[] = [
     question: "Are there any constraints I should know about? For example, budget limitations, time restrictions, or resources you don't have access to?",
     completed: false,
     skippable: true,
+  },
+  {
+    id: 'goalSuggestions',
+    type: 'goalSuggestions',
+    question: "These refined goals use the SMART framework (Specific, Measurable, Achievable, Relevant, Time-bound), which is proven to increase your likelihood of success by up to 42%. Based on your schedule and experience level, which approach resonates with you?",
+    completed: false,
   },
 ];
 
@@ -443,7 +189,6 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
   const [selectedCategory, setSelectedCategory] = useState('popular');
   const [filteredDreams, setFilteredDreams] = useState(popularDreams.filter(dream => dream.category === 'popular'));
   const [daysInput, setDaysInput] = useState('');
@@ -798,6 +543,25 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     moveToNextStep();
   };
 
+  const handleGoalSuggestionSelection = (type: 'original' | 'alternative' | 'custom', title: string, days: number) => {
+    const newGoalData = { ...goalData };
+    newGoalData.selectedGoalOption = type;
+    newGoalData.title = title;
+    newGoalData.duration = days;
+    setGoalData(newGoalData);
+    
+    // Create user response message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: `I'll work on "${title}" for ${days} days`,
+      isAris: false,
+      timestamp: new Date(),
+    };
+    addAnimatedMessage(userMessage);
+    
+    moveToNextStep();
+  };
+
   const generateActions = async () => {
     setIsProcessing(true);
     
@@ -933,23 +697,25 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         
         return (
           <View style={styles.inputContainer}>
-            <TextInput 
-              style={[styles.dynamicInput, isDisabled && styles.disabledInput]}
-              value={currentInput}
-              onChangeText={isDisabled ? undefined : setCurrentInput}
-              placeholder="Type your response..."
-              placeholderTextColor={theme.colors.grey[400]}
-              multiline
-              maxLength={500}
-              editable={!isDisabled}
-            />
-            <IconButton
-              icon="send"
-              onPress={() => handleTextInput(currentInput)}
-              variant="primary"
-              size="md"
-              disabled={!currentInput.trim() || isDisabled}
-            />
+            <View style={styles.inputRow}>
+              <TextInput 
+                style={[styles.dynamicInput, isDisabled && styles.disabledInput]}
+                value={currentInput}
+                onChangeText={isDisabled ? undefined : setCurrentInput}
+                placeholder="Type your response..."
+                placeholderTextColor={theme.colors.grey[400]}
+                multiline
+                maxLength={500}
+                editable={!isDisabled}
+              />
+              <IconButton
+                icon="send"
+                onPress={() => handleTextInput(currentInput)}
+                variant="primary"
+                size="md"
+                disabled={!currentInput.trim() || isDisabled}
+              />
+            </View>
           </View>
         );
 
@@ -1060,249 +826,14 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         const schedules = goalData.schedule || [{ id: 1, name: 'Schedule One', days: [], timeBlocks: [], expanded: true }];
         
         return (
-          <View style={styles.scheduleContainer}>
+          <View style={styles.scheduleFullContainer}>
             <Text style={styles.scheduleTitle}>Select your availability</Text>
-            <View style={styles.schedulePickerWrapper}>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {schedules.map((schedule, scheduleIndex) => (
-                  <View key={schedule.id} style={styles.scheduleCard}>
-                    {/* Schedule Header */}
-                    <View style={styles.scheduleHeader}>
-                      <View style={styles.scheduleHeaderLeft}>
-                        <Text style={styles.scheduleCardTitle}>{schedule.name}</Text>
-                        <Text style={styles.scheduleCardSubtitle}>
-                          {schedule.timeBlocks?.length > 0 ? 
-                            `• ${schedule.timeBlocks.map((blockId: number) => {
-                              const hour = Math.floor(blockId / 2);
-                              const minute = (blockId % 2) * 30;
-                              const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                              const endMinute = minute + 30;
-                              const endHour = endMinute >= 60 ? hour + 1 : hour;
-                              const endMin = endMinute >= 60 ? 0 : endMinute;
-                              const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
-                              return `${startTime}-${endTime}`;
-                            }).join(', ')}`
-                            : '• No time selected'}
-                        </Text>
-                      </View>
-                      <View style={styles.scheduleHeaderRight}>
-                        {schedules.length > 1 && (
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => {
-                              if (!isDisabled) {
-                                const newSchedules = schedules.filter(s => s.id !== schedule.id);
-                                handleScheduleSelection(newSchedules);
-                              }
-                            }}
-                            disabled={isDisabled}
-                          >
-                            <Text style={styles.deleteButtonText}>🗑</Text>
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={styles.expandButton}
-                          onPress={() => {
-                            if (!isDisabled) {
-                              const newSchedules = schedules.map((s, idx) => ({
-                                ...s,
-                                expanded: idx === scheduleIndex ? !s.expanded : false
-                              }));
-                              handleScheduleSelection(newSchedules);
-                            }
-                          }}
-                          disabled={isDisabled}
-                        >
-                          <Text style={styles.expandButtonText}>{schedule.expanded ? '⌃' : '⌄'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Expanded Content */}
-                    {schedule.expanded && (
-                      <View style={styles.scheduleContent}>
-                        {/* Days Section */}
-                        <View style={styles.daysContainer}>
-                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, dayIndex) => {
-                            const isSelected = schedule.days?.includes(dayIndex) || false;
-                            return (
-                              <TouchableOpacity
-                                key={dayIndex}
-                                style={[
-                                  styles.dayCircle,
-                                  isSelected && styles.selectedDayCircle,
-                                ]}
-                                onPress={() => {
-                                  if (!isDisabled) {
-                                    const newSchedules = [...schedules];
-                                    const currentDays = newSchedules[scheduleIndex].days || [];
-                                    if (currentDays.includes(dayIndex)) {
-                                      newSchedules[scheduleIndex].days = currentDays.filter((d: number) => d !== dayIndex);
-                                    } else {
-                                      newSchedules[scheduleIndex].days = [...currentDays, dayIndex];
-                                    }
-                                    handleScheduleSelection(newSchedules);
-                                  }
-                                }}
-                                disabled={isDisabled}
-                              >
-                                <Text style={[
-                                  styles.dayCircleText,
-                                  isSelected && styles.selectedDayCircleText,
-                                ]}>
-                                  {day}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-
-                        {/* Time Section */}
-                        <View style={styles.timeGridContainer}>
-                          {[
-                            { startHour: 0, endHour: 6 },
-                            { startHour: 6, endHour: 12 },
-                            { startHour: 12, endHour: 18 },
-                            { startHour: 18, endHour: 24 },
-                          ].map((timeRange, rangeIndex) => (
-                            <View key={rangeIndex} style={styles.timeRangeBlock}>
-                              <View style={styles.timeRangeHeader}>
-                                <Text style={styles.timeRangeStart}>
-                                  {timeRange.startHour.toString().padStart(2, '0')}:00
-                                </Text>
-                                <Text style={styles.timeRangeEnd}>
-                                  {timeRange.endHour === 24 ? '00:00' : timeRange.endHour.toString().padStart(2, '0') + ':00'}
-                                </Text>
-                              </View>
-                              
-                              <View style={styles.timeSlotsContainer}>
-                                {Array.from({ length: (timeRange.endHour - timeRange.startHour) * 2 }, (_, index) => {
-                                  const hour = timeRange.startHour + Math.floor(index / 2);
-                                  const minute = (index % 2) * 30;
-                                  const slotId = hour * 2 + (minute / 30);
-                                  
-                                  return (
-                                    <TouchableOpacity
-                                      key={slotId}
-                                      style={styles.timeSlot}
-                                      onPress={() => {
-                                        if (!isDisabled) {
-                                          const newSchedules = [...schedules];
-                                          const currentBlocks = newSchedules[scheduleIndex].timeBlocks || [];
-                                          
-                                          if (currentBlocks.includes(slotId)) {
-                                            newSchedules[scheduleIndex].timeBlocks = currentBlocks.filter((b: number) => b !== slotId);
-                                          } else {
-                                            newSchedules[scheduleIndex].timeBlocks = [...currentBlocks, slotId];
-                                          }
-                                          handleScheduleSelection(newSchedules);
-                                        }
-                                      }}
-                                      disabled={isDisabled}
-                                      activeOpacity={1}
-                                    />
-                                  );
-                                })}
-                                
-                                {/* Render selected time ranges as blue overlays */}
-                                {schedule.timeBlocks && schedule.timeBlocks.length > 0 && (
-                                  <>
-                                    {(() => {
-                                      // Group consecutive slots into ranges
-                                      const sortedBlocks = [...schedule.timeBlocks].sort((a, b) => a - b);
-                                      const ranges = [];
-                                      let currentRange = [sortedBlocks[0]];
-                                      
-                                      for (let i = 1; i < sortedBlocks.length; i++) {
-                                        if (sortedBlocks[i] === sortedBlocks[i-1] + 1) {
-                                          currentRange.push(sortedBlocks[i]);
-                                        } else {
-                                          ranges.push(currentRange);
-                                          currentRange = [sortedBlocks[i]];
-                                        }
-                                      }
-                                      ranges.push(currentRange);
-                                      
-                                      return ranges.map((range, rangeIdx) => {
-                                        const startSlot = range[0];
-                                        const endSlot = range[range.length - 1];
-                                        
-                                        // Calculate position within this time range
-                                        const startHour = Math.floor(startSlot / 2);
-                                        const startMinute = (startSlot % 2) * 30;
-                                        const endHour = Math.floor(endSlot / 2);
-                                        const endMinute = (endSlot % 2) * 30 + 30;
-                                        
-                                        // Only show if in current time range
-                                        if (startHour < timeRange.startHour || startHour >= timeRange.endHour) {
-                                          return null;
-                                        }
-                                        
-                                        const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
-                                        const endTime = endMinute >= 60 ? 
-                                          `${(endHour + 1).toString().padStart(2, '0')}:${(endMinute - 60).toString().padStart(2, '0')}` :
-                                          `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-                                        
-                                        // Calculate position and size
-                                        const slotsInRange = (timeRange.endHour - timeRange.startHour) * 2;
-                                        const slotWidth = 100 / slotsInRange;
-                                        const startPosition = (startSlot - timeRange.startHour * 2) * slotWidth;
-                                        const width = range.length * slotWidth;
-                                        
-                                        return (
-                                          <View
-                                            key={rangeIdx}
-                                            style={[
-                                              styles.selectedTimeRange,
-                                              {
-                                                left: `${startPosition}%`,
-                                                width: `${width}%`,
-                                              }
-                                            ]}
-                                          >
-                                            <Text style={styles.selectedTimeRangeText}>
-                                              {startTime}
-                                            </Text>
-                                            <Text style={styles.selectedTimeRangeText}>
-                                              {endTime}
-                                            </Text>
-                                          </View>
-                                        );
-                                      });
-                                    })()}
-                                  </>
-                                )}
-                              </View>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                ))}
-
-                {/* Add Another Schedule Button */}
-                <TouchableOpacity
-                  style={styles.addScheduleButton}
-                  onPress={() => {
-                    if (!isDisabled) {
-                      const newSchedule = {
-                        id: Date.now(),
-                        name: `Schedule ${schedules.length + 1}`,
-                        days: [],
-                        timeBlocks: [],
-                        expanded: true
-                      };
-                      const newSchedules = schedules.map(s => ({ ...s, expanded: false }));
-                      newSchedules.push(newSchedule);
-                      handleScheduleSelection(newSchedules);
-                    }
-                  }}
-                  disabled={isDisabled}
-                >
-                  <Text style={styles.addScheduleButtonText}>+ Add Another Schedule</Text>
-                </TouchableOpacity>
-              </ScrollView>
+            <View style={styles.scheduleContent}>
+              <ScheduleSelector
+                schedules={schedules}
+                onScheduleChange={handleScheduleSelection}
+                disabled={isDisabled}
+              />
             </View>
             <Button
               title="Continue"
@@ -1310,6 +841,96 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
               style={styles.continueButton}
               disabled={isDisabled}
             />
+          </View>
+        );
+
+      case 'goalSuggestions':
+        const mockSuggestions = [
+          {
+            id: '1',
+            title: `Master ${goalData.title.toLowerCase()} fundamentals`,
+            days: Math.max(Math.floor((goalData.duration || 30) * 0.7), 14),
+            description: 'Focus on building a strong foundation with core skills and techniques'
+          },
+          {
+            id: '2', 
+            title: `Complete ${goalData.title.toLowerCase()} challenge`,
+            days: goalData.duration || 30,
+            description: 'Structured approach with daily practice and weekly milestones'
+          },
+          {
+            id: '3',
+            title: `Advanced ${goalData.title.toLowerCase()} mastery`,
+            days: Math.min(Math.floor((goalData.duration || 30) * 1.5), 90),
+            description: 'Comprehensive program including advanced techniques and real-world application'
+          }
+        ];
+
+        return (
+          <View style={styles.selectionContainer}>
+            <View style={styles.goalSuggestionsContent}>
+              {/* Current Goal Section */}
+              <View style={styles.goalSection}>
+                <Text style={styles.sectionTitle}>Your Current Goal</Text>
+                <ListRow
+                  title={`${goalData.title} in ${goalData.duration} days`}
+                  description="Your original goal as specified"
+                  onPress={isDisabled ? () => {} : () => handleGoalSuggestionSelection('original', goalData.title, goalData.duration || 30)}
+                  size="small"
+                  rightElement="chevron"
+                />
+              </View>
+
+              {/* Suggested Goals Section */}
+              <View style={styles.goalSection}>
+                <Text style={styles.sectionTitle}>Suggested Goals</Text>
+                {mockSuggestions.map((suggestion) => (
+                  <ListRow
+                    key={suggestion.id}
+                    title={`${suggestion.title} in ${suggestion.days} days`}
+                    description={suggestion.description}
+                    onPress={isDisabled ? () => {} : () => handleGoalSuggestionSelection('alternative', suggestion.title, suggestion.days)}
+                    size="small"
+                    rightElement="chevron"
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* Custom Goal Input */}
+            <View style={styles.customGoalSection}>
+              <Text style={styles.sectionTitle}>Or Create Your Own</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={[styles.goalTitleInput, isDisabled && styles.disabledInput]}
+                  value={goalData.customTitle || ''}
+                  onChangeText={isDisabled ? undefined : (text) => setGoalData({...goalData, customTitle: text})}
+                  placeholder="Goal title..."
+                  placeholderTextColor={theme.colors.grey[400]}
+                  editable={!isDisabled}
+                />
+                <TextInput
+                  style={[styles.goalDaysInput, isDisabled && styles.disabledInput]}
+                  value={goalData.customDays?.toString() || ''}
+                  onChangeText={isDisabled ? undefined : (text) => {
+                    const days = parseInt(text.replace(/[^0-9]/g, ''));
+                    setGoalData({...goalData, customDays: days || undefined});
+                  }}
+                  placeholder="Days"
+                  placeholderTextColor={theme.colors.grey[400]}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  editable={!isDisabled}
+                />
+                <IconButton
+                  icon="send"
+                  onPress={() => handleGoalSuggestionSelection('custom', goalData.customTitle || '', goalData.customDays || 30)}
+                  variant="primary"
+                  size="md"
+                  disabled={!goalData.customTitle?.trim() || !goalData.customDays || isDisabled}
+                />
+              </View>
+            </View>
           </View>
         );
 
@@ -1364,6 +985,8 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         return 'Current Level';
       case 'restrictions':
         return 'Known Constraints';
+      case 'goalSuggestions':
+        return 'Refine Your Goal';
       default:
         if (phase === 'actions') {
           return 'Creating Your Plan';
@@ -1464,7 +1087,7 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
       {!isProcessing && (
         <Animated.View style={{ 
           opacity: fadeAnim,
-          flex: 0, // Prevent flex growth
+          flex: getCurrentStep()?.type === 'schedule' ? 1 : 0, // Expand for schedule, normal for others
         }}>
           {renderInputComponent()}
         </Animated.View>
@@ -1586,7 +1209,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface[100],
     borderTopWidth: 1,
     borderTopColor: theme.colors.grey[200],
-    minHeight: 140, // Ensure consistent minimum height to accommodate all content
+    minHeight: 100, // Ensure consistent minimum height to accommodate all content
   },
   inputWrapper: {
     flex: 1,
@@ -1718,13 +1341,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   scheduleContainer: {
+    flex: 1,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
     backgroundColor: theme.colors.surface[100],
     borderTopWidth: 1,
     borderTopColor: theme.colors.grey[200],
-    maxHeight: '70%', // Take up to 70% of available space
+  },
+  scheduleFullContainer: {
+    flex: 1, // Increased from 1 to 1.2 to make container slightly taller
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.lg, // Added small padding under continue button
+    backgroundColor: theme.colors.surface[100],
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.grey[200],
   },
   schedulePickerWrapper: {
     marginBottom: theme.spacing.md,
@@ -1816,8 +1448,8 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[700],
   },
   scheduleContent: {
-    padding: theme.spacing.md,
-    paddingTop: 0,
+    flex: 1,
+    marginBottom: theme.spacing.xs, // Reduced from md to xs
   },
   sectionTitle: {
     fontSize: 16,
@@ -1943,6 +1575,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: theme.colors.grey[600],
+  },
+  goalSuggestionsContent: {
+    marginBottom: theme.spacing.md,
+  },
+  goalSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  customGoalSection: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.grey[200],
+    paddingTop: theme.spacing.md,
+  },
+  goalTitleInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.grey[300],
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: 16,
+    color: theme.colors.grey[900],
+    backgroundColor: theme.colors.surface[50],
+    minHeight: 40,
+    textAlignVertical: 'center',
+    marginRight: theme.spacing.sm,
+  },
+  goalDaysInput: {
+    width: 80,
+    borderWidth: 1,
+    borderColor: theme.colors.grey[300],
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    fontSize: 16,
+    color: theme.colors.grey[900],
+    backgroundColor: theme.colors.surface[50],
+    minHeight: 40,
+    textAlignVertical: 'center',
+    textAlign: 'center',
+    marginRight: theme.spacing.sm,
   },
 });
 
