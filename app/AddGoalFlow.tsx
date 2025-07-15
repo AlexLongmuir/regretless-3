@@ -9,9 +9,11 @@ import { ProgressIndicator } from '../components/ProgressIndicator';
 import { Pills } from '../components/Pills';
 import { ListRow } from '../components/ListRow';
 import { ImageGallery } from '../components/ImageGallery';
-import { ActionCard } from '../components/ActionCard';
+import { CompactActionCard } from '../components/CompactActionCard';
 import ScheduleSelector from '../components/ScheduleSelector';
 import { dreamCategories, popularDreams, dayOptions, getStartDateOptions, formatDateDisplay, arisAvatar } from '../constants/AddGoalFlowConstants';
+import { createGoalWithAI, generatePersonalizationQuestions, generateActionPlan, type GoalData as AIGoalData, type AIAction } from '../frontend-services/ai-service';
+import { useAuthContext } from '../contexts/AuthContext';
 
 // iOS-style typing indicator component
 const TypingIndicator = () => {
@@ -169,6 +171,7 @@ const initialSteps: ConversationStep[] = [
 ];
 
 const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
+  const { user } = useAuthContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationSteps, setConversationSteps] = useState<ConversationStep[]>(initialSteps);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -188,6 +191,8 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     actions: null,
     actionFeedback: '',
   });
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{id: string; title: string; days: number; description: string}>>([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [currentInput, setCurrentInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -314,9 +319,8 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         setIsTransitioning(false);
       }, 1000);
     } else {
-      // All steps completed, move to action generation
-      setPhase('actions');
-      generateActions();
+      // All steps completed, generate AI suggestions first
+      generateAISuggestions();
     }
   };
 
@@ -550,6 +554,100 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     moveToNextStep();
   };
 
+  const generateAISuggestions = async () => {
+    console.log('🚀 [AI DEBUG] Starting generateAISuggestions');
+    console.log('📝 [AI DEBUG] Current goalData:', goalData);
+    console.log('👤 [AI DEBUG] User ID:', user?.id);
+    
+    setIsGeneratingSuggestions(true);
+    
+    try {
+      if (!user?.id) {
+        console.error('❌ [AI DEBUG] User not authenticated');
+        throw new Error('User not authenticated');
+      }
+      
+      // Create goal with AI improvements to get suggestions
+      const aiGoalData: AIGoalData = {
+        title: goalData.title,
+        startDate: goalData.startDate,
+        duration: goalData.duration,
+        images: goalData.images,
+        reason: goalData.reason,
+        schedule: goalData.schedule,
+        startingLevel: goalData.startingLevel,
+        restrictions: goalData.restrictions,
+        category: goalData.selectedGoalOption === 'custom' ? 'custom' : undefined
+      };
+      
+      console.log('📊 [AI DEBUG] Calling createGoalWithAI with data:', aiGoalData);
+      
+      const { goal, improvedTitle, suggestions } = await createGoalWithAI(aiGoalData, user.id);
+      
+      console.log('✅ [AI DEBUG] createGoalWithAI response:');
+      console.log('  - goal:', goal);
+      console.log('  - improvedTitle:', improvedTitle);
+      console.log('  - suggestions:', suggestions);
+      
+      // Create AI-generated suggestions based on the improved goal
+      const aiGeneratedSuggestions = [
+        {
+          id: '1',
+          title: improvedTitle,
+          days: goalData.duration || 30,
+          description: suggestions.join(', ')
+        },
+        {
+          id: '2',
+          title: `${improvedTitle} - Quick Start`,
+          days: Math.max(Math.floor((goalData.duration || 30) * 0.7), 14),
+          description: 'Shorter timeline, focused on essentials'
+        },
+        {
+          id: '3',
+          title: `${improvedTitle} - Comprehensive`,
+          days: Math.min(Math.floor((goalData.duration || 30) * 1.5), 90),
+          description: 'Extended timeline, includes advanced techniques'
+        }
+      ];
+      
+      console.log('📝 [AI DEBUG] Generated AI suggestions:', aiGeneratedSuggestions);
+      
+      setAiSuggestions(aiGeneratedSuggestions);
+      setIsGeneratingSuggestions(false);
+      
+      // Move to goal suggestions step
+      setPhase('actions');
+      setCurrentStepIndex(conversationSteps.length - 1); // Go to goalSuggestions step
+      
+      const arisMessage: Message = {
+        id: Date.now().toString(),
+        text: "Perfect! I've analyzed your goal and created some improved versions. These use the SMART framework to increase your success rate by up to 42%. Which approach resonates with you?",
+        isAris: true,
+        timestamp: new Date(),
+      };
+      addAnimatedMessage(arisMessage);
+      
+      console.log('🎉 [AI DEBUG] Successfully completed generateAISuggestions');
+      
+    } catch (error) {
+      console.error('❌ [AI DEBUG] Error generating AI suggestions:', error);
+      setIsGeneratingSuggestions(false);
+      
+      // Fall back to showing goalSuggestions step with mock data
+      setPhase('actions');
+      setCurrentStepIndex(conversationSteps.length - 1);
+      
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        text: "I'll help you refine your goal. Here are some suggestions based on proven goal-setting frameworks:",
+        isAris: true,
+        timestamp: new Date(),
+      };
+      addAnimatedMessage(errorMessage);
+    }
+  };
+
   const handleGoalSuggestionSelection = (type: 'original' | 'alternative' | 'custom', title: string, days: number) => {
     const newGoalData = { ...goalData };
     newGoalData.selectedGoalOption = type;
@@ -566,39 +664,92 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
     };
     addAnimatedMessage(userMessage);
     
-    moveToNextStep();
+    // Now generate the action plan
+    setPhase('actions');
+    generateActions();
   };
 
   const generateActions = async () => {
+    console.log('🎬 [ACTION DEBUG] Starting generateActions');
+    console.log('📝 [ACTION DEBUG] Current goalData:', goalData);
+    console.log('👤 [ACTION DEBUG] User ID:', user?.id);
+    
     setIsProcessing(true);
     
-    // Simulate AI action generation
-    // In real implementation, this would call your AI API
-    setTimeout(() => {
-      const mockActions: Action[] = [];
-      const startDate = new Date(goalData.startDate);
-      
-      for (let i = 1; i <= 20; i++) {
-        const actionDate = new Date(startDate);
-        actionDate.setDate(startDate.getDate() + i - 1);
-        
-        mockActions.push({
-          id: i.toString(),
-          title: `${goalData.title.toLowerCase()} - Day ${i}`,
-          description: `Daily practice session focusing on ${i <= 5 ? 'fundamentals' : i <= 10 ? 'intermediate skills' : i <= 15 ? 'advanced techniques' : 'mastery refinement'}`,
-          estimatedTime: 30 + (i % 3) * 15, // Varying time: 30, 45, 60 minutes
-          day: i,
-          dueDate: actionDate.toISOString().split('T')[0],
-        });
+    try {
+      // Use user from context
+      if (!user?.id) {
+        console.error('❌ [ACTION DEBUG] User not authenticated');
+        throw new Error('User not authenticated');
       }
+      const userId = user.id;
+      
+      // Create goal with AI improvements
+      const aiGoalData: AIGoalData = {
+        title: goalData.title,
+        startDate: goalData.startDate,
+        duration: goalData.duration,
+        images: goalData.images,
+        reason: goalData.reason,
+        schedule: goalData.schedule,
+        startingLevel: goalData.startingLevel,
+        restrictions: goalData.restrictions,
+        category: goalData.selectedGoalOption === 'custom' ? 'custom' : undefined
+      };
+      
+      console.log('📊 [ACTION DEBUG] Calling createGoalWithAI with data:', aiGoalData);
+      
+      const { goal, improvedTitle, suggestions } = await createGoalWithAI(aiGoalData, userId);
+      
+      console.log('✅ [ACTION DEBUG] createGoalWithAI response:');
+      console.log('  - goal:', goal);
+      console.log('  - improvedTitle:', improvedTitle);
+      console.log('  - suggestions:', suggestions);
+      
+      // Generate personalization questions
+      console.log('❓ [ACTION DEBUG] Generating personalization questions for goal:', goal.id);
+      const questions = await generatePersonalizationQuestions(goal.id);
+      
+      console.log('✅ [ACTION DEBUG] Generated questions:', questions);
+      
+      // Create responses based on user's conversation inputs
+      const responses = [
+        { question_type: 'experience' as const, answer: goalData.startingLevel },
+        { question_type: 'limitations' as const, answer: goalData.restrictions },
+        { question_type: 'personalization' as const, answer: goalData.preferences || 'I prefer structured learning with clear milestones' }
+      ];
+      
+      console.log('📝 [ACTION DEBUG] User responses:', responses);
+      
+      // Generate action plan
+      console.log('🎯 [ACTION DEBUG] Generating action plan...');
+      const { actions, planData } = await generateActionPlan(goal.id, goal, responses);
+      
+      console.log('✅ [ACTION DEBUG] Generated action plan:');
+      console.log('  - actions:', actions);
+      console.log('  - planData:', planData);
+      
+      // Convert AI actions to frontend format
+      const convertedActions: Action[] = actions.map(action => ({
+        id: action.id,
+        title: action.title,
+        description: action.description,
+        estimatedTime: action.estimatedTime,
+        day: action.day,
+        dueDate: action.dueDate
+      }));
+      
+      console.log('🔄 [ACTION DEBUG] Converted actions for frontend:', convertedActions);
 
       const newGoalData = { ...goalData };
-      newGoalData.actions = mockActions;
+      newGoalData.actions = convertedActions;
       setGoalData(newGoalData);
+      
+      console.log('💾 [ACTION DEBUG] Updated goalData with actions');
 
       const arisMessage: Message = {
         id: Date.now().toString(),
-        text: "Perfect! Based on everything you've told me, I've created a personalized action plan for you. Take a look at these actions and let me know what you think!",
+        text: "Perfect! I've created a personalized action plan based on your goal and preferences. Here's your AI-generated roadmap to success:",
         isAris: true,
         timestamp: new Date(),
       };
@@ -607,94 +758,24 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
       setIsProcessing(false);
       setShowActionFeedback(true);
       setTotalProgress(prev => prev + 1);
-    }, 2000);
-  };
-
-  const handleActionFeedbackApprove = () => {
-    setShowActionFeedback(false);
-    setPhase('complete');
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: "This looks good, let's go with this plan!",
-      isAris: false,
-      timestamp: new Date(),
-    };
-    addAnimatedMessage(userMessage);
-    
-    const arisMessage: Message = {
-      id: Date.now().toString(),
-      text: "Excellent! Your goal has been created and you're all set to start your journey. Good luck!",
-      isAris: true,
-      timestamp: new Date(),
-    };
-    addAnimatedMessage(arisMessage);
-    
-    // Auto-submit the goal after a short delay
-    setTimeout(() => {
-      handleFinish();
-    }, 2000);
-  };
-
-  const handleActionFeedbackImprove = () => {
-    setShowActionFeedback(false);
-    setActionFeedbackAttempts(prev => prev + 1);
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: "I think this could be improved",
-      isAris: false,
-      timestamp: new Date(),
-    };
-    addAnimatedMessage(userMessage);
-    
-    const arisMessage: Message = {
-      id: Date.now().toString(),
-      text: "Thanks! Could you let me know what you did & didn't like about this & I can adjust it accordingly?",
-      isAris: true,
-      timestamp: new Date(),
-    };
-    addAnimatedMessage(arisMessage);
-    
-    // Set up the feedback input form
-    setPhase('feedback');
-  };
-
-  const handleFeedbackSubmit = () => {
-    if (!feedbackImprove.trim() && !feedbackDislike.trim()) return;
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: `What I liked: ${feedbackImprove.trim() || 'No specific feedback'}\n\nWhat I didn't like: ${feedbackDislike.trim() || 'No specific feedback'}`,
-      isAris: false,
-      timestamp: new Date(),
-    };
-    addAnimatedMessage(userMessage);
-    
-    setFeedbackImprove('');
-    setFeedbackDislike('');
-    
-    // Check if we've reached the maximum attempts
-    if (actionFeedbackAttempts >= 3) {
-      // Auto-submit after 3 attempts
-      const arisMessage: Message = {
+      
+      console.log('🎉 [ACTION DEBUG] Successfully completed generateActions');
+      
+    } catch (error) {
+      console.error('❌ [ACTION DEBUG] Error in generateActions:', error);
+      
+      const errorMessage: Message = {
         id: Date.now().toString(),
-        text: "Thank you for your feedback! I've incorporated your suggestions into a refined action plan. Your goal is now ready to begin!",
+        text: "I encountered an issue creating your action plan. Please try again or check that you're signed in.",
         isAris: true,
         timestamp: new Date(),
       };
-      addAnimatedMessage(arisMessage);
+      addAnimatedMessage(errorMessage);
       
-      setPhase('complete');
-      setTimeout(() => {
-        handleFinish();
-      }, 2000);
-    } else {
-      // Generate improved actions
-      setPhase('actions');
-      regenerateActions();
+      setIsProcessing(false);
     }
   };
+
 
   const regenerateActions = () => {
     setIsProcessing(true);
@@ -732,6 +813,11 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
       
       setIsProcessing(false);
       setShowActionFeedback(true);
+      
+      // Navigate back to tabs and trigger sticky overlay
+      setTimeout(() => {
+        navigation?.navigate('Tabs', { showActionSuggestions: true });
+      }, 1000);
     }, 2000);
   };
 
@@ -971,7 +1057,7 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
         );
 
       case 'goalSuggestions':
-        const mockSuggestions = [
+        const suggestions = aiSuggestions.length > 0 ? aiSuggestions : [
           {
             id: '1',
             title: `Master ${goalData.title.toLowerCase()} fundamentals`,
@@ -1009,17 +1095,25 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
 
               {/* Suggested Goals Section */}
               <View style={styles.goalSection}>
-                <Text style={styles.sectionTitle}>Suggested Improvements</Text>
-                {mockSuggestions.map((suggestion) => (
-                  <ListRow
-                    key={suggestion.id}
-                    title={`${suggestion.title} in ${suggestion.days} days`}
-                    description={suggestion.description}
-                    onPress={isDisabled ? () => {} : () => handleGoalSuggestionSelection('alternative', suggestion.title, suggestion.days)}
-                    size="small"
-                    rightElement="chevron"
-                  />
-                ))}
+                <Text style={styles.sectionTitle}>
+                  {isGeneratingSuggestions ? 'Generating AI Suggestions...' : 'AI-Generated Suggestions'}
+                </Text>
+                {isGeneratingSuggestions ? (
+                  <View style={styles.loadingContainer}>
+                    <TypingIndicator />
+                  </View>
+                ) : (
+                  suggestions.map((suggestion) => (
+                    <ListRow
+                      key={suggestion.id}
+                      title={`${suggestion.title} in ${suggestion.days} days`}
+                      description={suggestion.description}
+                      onPress={isDisabled ? () => {} : () => handleGoalSuggestionSelection('alternative', suggestion.title, suggestion.days)}
+                      size="small"
+                      rightElement="chevron"
+                    />
+                  ))
+                )}
               </View>
             </View>
 
@@ -1200,15 +1294,12 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
               style={styles.actionsList}
             >
               {goalData.actions.map((action) => (
-                <ActionCard
+                <CompactActionCard
                   key={action.id}
                   id={action.id}
                   title={action.title}
-                  description={action.description}
                   status="todo"
                   estimatedTime={action.estimatedTime}
-                  dreamTitle={goalData.title}
-                  inspirationImages={goalData.images}
                   dueDate={action.dueDate}
                   onPress={() => {}} // No action needed for preview
                   onStatusChange={() => {}} // No action needed for preview
@@ -1216,21 +1307,6 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
               ))}
             </ScrollView>
             
-            {showActionFeedback && (
-              <View style={styles.feedbackButtons}>
-                <Button
-                  title="This looks good!"
-                  onPress={handleActionFeedbackApprove}
-                  style={styles.approveButton}
-                />
-                <Button
-                  title="I think this could be improved"
-                  onPress={handleActionFeedbackImprove}
-                  variant="secondary"
-                  style={styles.improveButton}
-                />
-              </View>
-            )}
           </View>
         )}
       </ScrollView>
@@ -1240,40 +1316,7 @@ const AddGoalFlow = ({ navigation }: { navigation?: any }) => {
           opacity: fadeAnim,
           flex: getCurrentStep()?.type === 'schedule' ? 1 : 0, // Expand for schedule, normal for others
         }}>
-          {phase === 'feedback' ? (
-            <View style={styles.feedbackContainer}>
-              <View style={styles.feedbackForm}>
-                <Text style={styles.feedbackLabel}>What did you like about this plan?</Text>
-                <TextInput
-                  style={styles.feedbackInput}
-                  value={feedbackImprove}
-                  onChangeText={setFeedbackImprove}
-                  placeholder="Tell me what worked well..."
-                  placeholderTextColor={theme.colors.grey[400]}
-                  multiline
-                  maxLength={500}
-                />
-                
-                <Text style={styles.feedbackLabel}>What didn't you like?</Text>
-                <TextInput
-                  style={styles.feedbackInput}
-                  value={feedbackDislike}
-                  onChangeText={setFeedbackDislike}
-                  placeholder="Tell me what could be improved..."
-                  placeholderTextColor={theme.colors.grey[400]}
-                  multiline
-                  maxLength={500}
-                />
-                
-                <Button
-                  title="Submit Feedback"
-                  onPress={handleFeedbackSubmit}
-                  style={styles.submitFeedbackButton}
-                  disabled={!feedbackImprove.trim() && !feedbackDislike.trim()}
-                />
-              </View>
-            </View>
-          ) : renderInputComponent()}
+          {renderInputComponent()}
         </Animated.View>
       )}
 
@@ -1849,6 +1892,10 @@ const styles = StyleSheet.create({
   },
   submitFeedbackButton: {
     marginTop: theme.spacing.md,
+  },
+  loadingContainer: {
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
   },
 });
 

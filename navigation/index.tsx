@@ -43,6 +43,7 @@ import AddJourneyEntryPage from '../app/AddJourneyEntryPage';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
+import { StickyActionSuggestions } from '../components/StickyActionSuggestions';
 import { useAuthContext } from '../contexts/AuthContext';
 
 // Create stack navigators
@@ -77,8 +78,22 @@ const AuthNavigator = () => (
  * 2. BottomNavigation component handles tab switching
  * 3. Screen content changes based on active tab
  */
-const TabNavigator = ({ navigation }: any) => {
+const TabNavigator = ({ navigation, route }: any) => {
   const [activeTab, setActiveTab] = useState('Dreams');
+  const [showActionSuggestions, setShowActionSuggestions] = useState(false);
+
+  // Listen for navigation events to show action suggestions
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (route?.params?.showActionSuggestions) {
+        setShowActionSuggestions(true);
+        // Clear the param to prevent showing again
+        navigation.setParams({ showActionSuggestions: undefined });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, route?.params?.showActionSuggestions]);
 
   /**
    * Handle tab press events
@@ -86,6 +101,24 @@ const TabNavigator = ({ navigation }: any) => {
    */
   const handleTabPress = (tabKey: string) => {
     setActiveTab(tabKey);
+  };
+
+  /**
+   * Handle action suggestion approval
+   */
+  const handleActionApprove = () => {
+    setShowActionSuggestions(false);
+    // Show success message or navigate to completion
+    // For now, just hide the overlay - the goal creation is complete
+  };
+
+  /**
+   * Handle action suggestion improvement
+   */
+  const handleActionImprove = () => {
+    setShowActionSuggestions(false);
+    // Navigate back to AddGoalFlow for feedback
+    navigation.navigate('AddGoalFlow', { phase: 'feedback' });
   };
 
   /**
@@ -121,6 +154,13 @@ const TabNavigator = ({ navigation }: any) => {
       <BottomNavigation
         activeTab={activeTab}
         onTabPress={handleTabPress}
+      />
+      
+      {/* Sticky action suggestions overlay - positioned on top of everything */}
+      <StickyActionSuggestions
+        visible={showActionSuggestions}
+        onApprove={handleActionApprove}
+        onImprove={handleActionImprove}
       />
     </View>
   );
