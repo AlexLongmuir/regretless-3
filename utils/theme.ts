@@ -259,6 +259,22 @@ export const theme = {
     microphone: {
       library: 'MaterialIcons' as const,
       name: 'mic'
+    },
+    book_open: {
+      library: 'MaterialIcons' as const,
+      name: 'menu_book'
+    },
+    books: {
+      library: 'MaterialIcons' as const,
+      name: 'library_books'
+    },
+    edit_note: {
+      library: 'MaterialIcons' as const,
+      name: 'edit_note'
+    },
+    calendar_today: {
+      library: 'MaterialIcons' as const,
+      name: 'today'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },

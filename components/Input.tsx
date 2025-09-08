@@ -16,11 +16,13 @@ interface InputProps {
   style?: ViewStyle;
   size?: 'default' | 'small';
   type?: 'text' | 'date' | 'singleline';
+  variant?: 'default' | 'borderless';
   onDateChange?: (date: Date) => void;
   showDatePicker?: boolean;
   onToggleDatePicker?: () => void;
   keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  minimumDate?: Date;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -35,11 +37,13 @@ export const Input: React.FC<InputProps> = ({
   style,
   size = 'default',
   type = 'text',
+  variant = 'default',
   onDateChange,
   showDatePicker = false,
   onToggleDatePicker,
   keyboardType = 'default',
   autoCapitalize = 'sentences',
+  minimumDate,
 }) => {
   const [internalDate, setInternalDate] = useState<Date>(new Date());
   const handleDateChange = (_event: any, selectedDate?: Date) => {
@@ -57,6 +61,7 @@ export const Input: React.FC<InputProps> = ({
       <View style={[
         styles.inputContainer,
         size === 'small' && styles.smallInputContainer,
+        variant === 'borderless' && styles.borderlessInputContainer,
         error && styles.inputContainerError,
         disabled && styles.inputContainerDisabled,
       ]}>
@@ -94,6 +99,7 @@ export const Input: React.FC<InputProps> = ({
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
+          minimumDate={minimumDate}
         />
       )}
     </View>
@@ -137,6 +143,10 @@ const styles = StyleSheet.create({
   },
   inputContainerDisabled: {
     backgroundColor: theme.colors.grey[100],
+  },
+  borderlessInputContainer: {
+    borderWidth: 0,
+    backgroundColor: 'white',
   },
   input: {
     flex: 1,

@@ -30,12 +30,19 @@
 import { StatusBar } from 'expo-status-bar';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './components/toast/ToastProvider';
+import { CreateDreamProvider } from './contexts/CreateDreamContext';
 
 export default function App() {
   return (
+    
     <AuthProvider>
-      <Navigation />
+      <ToastProvider>
+      <CreateDreamProvider>
+        <Navigation />
+      </CreateDreamProvider>
       <StatusBar style="auto" />
+      </ToastProvider>
     </AuthProvider>
   );
 }

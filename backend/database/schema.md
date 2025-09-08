@@ -1,374 +1,516 @@
-# Database Schema Documentation
+# Dreams Database Schema Documentation
 
 ## Overview
-This document describes the Supabase database schema for the Regretless app's backend AI services.
+This document describes the Supabase database schema for the Regretless Dreams app (MVP v1). The schema enables users to set up dreams, break them into areas → actions, complete occurrences with photo evidence/notes, and track today, overdue, and streaks—all with strong tenant isolation.
 
-## Tables
+## Core Tables
 
-### goals_v2
-Stores user goals with complete timeline and context (new enhanced version).
+### profiles
+One row per Supabase auth user (FK to auth.users).
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
+| email | text | User's email address | NOT NULL |
+| display_name | text | User's display name | |
+| avatar_url | text | URL to user's avatar image | |
+| created_at | timestamptz | When profile was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When profile was last modified | NOT NULL, DEFAULT now() |
+
+### dreams
+User's goal container with title, start_date, optional end_date, and archive capability.
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| user_id | uuid | Reference to auth.users | NOT NULL, FOREIGN KEY |
-| title | text | User's final chosen goal title | NOT NULL |
-| description | text | User's description/reason | |
-| original_input | text | User's initial goal statement | NOT NULL |
-| ai_suggestions | jsonb | Array of AI suggested improvements | |
-| start_date | date | When user wants to start | NOT NULL |
-| target_end_date | date | Target completion date | |
-| duration_days | integer | Goal duration in days | |
-| status | text | Goal status | NOT NULL, DEFAULT 'active' |
-| category | text | Goal category (fitness, learning, etc.) | |
-| experience_level | text | User's experience level | |
-| constraints_notes | text | User's limitations/constraints | |
-| motivation_reason | text | Why this goal matters to user | |
-| images | text[] | Inspiration images for the goal | |
-| schedule_preferences | jsonb | User's preferred schedule | |
-| created_at | timestamptz | When goal was created | NOT NULL, DEFAULT now() |
-| updated_at | timestamptz | When goal was last modified | NOT NULL, DEFAULT now() |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
+| title | text | Dream title | NOT NULL |
+| description | text | Dream description | |
+| start_date | date | When dream starts | NOT NULL |
+| end_date | date | Optional target end date | |
+| archived_at | timestamptz | When dream was archived (soft delete) | |
+| created_at | timestamptz | When dream was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When dream was last modified | NOT NULL, DEFAULT now() |
 
-### personalization_questions_v2
-Stores AI-generated questions for each goal.
+### areas
+Categories inside a dream with soft-delete capability.
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| goal_id | uuid | Reference to goals_v2 table | NOT NULL, FOREIGN KEY |
-| questions | jsonb | Array of question objects | NOT NULL |
-| created_at | timestamptz | When questions were generated | NOT NULL, DEFAULT now() |
+| dream_id | uuid | Reference to dreams table | NOT NULL, FOREIGN KEY |
+| title | text | Area title | NOT NULL |
+| icon | text | Icon identifier for UI | |
+| color | text | Hex color code for UI | |
+| deleted_at | timestamptz | When area was soft-deleted | |
+| created_at | timestamptz | When area was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When area was last modified | NOT NULL, DEFAULT now() |
 
-### user_responses_v2
-Stores user answers to personalization questions.
-
-| Column | Type | Description | Constraints |
-|--------|------|-------------|-------------|
-| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| goal_id | uuid | Reference to goals_v2 table | NOT NULL, FOREIGN KEY |
-| responses | jsonb | User's answers to questions | NOT NULL |
-| created_at | timestamptz | When responses were submitted | NOT NULL, DEFAULT now() |
-
-### action_plan_drafts_v2
-Stores AI-generated action plan drafts before user approval.
+### actions
+Planned work inside an area (templates for recurring work).
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| goal_id | uuid | Reference to goals_v2 table | NOT NULL, FOREIGN KEY |
-| plan_data | jsonb | Complete action plan structure | NOT NULL |
-| version | integer | Draft version number | NOT NULL, DEFAULT 1 |
-| status | text | Draft status (pending, approved, rejected, revised) | NOT NULL, DEFAULT 'pending' |
-| user_feedback | text | User's feedback on this draft | |
-| ai_improvements | jsonb | AI's analysis of feedback | |
-| created_at | timestamptz | When draft was generated | NOT NULL, DEFAULT now() |
-
-### actions_v2
-Stores individual action items from approved plans.
-
-| Column | Type | Description | Constraints |
-|--------|------|-------------|-------------|
-| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| goal_id | uuid | Reference to goals_v2 table | NOT NULL, FOREIGN KEY |
-| draft_id | uuid | Reference to action_plan_drafts_v2 table | FOREIGN KEY |
+| area_id | uuid | Reference to areas table | NOT NULL, FOREIGN KEY |
 | title | text | Action title | NOT NULL |
 | description | text | Action description | |
-| instructions | text | Detailed how-to instructions | |
-| due_date | date | When action should be completed | |
-| estimated_minutes | integer | Estimated time to complete | |
-| frequency | text | How often to repeat | DEFAULT 'once' |
-| repeat_pattern | jsonb | Complex repetition rules | |
-| phase_number | integer | Which phase of the plan | |
-| order_in_phase | integer | Order within phase | |
-| status | text | Current status | DEFAULT 'todo' |
-| completed_at | timestamptz | When marked as completed | |
-| notes | text | User's notes on this action | |
-| photos | text[] | Photos uploaded for this action | |
+| est_minutes | integer | Estimated time to complete | |
+| difficulty | text | Difficulty level | NOT NULL, CHECK (difficulty IN ('easy', 'medium', 'hard')) |
+| repeat_every_days | integer | How often to repeat (1/2/3) | CHECK (repeat_every_days IN (1, 2, 3)) |
+| acceptance_criteria | jsonb | ≤3 bullets of criteria | CHECK (jsonb_array_length(acceptance_criteria) <= 3) |
+| is_active | boolean | Whether action is active | NOT NULL, DEFAULT true |
+| deleted_at | timestamptz | When action was soft-deleted | |
 | created_at | timestamptz | When action was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When action was last modified | NOT NULL, DEFAULT now() |
 
-### journal_entries_v2
-Stores user's daily journal reflections.
-
-| Column | Type | Description | Constraints |
-|--------|------|-------------|-------------|
-| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| user_id | uuid | Reference to auth.users | NOT NULL, FOREIGN KEY |
-| goal_id | uuid | Optional reference to specific goal | FOREIGN KEY |
-| entry_date | date | Date of journal entry | NOT NULL |
-| title | text | Entry title | NOT NULL |
-| content | text | Entry content/reflection | NOT NULL |
-| mood_rating | integer | Mood rating 1-5 | CHECK (mood_rating >= 1 AND mood_rating <= 5) |
-| images | text[] | Photos attached to entry | |
-| completed_action_ids | uuid[] | References to completed actions | |
-| created_at | timestamptz | When entry was created | NOT NULL, DEFAULT now() |
-| updated_at | timestamptz | When entry was last modified | NOT NULL, DEFAULT now() |
-
-### plan_feedback
-Stores user feedback on action plans.
+### action_occurrences
+Each scheduled/finished unit of work (instances of actions).
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| plan_id | uuid | Reference to action_plans table | NOT NULL, FOREIGN KEY |
-| feedback_text | text | User's feedback on the plan | NOT NULL |
-| feedback_type | text | Type of feedback (concern, request, etc.) | |
-| created_at | timestamptz | When feedback was submitted | NOT NULL, DEFAULT now() |
+| action_id | uuid | Reference to actions table | NOT NULL, FOREIGN KEY |
+| planned_due_on | date | Original planned due date | NOT NULL |
+| due_on | date | Mutable due date (for defers) | NOT NULL |
+| defer_count | integer | Number of times deferred | NOT NULL, DEFAULT 0 |
+| note | text | User's note on this occurrence | |
+| completed_at | timestamptz | When occurrence was completed | |
+| ai_rating | integer | AI rating 1-5 | CHECK (ai_rating >= 1 AND ai_rating <= 5) |
+| ai_feedback | text | AI feedback on completion | |
+| created_at | timestamptz | When occurrence was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When occurrence was last modified | NOT NULL, DEFAULT now() |
 
-### ai_evaluations_v2
-Stores AI critic evaluations and rubric scores with outcome tracking.
+### action_artifacts
+Many photos/files per occurrence with storage path and metadata.
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| service_type | text | Which service (goal-generation, etc.) | NOT NULL |
-| service_stage | text | Which stage (planner, critic, rewriter) | NOT NULL |
-| goal_id | uuid | Reference to goals_v2 table for outcome tracking | FOREIGN KEY |
-| action_id | uuid | Reference to actions_v2 table for outcome tracking | FOREIGN KEY |
-| draft_id | uuid | Reference to action_plan_drafts_v2 table | FOREIGN KEY |
-| input_data | jsonb | Input data for the evaluation | NOT NULL |
-| output_data | jsonb | Generated output | NOT NULL |
-| rubric_scores | jsonb | Critic scores and feedback | |
-| average_score | decimal | Average rubric score | |
-| passed_threshold | boolean | Whether it passed the quality threshold | |
-| real_world_outcome | text | Did user complete goal/action? (success, failure, abandoned) | |
-| outcome_notes | text | Additional context about the outcome | |
-| created_at | timestamptz | When evaluation was performed | NOT NULL, DEFAULT now() |
+| occurrence_id | uuid | Reference to action_occurrences table | NOT NULL, FOREIGN KEY |
+| storage_path | text | Path in storage bucket | NOT NULL |
+| file_name | text | Original file name | NOT NULL |
+| file_size | bigint | File size in bytes | |
+| mime_type | text | File MIME type | |
+| metadata | jsonb | Additional file metadata | |
+| created_at | timestamptz | When artifact was uploaded | NOT NULL, DEFAULT now() |
+
+## Helper Views & Functions
+
+### v_action_occurrence_status
+Adds computed status fields to action_occurrences.
+
+```sql
+CREATE VIEW v_action_occurrence_status AS
+SELECT 
+  ao.*,
+  CASE WHEN ao.completed_at IS NOT NULL THEN true ELSE false END as is_done,
+  CASE WHEN ao.completed_at IS NULL AND ao.due_on < CURRENT_DATE THEN true ELSE false END as is_overdue,
+  CASE WHEN ao.completed_at IS NULL AND ao.due_on < CURRENT_DATE 
+    THEN CURRENT_DATE - ao.due_on 
+    ELSE 0 
+  END as overdue_days
+FROM action_occurrences ao;
+```
+
+### v_dream_daily_summary
+Per user/dream/day counts of completed occurrences (for charts/streaks).
+
+```sql
+CREATE VIEW v_dream_daily_summary AS
+SELECT 
+  d.user_id,
+  d.id as dream_id,
+  ao.completed_at::date as completion_date,
+  COUNT(*) as completed_occurrences
+FROM dreams d
+JOIN areas a ON a.dream_id = d.id AND a.deleted_at IS NULL
+JOIN actions act ON act.area_id = a.id AND act.deleted_at IS NULL AND act.is_active = true
+JOIN action_occurrences ao ON ao.action_id = act.id AND ao.completed_at IS NOT NULL
+GROUP BY d.user_id, d.id, ao.completed_at::date;
+```
+
+### v_overdue_counts
+Per user/dream overdue tally.
+
+```sql
+CREATE VIEW v_overdue_counts AS
+SELECT 
+  d.user_id,
+  d.id as dream_id,
+  COUNT(*) as overdue_count
+FROM dreams d
+JOIN areas a ON a.dream_id = d.id AND a.deleted_at IS NULL
+JOIN actions act ON act.area_id = a.id AND act.deleted_at IS NULL AND act.is_active = true
+JOIN action_occurrences ao ON ao.action_id = act.id 
+WHERE ao.completed_at IS NULL AND ao.due_on < CURRENT_DATE
+GROUP BY d.user_id, d.id;
+```
+
+### current_streak(user_id, dream_id) → int
+Rolling streak length for a specific dream.
+
+```sql
+CREATE OR REPLACE FUNCTION current_streak(p_user_id uuid, p_dream_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  streak_count integer := 0;
+  current_date_check date := CURRENT_DATE;
+BEGIN
+  LOOP
+    IF EXISTS (
+      SELECT 1 FROM v_dream_daily_summary 
+      WHERE user_id = p_user_id 
+        AND dream_id = p_dream_id 
+        AND completion_date = current_date_check
+    ) THEN
+      streak_count := streak_count + 1;
+      current_date_check := current_date_check - INTERVAL '1 day';
+    ELSE
+      EXIT;
+    END IF;
+  END LOOP;
+  
+  RETURN streak_count;
+END;
+$$;
+```
+
+### defer_occurrence(occurrence_id)
+Move occurrence due date +1 day (with security).
+
+```sql
+CREATE OR REPLACE FUNCTION defer_occurrence(p_occurrence_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE action_occurrences 
+  SET 
+    due_on = due_on + INTERVAL '1 day',
+    defer_count = defer_count + 1,
+    updated_at = now()
+  WHERE id = p_occurrence_id
+    AND EXISTS (
+      SELECT 1 FROM actions act
+      JOIN areas a ON a.id = act.area_id
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE act.id = action_occurrences.action_id
+        AND d.user_id = auth.uid()
+    );
+END;
+$$;
+```
 
 ## Indexes
 
 ```sql
 -- Performance indexes for common queries
 
--- Goals V2
-CREATE INDEX idx_goals_v2_user_id ON goals_v2(user_id);
-CREATE INDEX idx_goals_v2_status ON goals_v2(status);
-CREATE INDEX idx_goals_v2_start_date ON goals_v2(start_date);
-CREATE INDEX idx_goals_v2_created_at ON goals_v2(created_at);
+-- Profiles
+CREATE INDEX idx_profiles_user_id ON profiles(id);
 
--- Questions and responses V2
-CREATE INDEX idx_personalization_questions_v2_goal_id ON personalization_questions_v2(goal_id);
-CREATE INDEX idx_user_responses_v2_goal_id ON user_responses_v2(goal_id);
+-- Dreams
+CREATE INDEX idx_dreams_user_id ON dreams(user_id);
+CREATE INDEX idx_dreams_archived_at ON dreams(archived_at) WHERE archived_at IS NULL;
+CREATE INDEX idx_dreams_start_date ON dreams(start_date);
 
--- Action plan drafts V2
-CREATE INDEX idx_action_plan_drafts_v2_goal_id ON action_plan_drafts_v2(goal_id);
-CREATE INDEX idx_action_plan_drafts_v2_status ON action_plan_drafts_v2(status);
-CREATE INDEX idx_action_plan_drafts_v2_version ON action_plan_drafts_v2(goal_id, version);
+-- Areas
+CREATE INDEX idx_areas_dream_id ON areas(dream_id);
+CREATE INDEX idx_areas_deleted_at ON areas(deleted_at) WHERE deleted_at IS NULL;
 
--- Actions V2
-CREATE INDEX idx_actions_v2_goal_id ON actions_v2(goal_id);
-CREATE INDEX idx_actions_v2_draft_id ON actions_v2(draft_id);
-CREATE INDEX idx_actions_v2_status ON actions_v2(status);
-CREATE INDEX idx_actions_v2_due_date ON actions_v2(due_date);
-CREATE INDEX idx_actions_v2_phase ON actions_v2(goal_id, phase_number, order_in_phase);
+-- Actions
+CREATE INDEX idx_actions_area_id ON actions(area_id);
+CREATE INDEX idx_actions_deleted_at ON actions(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_actions_is_active ON actions(is_active) WHERE is_active = true;
 
--- Journal entries V2
-CREATE INDEX idx_journal_entries_v2_user_id ON journal_entries_v2(user_id);
-CREATE INDEX idx_journal_entries_v2_goal_id ON journal_entries_v2(goal_id);
-CREATE INDEX idx_journal_entries_v2_date ON journal_entries_v2(entry_date);
-CREATE INDEX idx_journal_entries_v2_created_at ON journal_entries_v2(created_at);
+-- Action occurrences (hot indexes for today/overdue queries)
+CREATE INDEX idx_action_occurrences_user_due ON action_occurrences(action_id, due_on);
+CREATE INDEX idx_action_occurrences_due_completed ON action_occurrences(due_on, completed_at) 
+  WHERE completed_at IS NULL;
+CREATE INDEX idx_action_occurrences_action_id ON action_occurrences(action_id);
+CREATE INDEX idx_action_occurrences_completed_at ON action_occurrences(completed_at) 
+  WHERE completed_at IS NOT NULL;
 
--- Plan feedback
-CREATE INDEX idx_plan_feedback_plan_id ON plan_feedback(plan_id);
+-- Action artifacts
+CREATE INDEX idx_action_artifacts_occurrence_id ON action_artifacts(occurrence_id);
+```
 
--- AI evaluations V2
-CREATE INDEX idx_ai_evaluations_v2_service ON ai_evaluations_v2(service_type, service_stage);
-CREATE INDEX idx_ai_evaluations_v2_goal_id ON ai_evaluations_v2(goal_id);
-CREATE INDEX idx_ai_evaluations_v2_outcome ON ai_evaluations_v2(real_world_outcome);
-CREATE INDEX idx_ai_evaluations_v2_created_at ON ai_evaluations_v2(created_at);
+## Triggers
+
+### handle_occurrence_complete
+Auto-create next repeating occurrence when one is completed.
+
+```sql
+CREATE OR REPLACE FUNCTION handle_occurrence_complete()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  action_record actions%ROWTYPE;
+  next_due_date date;
+  dream_end_date date;
+BEGIN
+  -- Only process if this is a new completion
+  IF NEW.completed_at IS NOT NULL AND (OLD.completed_at IS NULL OR OLD.completed_at IS DISTINCT FROM NEW.completed_at) THEN
+    -- Get the action details
+    SELECT * INTO action_record 
+    FROM actions 
+    WHERE id = NEW.action_id AND is_active = true AND deleted_at IS NULL;
+    
+    -- Only create next occurrence if action has repeat_every_days set
+    IF action_record.repeat_every_days IS NOT NULL THEN
+      -- Get dream end_date if it exists
+      SELECT d.end_date INTO dream_end_date
+      FROM dreams d
+      JOIN areas a ON a.dream_id = d.id
+      WHERE a.id = action_record.area_id;
+      
+      -- Calculate next due date
+      next_due_date := NEW.planned_due_on + (action_record.repeat_every_days || ' days')::interval;
+      
+      -- Only create if we haven't hit the dream end_date
+      IF dream_end_date IS NULL OR next_due_date <= dream_end_date THEN
+        INSERT INTO action_occurrences (action_id, planned_due_on, due_on)
+        VALUES (action_record.id, next_due_date, next_due_date);
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trigger_handle_occurrence_complete
+  AFTER UPDATE ON action_occurrences
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_occurrence_complete();
+```
+
+### set_updated_at
+Automatically update the updated_at timestamp.
+
+```sql
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- Apply to all tables with updated_at
+CREATE TRIGGER trigger_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trigger_dreams_updated_at BEFORE UPDATE ON dreams FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trigger_areas_updated_at BEFORE UPDATE ON areas FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trigger_actions_updated_at BEFORE UPDATE ON actions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trigger_action_occurrences_updated_at BEFORE UPDATE ON action_occurrences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 ```
 
 ## Row Level Security (RLS)
 
-All tables should have RLS enabled with policies ensuring users can only access their own data:
+All tables have RLS enabled with policies ensuring users can only access their own data:
 
 ```sql
--- Enable RLS on all V2 tables
-ALTER TABLE goals_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE personalization_questions_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_responses_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE action_plan_drafts_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE actions_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_entries_v2 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plan_feedback ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ai_evaluations_v2 ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dreams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_occurrences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_artifacts ENABLE ROW LEVEL SECURITY;
 
--- Example policies for V2 tables
-CREATE POLICY "Users can access own goals v2" ON goals_v2
+-- Force RLS (prevents bypassing policies)
+ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
+ALTER TABLE dreams FORCE ROW LEVEL SECURITY;
+ALTER TABLE areas FORCE ROW LEVEL SECURITY;
+ALTER TABLE actions FORCE ROW LEVEL SECURITY;
+ALTER TABLE action_occurrences FORCE ROW LEVEL SECURITY;
+ALTER TABLE action_artifacts FORCE ROW LEVEL SECURITY;
+
+-- Profiles policies
+CREATE POLICY "Users can access own profile" ON profiles
+  FOR ALL USING (auth.uid() = id);
+
+-- Dreams policies
+CREATE POLICY "Users can access own dreams" ON dreams
   FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can access own journal entries v2" ON journal_entries_v2
-  FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can access actions v2 for their goals" ON actions_v2
+-- Areas policies
+CREATE POLICY "Users can access areas for their dreams" ON areas
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM goals_v2 
-      WHERE goals_v2.id = actions_v2.goal_id 
-      AND goals_v2.user_id = auth.uid()
+      SELECT 1 FROM dreams 
+      WHERE dreams.id = areas.dream_id 
+      AND dreams.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can access drafts v2 for their goals" ON action_plan_drafts_v2
+-- Actions policies
+CREATE POLICY "Users can access actions for their dreams" ON actions
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM goals_v2 
-      WHERE goals_v2.id = action_plan_drafts_v2.goal_id 
-      AND goals_v2.user_id = auth.uid()
+      SELECT 1 FROM areas a
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE a.id = actions.area_id 
+      AND d.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can access questions v2 for their goals" ON personalization_questions_v2
+-- Action occurrences policies
+CREATE POLICY "Users can access occurrences for their dreams" ON action_occurrences
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM goals_v2 
-      WHERE goals_v2.id = personalization_questions_v2.goal_id 
-      AND goals_v2.user_id = auth.uid()
+      SELECT 1 FROM actions act
+      JOIN areas a ON a.id = act.area_id
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE act.id = action_occurrences.action_id 
+      AND d.user_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can access responses v2 for their goals" ON user_responses_v2
+-- Action artifacts policies
+CREATE POLICY "Users can access artifacts for their dreams" ON action_artifacts
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM goals_v2 
-      WHERE goals_v2.id = user_responses_v2.goal_id 
-      AND goals_v2.user_id = auth.uid()
+      SELECT 1 FROM action_occurrences ao
+      JOIN actions act ON act.id = ao.action_id
+      JOIN areas a ON a.id = act.area_id
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE ao.id = action_artifacts.occurrence_id 
+      AND d.user_id = auth.uid()
     )
   );
 ```
+
+## Storage Policies
+
+### Storage Bucket Configuration
+```sql
+-- Create artifacts bucket
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('artifacts', 'artifacts', false);
+
+-- Storage policies for artifacts
+CREATE POLICY "Users can upload artifacts for their occurrences" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'artifacts' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND EXISTS (
+      SELECT 1 FROM action_occurrences ao
+      JOIN actions act ON act.id = ao.action_id
+      JOIN areas a ON a.id = act.area_id
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE ao.id::text = (storage.foldername(name))[2]
+      AND d.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can view artifacts for their occurrences" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'artifacts' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can delete artifacts for their occurrences" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'artifacts' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+```
+
+## Key Behaviors
+
+### Repeat Logic
+When an occurrence is completed and the action has `repeat_every_days` set:
+1. Calculate next due date: `planned_due_on + repeat_every_days`
+2. Check if next date exceeds dream `end_date` (if set)
+3. If not, auto-insert new occurrence with same `planned_due_on` and `due_on`
+
+### Defer Logic
+When deferring an occurrence:
+1. Increment `due_on` by 1 day
+2. Increment `defer_count` by 1
+3. Keep `planned_due_on` unchanged for analytics
+
+### Overdue Detection
+An occurrence is overdue when:
+- `completed_at IS NULL` AND `due_on < CURRENT_DATE`
+
+### Streak Calculation
+Current streak for a dream:
+1. Start from today and count backwards
+2. For each day, check if there's ≥1 completed occurrence
+3. Stop counting when a day has no completions
 
 ## JSON Schema Examples
 
-### ai_suggestions (in goals_v2 table)
+### acceptance_criteria (in actions table)
 ```json
 [
-  {
-    "title": "Master piano fundamentals in 63 days",
-    "duration_days": 63,
-    "improvements": ["More focused scope", "Realistic timeline"],
-    "ai_score": 8.5
-  },
-  {
-    "title": "Complete piano challenge in 90 days", 
-    "duration_days": 90,
-    "improvements": ["Structured approach", "Progressive difficulty"],
-    "ai_score": 7.8
-  }
+  "Complete 30 minutes of focused practice",
+  "Record progress in practice journal",
+  "Identify one area for improvement"
 ]
 ```
 
-### schedule_preferences (in goals_v2 table)
+### metadata (in action_artifacts table)
 ```json
 {
-  "preferred_days": ["monday", "wednesday", "friday"],
-  "time_blocks": [
-    {
-      "start_time": "07:00",
-      "end_time": "08:00",
-      "days": ["monday", "wednesday", "friday"]
-    }
-  ],
-  "daily_duration_minutes": 60,
-  "flexibility": "medium"
+  "camera_info": {
+    "make": "Apple",
+    "model": "iPhone 14",
+    "lens": "Wide"
+  },
+  "location": {
+    "latitude": 37.7749,
+    "longitude": -122.4194,
+    "accuracy": 10
+  },
+  "tags": ["progress", "milestone", "before"]
 }
 ```
 
-### questions
-```json
-[
-  {
-    "type": "experience",
-    "question": "What experience do you have with web development?",
-    "purpose": "Understanding their starting point"
-  },
-  {
-    "type": "limitations",
-    "question": "What time constraints do you face?",
-    "purpose": "Identifying potential obstacles"
-  },
-  {
-    "type": "personalization", 
-    "question": "How do you prefer to learn new skills?",
-    "purpose": "Tailoring the approach"
-  }
-]
+## Common Queries
+
+### Today's Actions
+```sql
+SELECT ao.*, act.title, a.title as area_title, d.title as dream_title
+FROM action_occurrences ao
+JOIN actions act ON act.id = ao.action_id
+JOIN areas a ON a.id = act.area_id
+JOIN dreams d ON d.id = a.dream_id
+WHERE ao.due_on = CURRENT_DATE 
+  AND ao.completed_at IS NULL
+  AND d.user_id = auth.uid()
+  AND d.archived_at IS NULL
+  AND a.deleted_at IS NULL
+  AND act.deleted_at IS NULL
+  AND act.is_active = true;
 ```
 
-### plan_data (in action_plan_drafts_v2 table)
-```json
-{
-  "overview": "6-month web development learning plan",
-  "total_timeline": "6 months",
-  "phases": [
-    {
-      "phase_number": 1,
-      "title": "HTML & CSS Foundations",
-      "duration": "6 weeks",
-      "objective": "Master basic web technologies",
-      "actions": [
-        {
-          "step": 1,
-          "action": "Complete HTML course on freeCodeCamp",
-          "details": "Focus on semantic HTML and accessibility",
-          "time_estimate": "1 week"
-        }
-      ],
-      "milestone": "Build a responsive portfolio page"
-    }
-  ]
-}
+### Overdue Count by Dream
+```sql
+SELECT d.id, d.title, COUNT(*) as overdue_count
+FROM dreams d
+JOIN areas a ON a.dream_id = d.id AND a.deleted_at IS NULL
+JOIN actions act ON act.area_id = a.id AND act.deleted_at IS NULL AND act.is_active = true
+JOIN action_occurrences ao ON ao.action_id = act.id
+WHERE d.user_id = auth.uid()
+  AND d.archived_at IS NULL
+  AND ao.completed_at IS NULL
+  AND ao.due_on < CURRENT_DATE
+GROUP BY d.id, d.title;
 ```
 
-### ai_improvements (in action_plan_drafts_v2 table)
-```json
-{
-  "feedback_analysis": {
-    "key_concerns": ["Timeline too aggressive", "Missing beginner context"],
-    "requested_changes": ["Extend timeline", "Add more support"]
-  },
-  "changes_made": [
-    "Extended phase 1 from 4 to 6 weeks",
-    "Added beginner-friendly resources",
-    "Reduced daily time commitment"
-  ],
-  "improvement_score": 8.2
-}
-```
-
-### repeat_pattern (in actions_v2 table)
-```json
-{
-  "frequency": "weekly",
-  "interval": 2,
-  "days_of_week": ["monday", "wednesday", "friday"],
-  "end_date": "2025-06-15",
-  "skip_holidays": true
-}
-```
-
-### completed_action_ids (in journal_entries_v2 table)
-```json
-[
-  "uuid-of-completed-action-1",
-  "uuid-of-completed-action-2",
-  "uuid-of-completed-action-3"
-]
-```
-
-### rubric_scores
-```json
-{
-  "scores": {
-    "clarity": 8,
-    "specificity": 7,
-    "achievability": 9,
-    "motivation": 6
-  },
-  "average_score": 7.5,
-  "detailed_feedback": {
-    "strengths": ["Clear timeline", "Realistic scope"],
-    "weaknesses": ["Could be more motivating"],
-    "suggestions": ["Add personal benefit statements"]
-  },
-  "passes_threshold": true
-}
+### Current Streak for Dream
+```sql
+SELECT current_streak(auth.uid(), 'dream-uuid-here');
 ```

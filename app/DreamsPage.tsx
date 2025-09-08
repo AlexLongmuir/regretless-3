@@ -144,7 +144,7 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
 
   const handleAddFirstDream = () => {
     if (navigation?.navigate) {
-      navigation.navigate('AddGoalFlow');
+      navigation.navigate('CreateFlow');
     }
   };
 

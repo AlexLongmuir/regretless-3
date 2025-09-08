@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabaseClient } from '../lib/supabaseClient';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -98,7 +98,7 @@ export const useAuth = (): AuthHook => {
       setLoading(true);
       setError(null);
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabaseClient.auth.signUp({
         email,
         password,
       });
@@ -132,7 +132,7 @@ export const useAuth = (): AuthHook => {
       setLoading(true);
       setError(null);
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
@@ -167,7 +167,7 @@ export const useAuth = (): AuthHook => {
       setLoading(true);
       setError(null);
 
-      const { data, error: magicLinkError } = await supabase.auth.signInWithOtp({
+      const { data, error: magicLinkError } = await supabaseClient.auth.signInWithOtp({
         email,
         options: {
           // Deep link that will open the app when magic link is clicked
@@ -247,7 +247,7 @@ export const useAuth = (): AuthHook => {
       }
 
       // Sign in to Supabase using the Apple identity token
-      const { data, error: supabaseError } = await supabase.auth.signInWithIdToken({
+      const { data, error: supabaseError } = await supabaseClient.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
         nonce: credential.nonce,
@@ -331,7 +331,7 @@ export const useAuth = (): AuthHook => {
       }
 
       // Establish the session with Supabase using the tokens
-      const { data, error: sessionError } = await supabase.auth.setSession({
+      const { data, error: sessionError } = await supabaseClient.auth.setSession({
         access_token,
         refresh_token,
       });
@@ -374,7 +374,7 @@ export const useAuth = (): AuthHook => {
       setError(null);
 
       // Step 1: Get the OAuth URL from Supabase
-      const { data, error: oAuthError } = await supabase.auth.signInWithOAuth({
+      const { data, error: oAuthError } = await supabaseClient.auth.signInWithOAuth({
         provider,
         options: {
           // Deep link that will open the app after OAuth completion
@@ -473,7 +473,7 @@ export const useAuth = (): AuthHook => {
       setLoading(true);
       setError(null);
 
-      const { error: signOutError } = await supabase.auth.signOut();
+      const { error: signOutError } = await supabaseClient.auth.signOut();
 
       if (signOutError) {
         const errorMessage = handleAuthError(signOutError);
@@ -510,7 +510,7 @@ export const useAuth = (): AuthHook => {
     console.log('Setting up auth state listener');
 
     // Listen for auth state changes (sign in, sign out, session refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email || 'no user');
         
@@ -530,7 +530,7 @@ export const useAuth = (): AuthHook => {
     // This handles cases where user was previously signed in
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
         
         if (sessionError) {
           console.error('Error getting initial session:', sessionError);

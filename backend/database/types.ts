@@ -1,298 +1,362 @@
-// Enhanced Database types for Supabase tables (V2)
+// Dreams Database types for Supabase tables (MVP v1)
 // 
-// Note: Using v2 table names to avoid conflicts with existing database tables
-// Once the new codebase is live, the old tables can be dropped and these renamed
+// Core model: profiles → dreams → areas → actions → action_occurrences → action_artifacts
+// Strong tenant isolation with RLS policies
 
-export interface Goal {
+export interface Profile {
   id: string;
-  user_id: string;
-  title: string;
-  description?: string;
-  original_input: string;
-  ai_suggestions?: AISuggestion[];
-  start_date: string;
-  target_end_date?: string;
-  duration_days?: number;
-  status: 'active' | 'completed' | 'paused' | 'abandoned';
-  category?: string;
-  experience_level?: string;
-  constraints_notes?: string;
-  motivation_reason?: string;
-  images?: string[];
-  schedule_preferences?: SchedulePreferences;
+  email: string;
+  display_name?: string;
+  avatar_url?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface AISuggestion {
+export interface Dream {
+  id: string;
+  user_id: string;
   title: string;
-  duration_days: number;
-  improvements: string[];
-  ai_score: number;
-}
-
-export interface SchedulePreferences {
-  preferred_days: string[];
-  time_blocks: TimeBlock[];
-  daily_duration_minutes: number;
-  flexibility: 'low' | 'medium' | 'high';
-}
-
-export interface TimeBlock {
-  start_time: string;
-  end_time: string;
-  days: string[];
-}
-
-export interface PersonalizationQuestion {
-  type: 'experience' | 'limitations' | 'personalization';
-  question: string;
-  purpose: string;
-}
-
-export interface PersonalizationQuestions {
-  id: string;
-  goal_id: string;
-  questions: PersonalizationQuestion[];
+  description?: string;
+  start_date: string;
+  end_date?: string;
+  archived_at?: string;
   created_at: string;
+  updated_at: string;
 }
 
-export interface UserResponse {
-  question_type: 'experience' | 'limitations' | 'personalization';
-  answer: string;
-}
-
-export interface UserResponses {
+export interface Area {
   id: string;
-  goal_id: string;
-  responses: UserResponse[];
-  created_at: string;
-}
-
-export interface ActionPlanDraft {
-  id: string;
-  goal_id: string;
-  plan_data: ActionPlanData;
-  version: number;
-  status: 'pending' | 'approved' | 'rejected' | 'revised';
-  user_feedback?: string;
-  ai_improvements?: AIImprovements;
-  created_at: string;
-}
-
-export interface AIImprovements {
-  feedback_analysis: {
-    key_concerns: string[];
-    requested_changes: string[];
-  };
-  changes_made: string[];
-  improvement_score: number;
-}
-
-export interface ActionStep {
-  step: number;
-  action: string;
-  details: string;
-  time_estimate: string;
-}
-
-export interface ActionPhase {
-  phase_number: number;
+  dream_id: string;
   title: string;
-  duration: string;
-  objective: string;
-  actions: ActionStep[];
-  milestone: string;
-}
-
-export interface ActionPlanData {
-  overview: string;
-  total_timeline: string;
-  phases: ActionPhase[];
+  icon?: string;
+  color?: string;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Action {
   id: string;
-  goal_id: string;
-  draft_id?: string;
+  area_id: string;
   title: string;
   description?: string;
-  instructions?: string;
-  due_date?: string;
-  estimated_minutes?: number;
-  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'custom';
-  repeat_pattern?: RepeatPattern;
-  phase_number?: number;
-  order_in_phase?: number;
-  status: 'todo' | 'in_progress' | 'completed' | 'skipped';
-  completed_at?: string;
-  notes?: string;
-  photos?: string[];
-  created_at: string;
-}
-
-export interface RepeatPattern {
-  frequency: string;
-  interval: number;
-  days_of_week?: string[];
-  end_date?: string;
-  skip_holidays?: boolean;
-}
-
-export interface JournalEntry {
-  id: string;
-  user_id: string;
-  goal_id?: string;
-  entry_date: string;
-  title: string;
-  content: string;
-  mood_rating: number;
-  images?: string[];
-  completed_action_ids?: string[];
+  est_minutes?: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  repeat_every_days?: 1 | 2 | 3;
+  acceptance_criteria?: string[];
+  is_active: boolean;
+  deleted_at?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface PlanFeedback {
+export interface ActionOccurrence {
   id: string;
-  plan_id: string;
-  feedback_text: string;
-  feedback_type?: string;
+  action_id: string;
+  planned_due_on: string;
+  due_on: string;
+  defer_count: number;
+  note?: string;
+  completed_at?: string;
+  ai_rating?: number;
+  ai_feedback?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActionArtifact {
+  id: string;
+  occurrence_id: string;
+  storage_path: string;
+  file_name: string;
+  file_size?: number;
+  mime_type?: string;
+  metadata?: Record<string, any>;
   created_at: string;
 }
 
-export interface RubricScores {
-  [key: string]: number;
+// Helper view types
+export interface ActionOccurrenceStatus extends ActionOccurrence {
+  is_done: boolean;
+  is_overdue: boolean;
+  overdue_days: number;
 }
 
-export interface DetailedFeedback {
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
+export interface DreamDailySummary {
+  user_id: string;
+  dream_id: string;
+  completion_date: string;
+  completed_occurrences: number;
 }
 
-export interface CriticEvaluation {
-  scores: RubricScores;
-  average_score: number;
-  detailed_feedback: DetailedFeedback;
-  passes_threshold: boolean;
+export interface OverdueCounts {
+  user_id: string;
+  dream_id: string;
+  overdue_count: number;
 }
 
-export interface AIEvaluation {
-  id: string;
-  service_type: 'goal-generation' | 'question-generation' | 'action-planning' | 'feedback-processing';
-  service_stage: 'planner' | 'critic' | 'rewriter';
-  goal_id?: string;
-  action_id?: string;
-  draft_id?: string;
-  input_data: any;
-  output_data: any;
-  rubric_scores?: CriticEvaluation;
-  average_score?: number;
-  passed_threshold?: boolean;
-  real_world_outcome?: 'success' | 'failure' | 'abandoned';
-  outcome_notes?: string;
-  created_at: string;
-}
+// Function return types
+export type CurrentStreakResult = number;
 
-// Input/Output types for each service
-
-export interface GoalGenerationInput {
-  original_goal: string;
-}
-
-export interface GoalGenerationOutput {
-  improved_goal: string;
-  key_improvements: string[];
-  success_metrics: string[];
-  timeline: string;
-}
-
-export interface QuestionGenerationInput {
-  goal: string;
-}
-
-export interface QuestionGenerationOutput {
-  questions: PersonalizationQuestion[];
-  goal_context: string;
-}
-
-export interface ActionPlanningInput {
-  goal: string;
-  user_responses: UserResponse[];
-}
-
-export interface ActionPlanningOutput {
-  action_plan: ActionPlanData;
-  personalization_notes: string[];
-  success_tracking: string[];
-}
-
-export interface FeedbackProcessingInput {
-  original_plan: ActionPlanData;
-  user_feedback: string;
-  goal: string;
-  user_responses: UserResponse[];
-}
-
-export interface FeedbackAnalysis {
-  key_concerns: string[];
-  requested_changes: string[];
-  underlying_needs: string[];
-}
-
-export interface FeedbackProcessingOutput {
-  feedback_analysis: FeedbackAnalysis;
-  updated_action_plan: ActionPlanData;
-  changes_made: string[];
-  rationale: string[];
-  preserved_elements: string[];
-}
-
-// Database configuration types for V2 tables
+// Database configuration types for Supabase
 export interface Database {
   public: {
     Tables: {
-      goals_v2: {
-        Row: Goal;
-        Insert: Omit<Goal, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Goal, 'id' | 'created_at' | 'updated_at'>>;
+      profiles: {
+        Row: Profile;
+        Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
       };
-      personalization_questions_v2: {
-        Row: PersonalizationQuestions;
-        Insert: Omit<PersonalizationQuestions, 'id' | 'created_at'>;
-        Update: Partial<Omit<PersonalizationQuestions, 'id' | 'created_at'>>;
+      dreams: {
+        Row: Dream;
+        Insert: Omit<Dream, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Dream, 'id' | 'created_at' | 'updated_at'>>;
       };
-      user_responses_v2: {
-        Row: UserResponses;
-        Insert: Omit<UserResponses, 'id' | 'created_at'>;
-        Update: Partial<Omit<UserResponses, 'id' | 'created_at'>>;
+      areas: {
+        Row: Area;
+        Insert: Omit<Area, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Area, 'id' | 'created_at' | 'updated_at'>>;
       };
-      action_plan_drafts_v2: {
-        Row: ActionPlanDraft;
-        Insert: Omit<ActionPlanDraft, 'id' | 'created_at'>;
-        Update: Partial<Omit<ActionPlanDraft, 'id' | 'created_at'>>;
-      };
-      actions_v2: {
+      actions: {
         Row: Action;
-        Insert: Omit<Action, 'id' | 'created_at'>;
-        Update: Partial<Omit<Action, 'id' | 'created_at'>>;
+        Insert: Omit<Action, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<Action, 'id' | 'created_at' | 'updated_at'>>;
       };
-      journal_entries_v2: {
-        Row: JournalEntry;
-        Insert: Omit<JournalEntry, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<JournalEntry, 'id' | 'created_at' | 'updated_at'>>;
+      action_occurrences: {
+        Row: ActionOccurrence;
+        Insert: Omit<ActionOccurrence, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<ActionOccurrence, 'id' | 'created_at' | 'updated_at'>>;
       };
-      plan_feedback: {
-        Row: PlanFeedback;
-        Insert: Omit<PlanFeedback, 'id' | 'created_at'>;
-        Update: Partial<Omit<PlanFeedback, 'id' | 'created_at'>>;
+      action_artifacts: {
+        Row: ActionArtifact;
+        Insert: Omit<ActionArtifact, 'id' | 'created_at'>;
+        Update: Partial<Omit<ActionArtifact, 'id' | 'created_at'>>;
       };
-      ai_evaluations_v2: {
-        Row: AIEvaluation;
-        Insert: Omit<AIEvaluation, 'id' | 'created_at'>;
-        Update: Partial<Omit<AIEvaluation, 'id' | 'created_at'>>;
+    };
+    Views: {
+      v_action_occurrence_status: {
+        Row: ActionOccurrenceStatus;
+      };
+      v_dream_daily_summary: {
+        Row: DreamDailySummary;
+      };
+      v_overdue_counts: {
+        Row: OverdueCounts;
+      };
+    };
+    Functions: {
+      current_streak: {
+        Args: {
+          p_user_id: string;
+          p_dream_id: string;
+        };
+        Returns: CurrentStreakResult;
+      };
+      defer_occurrence: {
+        Args: {
+          p_occurrence_id: string;
+        };
+        Returns: void;
       };
     };
   };
+}
+
+// Common query result types
+export interface TodayAction {
+  id: string;
+  action_id: string;
+  planned_due_on: string;
+  due_on: string;
+  defer_count: number;
+  note?: string;
+  completed_at?: string;
+  ai_rating?: number;
+  ai_feedback?: string;
+  action_title: string;
+  action_description?: string;
+  est_minutes?: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  area_title: string;
+  area_icon?: string;
+  area_color?: string;
+  dream_title: string;
+  dream_description?: string;
+  is_done: boolean;
+  is_overdue: boolean;
+  overdue_days: number;
+}
+
+export interface DreamWithStats {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date?: string;
+  archived_at?: string;
+  created_at: string;
+  updated_at: string;
+  overdue_count?: number;
+  current_streak?: number;
+  total_areas?: number;
+  total_actions?: number;
+  completed_today?: number;
+}
+
+export interface AreaWithActions {
+  id: string;
+  dream_id: string;
+  title: string;
+  icon?: string;
+  color?: string;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+  actions: Action[];
+  overdue_count?: number;
+}
+
+export interface ActionWithOccurrences {
+  id: string;
+  area_id: string;
+  title: string;
+  description?: string;
+  est_minutes?: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  repeat_every_days?: 1 | 2 | 3;
+  acceptance_criteria?: string[];
+  is_active: boolean;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+  occurrences: ActionOccurrence[];
+  next_due?: string;
+  overdue_count?: number;
+}
+
+// Storage types
+export interface ArtifactUpload {
+  occurrence_id: string;
+  file: File;
+  metadata?: Record<string, any>;
+}
+
+export interface ArtifactMetadata {
+  camera_info?: {
+    make?: string;
+    model?: string;
+    lens?: string;
+  };
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  };
+  tags?: string[];
+  [key: string]: any;
+}
+
+// API response types
+export interface ApiResponse<T> {
+  data: T;
+  error?: string;
+  success: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  count: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+// Filter and sort types
+export interface DreamFilters {
+  archived?: boolean;
+  start_date_from?: string;
+  start_date_to?: string;
+  has_end_date?: boolean;
+}
+
+export interface ActionFilters {
+  difficulty?: ('easy' | 'medium' | 'hard')[];
+  is_active?: boolean;
+  has_repeat?: boolean;
+  area_id?: string;
+}
+
+export interface OccurrenceFilters {
+  status?: ('todo' | 'completed' | 'overdue')[];
+  due_date_from?: string;
+  due_date_to?: string;
+  dream_id?: string;
+  area_id?: string;
+  action_id?: string;
+}
+
+export interface SortOptions {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+// Form types
+export interface CreateDreamForm {
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date?: string;
+}
+
+export interface CreateAreaForm {
+  title: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface CreateActionForm {
+  title: string;
+  description?: string;
+  est_minutes?: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  repeat_every_days?: 1 | 2 | 3;
+  acceptance_criteria?: string[];
+}
+
+export interface UpdateOccurrenceForm {
+  note?: string;
+  completed_at?: string;
+  ai_rating?: number;
+  ai_feedback?: string;
+}
+
+// Analytics types
+export interface DreamProgress {
+  dream_id: string;
+  dream_title: string;
+  total_actions: number;
+  completed_actions: number;
+  completion_rate: number;
+  current_streak: number;
+  longest_streak: number;
+  overdue_count: number;
+  last_activity?: string;
+}
+
+export interface DailyProgress {
+  date: string;
+  completed_occurrences: number;
+  total_occurrences: number;
+  completion_rate: number;
+  dreams_active: number;
+}
+
+export interface StreakData {
+  current: number;
+  longest: number;
+  history: {
+    date: string;
+    completed: boolean;
+  }[];
 }

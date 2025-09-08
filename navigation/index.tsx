@@ -38,8 +38,8 @@ import AuthLoadingPage from '../app/AuthLoadingPage';
 import ActionPage from '../app/ActionPage';
 import DreamPage from '../app/DreamPage';
 import ProgressPage from '../app/ProgressPage';
-import AddGoalFlow from '../app/AddGoalFlow';
 import AddJourneyEntryPage from '../app/AddJourneyEntryPage';
+import CreateNavigator from './CreateNavigator';
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -117,8 +117,8 @@ const TabNavigator = ({ navigation, route }: any) => {
    */
   const handleActionImprove = () => {
     setShowActionSuggestions(false);
-    // Navigate back to AddGoalFlow for feedback
-    navigation.navigate('AddGoalFlow', { phase: 'feedback' });
+    // Navigate back to CreateFlow for feedback
+    navigation.navigate('CreateFlow', { phase: 'feedback' });
   };
 
   /**
@@ -178,8 +178,8 @@ const MainNavigator = () => (
     <MainStack.Screen name="Action" component={ActionPage} />
     <MainStack.Screen name="Dream" component={DreamPage} />
     <MainStack.Screen name="Progress" component={ProgressPage} />
-    <MainStack.Screen name="AddGoalFlow" component={AddGoalFlow} />
     <MainStack.Screen name="AddJourneyEntryPage" component={AddJourneyEntryPage} />
+    <MainStack.Screen name="CreateFlow" component={CreateNavigator} />
   </MainStack.Navigator>
 );
 

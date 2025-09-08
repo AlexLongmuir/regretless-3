@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'black';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   style?: ViewStyle;
@@ -85,12 +85,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[600],
   },
   secondary: {
-    backgroundColor: theme.colors.defaultGrey,
+    backgroundColor: 'white',
   },
   outline: {
-    backgroundColor: theme.colors.primary[600],
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: theme.colors.primary[600],
+  },
+  black: {
+    backgroundColor: '#000000',
   },
   disabled: {
     backgroundColor: theme.colors.grey[300],
@@ -109,7 +112,10 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[800],
   },
   outlineText: {
-    color: theme.colors.surface[50],
+    color: theme.colors.primary[600],
+  },
+  blackText: {
+    color: '#ffffff',
   },
   disabledText: {
     color: theme.colors.grey[500],
