@@ -5,10 +5,13 @@ import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
+import { upsertDream } from '../../frontend-services/backend-bridge'
+import { supabaseClient } from '../../lib/supabaseClient'
+import { theme } from '../../utils/theme'
 
 export default function DatesStep() {
   const navigation = useNavigation<any>()
-  const { start_date, end_date, setField } = useCreateDream()
+  const { dreamId, title, start_date, end_date, image_url, setField } = useCreateDream()
   
   const [showStartPicker, setShowStartPicker] = useState(false)
   const [showEndPicker, setShowEndPicker] = useState(false)
@@ -59,8 +62,43 @@ export default function DatesStep() {
     setField('end_date', date.toISOString().split('T')[0])
   }
 
+  const handleContinue = async () => {
+    // Ensure context values are up to date with local state
+    const currentStartDate = start_date || startDate.toISOString().split('T')[0]
+    const currentEndDate = end_date || endDate.toISOString().split('T')[0]
+    
+    // Update context with current local state if not already set
+    if (!start_date) {
+      setField('start_date', currentStartDate)
+    }
+    if (!end_date) {
+      setField('end_date', currentEndDate)
+    }
+
+    // Navigate immediately for smooth UX
+    navigation.navigate('Questions')
+
+    // Handle backend operations in background
+    if (dreamId) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session?.access_token) {
+          await upsertDream({
+            id: dreamId,
+            title,
+            start_date: currentStartDate,
+            end_date: currentEndDate,
+            image_url
+          }, session.access_token)
+        }
+      } catch (error) {
+        console.error('Failed to save dream:', error)
+      }
+    }
+  }
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="dates" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={{ 
@@ -112,9 +150,9 @@ export default function DatesStep() {
         paddingBottom: 32
       }}>
         <Button 
-          title="Continue" 
+          title="Continue"
           variant={"black" as any}
-          onPress={() => navigation.navigate('Questions')} 
+          onPress={handleContinue}
         />
       </View>
     </View>

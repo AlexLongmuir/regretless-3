@@ -130,6 +130,8 @@ export const theme = {
       800: '#1F2937',
       900: '#111827',
     },
+    // Standardized page background color - slightly darker grey for better visual hierarchy
+    pageBackground: '#E5E7EB', // grey[200] - the preferred darker grey from DreamPage
     // Default grey for secondary buttons - iOS-style grey that stands out on white
     defaultGrey: '#E5E7EB', // grey[300] - light enough to feel secondary but dark enough to be visible
   },
@@ -190,23 +192,23 @@ export const theme = {
     },
     check_circle: {
       library: 'MaterialIcons' as const,
-      name: 'check_circle'
+      name: 'check-circle'
     },
     remove_circle: {
       library: 'MaterialIcons' as const,
-      name: 'remove_circle'
+      name: 'remove-circle'
     },
     radio_button_unchecked: {
       library: 'MaterialIcons' as const,
-      name: 'radio_button_unchecked'
+      name: 'radio-button-unchecked'
     },
     keyboard_arrow_left: {
       library: 'MaterialIcons' as const,
-      name: 'keyboard_arrow_left'
+      name: 'keyboard-arrow-left'
     },
     arrow_forward: {
       library: 'MaterialIcons' as const,
-      name: 'arrow_forward'
+      name: 'arrow-forward'
     },
     notifications: {
       library: 'MaterialIcons' as const,
@@ -230,7 +232,7 @@ export const theme = {
     },
     delete_forever: {
       library: 'MaterialIcons' as const,
-      name: 'delete'
+      name: 'delete-forever'
     },
     analytics: {
       library: 'MaterialIcons' as const,
@@ -262,19 +264,47 @@ export const theme = {
     },
     book_open: {
       library: 'MaterialIcons' as const,
-      name: 'menu_book'
+      name: 'menu-book'
     },
     books: {
       library: 'MaterialIcons' as const,
-      name: 'library_books'
+      name: 'library-books'
     },
     edit_note: {
       library: 'MaterialIcons' as const,
-      name: 'edit_note'
+      name: 'edit-note'
     },
     calendar_today: {
       library: 'MaterialIcons' as const,
       name: 'today'
+    },
+    more_vert: {
+      library: 'MaterialIcons' as const,
+      name: 'more-vert'
+    },
+    more_horiz: {
+      library: 'MaterialIcons' as const,
+      name: 'more-horiz'
+    },
+    share: {
+      library: 'MaterialIcons' as const,
+      name: 'share'
+    },
+    refresh: {
+      library: 'MaterialIcons' as const,
+      name: 'refresh'
+    },
+    auto_awesome: {
+      library: 'MaterialIcons' as const,
+      name: 'auto-awesome'
+    },
+    trending_up: {
+      library: 'MaterialIcons' as const,
+      name: 'trending-up'
+    },
+    person: {
+      library: 'MaterialIcons' as const,
+      name: 'person'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },

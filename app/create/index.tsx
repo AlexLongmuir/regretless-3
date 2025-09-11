@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -6,6 +6,9 @@ import { useToast } from '../../components/toast/ToastProvider'
 import { Input } from '../../components/Input'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
+import { upsertDream } from '../../frontend-services/backend-bridge'
+import { supabaseClient } from '../../lib/supabaseClient'
+import { theme } from '../../utils/theme'
 
 const dreamPresets = [
   { emoji: '✍️', title: 'Write a book' },
@@ -17,18 +20,52 @@ const dreamPresets = [
 ]
 
 export default function TitleStep() {
-  const { title, start_date, end_date, setField, ensureDraft } = useCreateDream()
+  const { title, dreamId, start_date, end_date, image_url, setField } = useCreateDream()
   const navigation = useNavigation<any>()
   const toast = useToast()
-
-  useEffect(() => { if (title.trim().length > 1) ensureDraft() }, [title])
-
   const handlePresetSelect = (presetTitle: string) => {
     setField('title', presetTitle)
   }
 
+  const handleContinue = async () => {
+    if (!title.trim()) {
+      toast.show('Add a title')
+      return
+    }
+
+    // Navigate immediately for smooth UX
+    navigation.navigate('Personalize')
+
+    // Handle backend operations in background
+    if (!dreamId) {
+      // Create dream in background
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        
+        if (!session?.access_token) {
+          toast.show('Please log in to continue')
+          return
+        }
+
+        const result = await upsertDream({
+          title: title.trim(),
+          start_date,
+          end_date,
+          image_url
+        }, session.access_token)
+
+        if (result?.id) {
+          setField('dreamId', result.id)
+        }
+      } catch (error) {
+        console.error('Failed to create dream:', error)
+        // Could show a subtle error notification here if needed
+      }
+    }
+  }
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="title" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={{ 
@@ -94,12 +131,9 @@ export default function TitleStep() {
         paddingBottom: 32
       }}>
         <Button 
-          title="Continue" 
+          title="Continue"
           variant={"black" as any}
-          onPress={() => {
-            if (!title.trim()) { toast.show('Add a title'); return }
-            navigation.navigate('Personalize');
-          }} 
+          onPress={handleContinue}
         />
       </View>
     </View>

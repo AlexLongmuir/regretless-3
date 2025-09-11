@@ -28,21 +28,33 @@
  */
 
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './components/toast/ToastProvider';
 import { CreateDreamProvider } from './contexts/CreateDreamContext';
+import { DataProvider } from './contexts/DataContext';
+import { notificationService } from './lib/NotificationService';
 
 export default function App() {
+  // Initialize notification service when app starts
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      await notificationService.initialize();
+    };
+    initializeNotifications();
+  }, []);
+
   return (
-    
     <AuthProvider>
-      <ToastProvider>
-      <CreateDreamProvider>
-        <Navigation />
-      </CreateDreamProvider>
-      <StatusBar style="auto" />
-      </ToastProvider>
+      <DataProvider>
+        <ToastProvider>
+          <CreateDreamProvider>
+            <Navigation />
+          </CreateDreamProvider>
+          <StatusBar style="auto" />
+        </ToastProvider>
+      </DataProvider>
     </AuthProvider>
   );
 }

@@ -4,10 +4,20 @@
 // Strong tenant isolation with RLS policies
 
 export interface Profile {
+  user_id: string;
+  username: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferences {
   id: string;
-  email: string;
-  display_name?: string;
-  avatar_url?: string;
+  user_id: string;
+  push_enabled: boolean;
+  daily_reminders: boolean;
+  reminder_time: string; // time format "HH:MM:SS"
+  overdue_alerts: boolean;
+  achievement_notifications: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -19,6 +29,11 @@ export interface Dream {
   description?: string;
   start_date: string;
   end_date?: string;
+  activated_at?: string;
+  image_url?: string;
+  baseline?: string;
+  obstacles?: string;
+  enjoyment?: string;
   archived_at?: string;
   created_at: string;
   updated_at: string;
@@ -29,7 +44,8 @@ export interface Area {
   dream_id: string;
   title: string;
   icon?: string;
-  color?: string;
+  position: number;
+  approved_at?: string;
   deleted_at?: string;
   created_at: string;
   updated_at: string;
@@ -37,13 +53,16 @@ export interface Area {
 
 export interface Action {
   id: string;
+  user_id: string;
+  dream_id: string;
   area_id: string;
   title: string;
-  description?: string;
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
+  slice_count_target?: number;
   acceptance_criteria?: string[];
+  position: number;
   is_active: boolean;
   deleted_at?: string;
   created_at: string;
@@ -53,6 +72,7 @@ export interface Action {
 export interface ActionOccurrence {
   id: string;
   action_id: string;
+  occurrence_no: number;
   planned_due_on: string;
   due_on: string;
   defer_count: number;
@@ -107,6 +127,11 @@ export interface Database {
         Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
       };
+      notification_preferences: {
+        Row: NotificationPreferences;
+        Insert: Omit<NotificationPreferences, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<NotificationPreferences, 'id' | 'created_at' | 'updated_at'>>;
+      };
       dreams: {
         Row: Dream;
         Insert: Omit<Dream, 'id' | 'created_at' | 'updated_at'>;
@@ -158,6 +183,18 @@ export interface Database {
         };
         Returns: void;
       };
+      soft_delete_area: {
+        Args: {
+          p_area_id: string;
+        };
+        Returns: void;
+      };
+      create_occurrence_series: {
+        Args: {
+          p_action_id: string;
+        };
+        Returns: number;
+      };
     };
   };
 }
@@ -166,6 +203,7 @@ export interface Database {
 export interface TodayAction {
   id: string;
   action_id: string;
+  occurrence_no: number;
   planned_due_on: string;
   due_on: string;
   defer_count: number;
@@ -174,12 +212,10 @@ export interface TodayAction {
   ai_rating?: number;
   ai_feedback?: string;
   action_title: string;
-  action_description?: string;
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   area_title: string;
   area_icon?: string;
-  area_color?: string;
   dream_title: string;
   dream_description?: string;
   is_done: boolean;
@@ -194,6 +230,11 @@ export interface DreamWithStats {
   description?: string;
   start_date: string;
   end_date?: string;
+  activated_at?: string;
+  image_url?: string;
+  baseline?: string;
+  obstacles?: string;
+  enjoyment?: string;
   archived_at?: string;
   created_at: string;
   updated_at: string;
@@ -209,7 +250,8 @@ export interface AreaWithActions {
   dream_id: string;
   title: string;
   icon?: string;
-  color?: string;
+  position: number;
+  approved_at?: string;
   deleted_at?: string;
   created_at: string;
   updated_at: string;
@@ -219,13 +261,16 @@ export interface AreaWithActions {
 
 export interface ActionWithOccurrences {
   id: string;
+  user_id: string;
+  dream_id: string;
   area_id: string;
   title: string;
-  description?: string;
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
+  slice_count_target?: number;
   acceptance_criteria?: string[];
+  position: number;
   is_active: boolean;
   deleted_at?: string;
   created_at: string;
@@ -233,6 +278,11 @@ export interface ActionWithOccurrences {
   occurrences: ActionOccurrence[];
   next_due?: string;
   overdue_count?: number;
+}
+
+// Frontend action interface that includes due_date for UI convenience
+export interface ActionWithDueDate extends Action {
+  due_date?: string; // From the first/next occurrence
 }
 
 // Storage types
@@ -312,7 +362,6 @@ export interface CreateDreamForm {
 export interface CreateAreaForm {
   title: string;
   icon?: string;
-  color?: string;
 }
 
 export interface CreateActionForm {

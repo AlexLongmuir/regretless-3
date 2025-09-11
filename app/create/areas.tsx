@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button, Input } from '../../components'
 import { AreaGrid } from '../../components/AreaChips'
+import { generateAreas, upsertAreas } from '../../frontend-services/backend-bridge'
+import { supabaseClient } from '../../lib/supabaseClient'
+import { theme } from '../../utils/theme'
+import type { Area } from '../../backend/database/types'
 
 interface AreaSuggestion {
   id: string
@@ -15,31 +19,118 @@ interface AreaSuggestion {
 
 export default function AreasStep() {
   const navigation = useNavigation<any>()
-  const { title, setField } = useCreateDream()
+  const { 
+    title, 
+    dreamId, 
+    areas, 
+    setAreas, 
+    addArea, 
+    updateArea, 
+    removeArea,
+    areasAnalyzed,
+    setAreasAnalyzed,
+    start_date,
+    end_date,
+    baseline,
+    obstacles,
+    enjoyment
+  } = useCreateDream()
   
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!areasAnalyzed)
+  const [isSaving, setIsSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [editingArea, setEditingArea] = useState<string | null>(null)
   const [newAreaTitle, setNewAreaTitle] = useState('')
   const [newAreaEmoji, setNewAreaEmoji] = useState('🚀')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [areaSuggestions, setAreaSuggestions] = useState<AreaSuggestion[]>([
-    { id: '1', title: 'Planning', emoji: '✍️' },
-    { id: '2', title: 'Developing', emoji: '🔧' },
-    { id: '3', title: 'Launching', emoji: '🚀' },
-    { id: '4', title: 'Marketing', emoji: '📢' }
-  ])
+  
+  // Convert areas from context to local UI format, sorted by position
+  const areaSuggestions: AreaSuggestion[] = areas
+    .sort((a, b) => (a.position || 0) - (b.position || 0))
+    .map(area => ({
+      id: area.id,
+      title: area.title,
+      emoji: area.icon || '🚀'
+    }))
 
   const emojiOptions = ['🚀', '✍️', '🔧', '📢', '📚', '💡', '🎯', '⚡', '🔥', '💪', '🎨', '📈', '🌟', '🎉', '💎', '🏆']
 
-  useEffect(() => {
-    // Simulate API call with minimum 3 second loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 3000)
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadAreas = async () => {
+        // If we already have areas data, use it
+        if (areasAnalyzed && areas.length > 0) {
+          console.log('🔍 Using existing areas data from context')
+          setIsLoading(false)
+          return
+        }
 
-    return () => clearTimeout(timer)
-  }, [])
+        // Only run analysis if we haven't analyzed yet and have required data
+        if (areasAnalyzed || !dreamId || !title) {
+          if (!dreamId || !title) {
+            setTimeout(() => {
+              setIsLoading(false)
+            }, 1000)
+          }
+          return
+        }
+
+        const runAnalysis = async () => {
+          console.log('🔍 Running areas analysis for the first time')
+          
+          try {
+            // Get auth token
+            const { data: { session } } = await supabaseClient.auth.getSession()
+            if (!session?.access_token) {
+              throw new Error('No authentication token available')
+            }
+
+            const generatedAreas = await generateAreas({ 
+              dream_id: dreamId,
+              title,
+              start_date: start_date || undefined,
+              end_date: end_date || undefined,
+              baseline: baseline || undefined,
+              obstacles: obstacles || undefined,
+              enjoyment: enjoyment || undefined
+            }, session.access_token)
+            
+            if (generatedAreas && generatedAreas.length > 0) {
+              // Store the full Area objects in context
+              setAreas(generatedAreas)
+            }
+            
+            // Mark as analyzed
+            setAreasAnalyzed(true)
+            
+            // Simulate minimum loading time for UX
+            setTimeout(() => {
+              setIsLoading(false)
+            }, 2000)
+          } catch (error) {
+            console.error('Areas analysis failed:', error)
+            // Mark as analyzed even if failed to prevent retries
+            setAreasAnalyzed(true)
+            
+            // Fallback to default areas if AI fails
+            const defaultAreas = [
+              { id: 'temp_1', dream_id: dreamId, title: 'Planning', icon: '📋', position: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              { id: 'temp_2', dream_id: dreamId, title: 'Developing', icon: '🔧', position: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+              { id: 'temp_3', dream_id: dreamId, title: 'Launching', icon: '🚀', position: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            ]
+            setAreas(defaultAreas)
+            setTimeout(() => {
+              setIsLoading(false)
+            }, 1000)
+          }
+        }
+
+        runAnalysis()
+      }
+
+      loadAreas()
+    }, [dreamId, title, areas, areasAnalyzed, setAreas, setAreasAnalyzed, start_date, end_date, baseline, obstacles, enjoyment])
+  )
 
   const handleAreaEdit = (areaId: string) => {
     const area = areaSuggestions.find(a => a.id === areaId)
@@ -52,13 +143,11 @@ export default function AreasStep() {
 
   const handleSaveEdit = () => {
     if (editingArea && newAreaTitle.trim() && newAreaEmoji.trim()) {
-      setAreaSuggestions(prev => 
-        prev.map(area => 
-          area.id === editingArea 
-            ? { ...area, title: newAreaTitle.trim(), emoji: newAreaEmoji.trim() }
-            : area
-        )
-      )
+      // Update the area in context - this will update live
+      updateArea(editingArea, {
+        title: newAreaTitle.trim(),
+        icon: newAreaEmoji.trim()
+      })
       setEditingArea(null)
       setNewAreaTitle('')
       setNewAreaEmoji('')
@@ -78,15 +167,21 @@ export default function AreasStep() {
   }
 
   const handleSaveNewArea = () => {
-    if (newAreaTitle.trim() && newAreaEmoji.trim()) {
-      const maxId = areaSuggestions.length > 0 
-        ? Math.max(...areaSuggestions.map(a => parseInt(a.id))) 
-        : 0
-      const newId = (maxId + 1).toString()
-      setAreaSuggestions(prev => [
-        ...prev,
-        { id: newId, title: newAreaTitle.trim(), emoji: newAreaEmoji.trim() }
-      ])
+    if (newAreaTitle.trim() && newAreaEmoji.trim() && dreamId) {
+      const newId = `temp_${Date.now()}` // Temporary ID until saved to backend
+      const newArea: Area = {
+        id: newId,
+        dream_id: dreamId,
+        title: newAreaTitle.trim(),
+        icon: newAreaEmoji.trim(),
+        position: areas.length, // Add at the end
+        deleted_at: undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      // Add to context - this will update live
+      addArea(newArea)
       setEditingArea(null)
       setNewAreaTitle('')
       setNewAreaEmoji('')
@@ -94,12 +189,77 @@ export default function AreasStep() {
   }
 
   const handleRemoveArea = (areaId: string) => {
-    setAreaSuggestions(prev => prev.filter(area => area.id !== areaId))
+    // Remove from context - this will update live and also remove related actions
+    removeArea(areaId)
+  }
+
+  const handleReorderAreas = (reorderedAreas: AreaSuggestion[]) => {
+    // Update positions based on new order
+    const updatedAreas = reorderedAreas.map((area, index) => {
+      const originalArea = areas.find(a => a.id === area.id)
+      if (originalArea) {
+        return { ...originalArea, position: index }
+      }
+      return originalArea
+    }).filter(Boolean) as Area[]
+    
+    setAreas(updatedAreas)
+  }
+
+
+  const handleSaveAreas = async () => {
+    setIsSaving(true)
+    
+    // Save areas to backend first, then navigate
+    if (dreamId) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session?.access_token) {
+          // Remove temporary IDs for new areas and ensure positions are set
+          const areasToSend = areas.map((area, index) => {
+            const { id, ...areaWithoutId } = area
+            const areaToSend = area.id?.startsWith('temp_') ? areaWithoutId : area
+            return {
+              ...areaToSend,
+              position: areaToSend.position ?? index
+            }
+          })
+          
+          const response = await upsertAreas({
+            dream_id: dreamId,
+            areas: areasToSend
+          }, session.access_token)
+          
+          // Update context with real IDs from backend BEFORE navigating
+          if (response.areas) {
+            setAreas(response.areas)
+            // Navigate after successful save and context update
+            navigation.navigate('AreasConfirm')
+          } else {
+            // If no response, still navigate
+            navigation.navigate('AreasConfirm')
+          }
+        } else {
+          // If no session, just navigate
+          navigation.navigate('AreasConfirm')
+        }
+      } catch (error) {
+        console.error('Failed to save areas:', error)
+        // Still navigate even if save fails
+        navigation.navigate('AreasConfirm')
+      } finally {
+        setIsSaving(false)
+      }
+    } else {
+      // If no dreamId, just navigate
+      navigation.navigate('AreasConfirm')
+      setIsSaving(false)
+    }
   }
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
           {/* Rocket Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
@@ -138,12 +298,12 @@ export default function AreasStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="areas" />
       
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 200 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 300 }} // Increased padding for bottom area
         showsVerticalScrollIndicator={false}
       >
         {/* Dream Title */}
@@ -161,10 +321,20 @@ export default function AreasStep() {
         <Text style={{ 
           fontSize: 16, 
           color: '#000', 
-          marginBottom: 32,
+          marginBottom: 16,
           lineHeight: 22
         }}>
           These are the area's we think maximise your chance of success.
+        </Text>
+
+        {/* Reorder Instructions */}
+        <Text style={{ 
+          fontSize: 14, 
+          color: '#666', 
+          marginBottom: 16,
+          lineHeight: 20
+        }}>
+          Use the up/down arrows to reorder areas
         </Text>
 
         {/* Area Grid */}
@@ -173,6 +343,7 @@ export default function AreasStep() {
           onEdit={handleAreaEdit}
           onRemove={handleRemoveArea}
           onAdd={handleAddArea}
+          onReorder={handleReorderAreas}
         />
 
       </ScrollView>
@@ -185,7 +356,7 @@ export default function AreasStep() {
         right: 0, 
         padding: 16,
         paddingBottom: 32,
-        backgroundColor: '#F3F4F6'
+        backgroundColor: theme.colors.pageBackground
       }}>
         {/* Instructional Text */}
         <Text style={{ 
@@ -219,20 +390,58 @@ export default function AreasStep() {
           <Button 
             title="Fix with AI" 
             variant="secondary"
-            onPress={() => {
+            onPress={async () => {
+              if (!dreamId || !title || !feedback.trim()) return
+              
               // Trigger loading page
               setIsLoading(true)
-              // Simulate AI processing
-              setTimeout(() => {
-                setIsLoading(false)
-              }, 3000)
+              
+              try {
+                // Get auth token
+                const { data: { session } } = await supabaseClient.auth.getSession()
+                if (!session?.access_token) {
+                  throw new Error('No authentication token available')
+                }
+
+                // Call the generateAreas API to regenerate areas
+                const generatedAreas = await generateAreas({ 
+                  dream_id: dreamId,
+                  title,
+                  start_date: start_date || undefined,
+                  end_date: end_date || undefined,
+                  baseline: baseline || undefined,
+                  obstacles: obstacles || undefined,
+                  enjoyment: enjoyment || undefined,
+                  feedback: feedback.trim() || undefined,
+                  original_areas: areas.length > 0 ? areas : undefined
+                }, session.access_token)
+                
+                if (generatedAreas && generatedAreas.length > 0) {
+                  // Store the new areas in context
+                  setAreas(generatedAreas)
+                  // Clear feedback after successful regeneration
+                  setFeedback('')
+                }
+                
+                // Simulate minimum loading time for UX
+                setTimeout(() => {
+                  setIsLoading(false)
+                }, 2000)
+              } catch (error) {
+                console.error('Failed to regenerate areas with AI:', error)
+                setTimeout(() => {
+                  setIsLoading(false)
+                }, 1000)
+              }
             }}
             style={{ flex: 1 }}
+            disabled={!feedback.trim()}
           />
           <Button 
-            title="Looks Good" 
+            title={isSaving ? "Saving..." : "Looks Good"}
             variant="black"
-            onPress={() => navigation.navigate('AreasConfirm')}
+            onPress={handleSaveAreas}
+            disabled={isSaving}
             style={{ flex: 1 }}
           />
         </View>
@@ -253,7 +462,7 @@ export default function AreasStep() {
           padding: 20
         }}>
           <View style={{
-            backgroundColor: '#F3F4F6',
+            backgroundColor: theme.colors.pageBackground,
             borderRadius: 16,
             padding: 24,
             width: '100%',
@@ -348,7 +557,7 @@ export default function AreasStep() {
           padding: 20
         }}>
           <View style={{
-            backgroundColor: '#F3F4F6',
+            backgroundColor: theme.colors.pageBackground,
             borderRadius: 16,
             padding: 24,
             width: '100%',

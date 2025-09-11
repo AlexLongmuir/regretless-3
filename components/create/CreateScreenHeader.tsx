@@ -2,11 +2,13 @@ import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { IconButton } from '../IconButton'
+import { useCreateDream } from '../../contexts/CreateDreamContext'
 
 export const CreateScreenHeader: React.FC<{ step?: string }> = ({ 
   step = 'title' 
 }) => {
   const navigation = useNavigation()
+  const { reset } = useCreateDream()
   
   const handleBack = () => {
     // If we're on the first step (Title), go back to main app
@@ -19,6 +21,9 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
   }
 
   const handleClose = () => {
+    // Reset the CreateDreamContext state
+    reset()
+    
     // Close the entire create flow and return to main app
     // Navigate to the parent navigator's Tabs screen
     const parentNavigation = navigation.getParent()

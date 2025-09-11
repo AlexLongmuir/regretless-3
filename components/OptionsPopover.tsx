@@ -26,56 +26,43 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
     }
 
     const { x, y, width, height } = triggerPosition;
-    const popoverHeight = options.length * 44 + 12; // updated height calculation for reduced padding
-    const popoverWidth = 160; // more accurate estimate for "Photo Library" text
+    const popoverHeight = options.length * 44 + 12; // height calculation for options
+    // Calculate width based on longest option text
+    const longestText = Math.max(...options.map(opt => opt.title.length));
+    const popoverWidth = Math.min(Math.max(longestText * 8 + 60, 120), 160); // dynamic width with min/max bounds
     const screenHeight = Dimensions.get('window').height;
     const screenWidth = Dimensions.get('window').width;
-    const screenMargin = 2; // margin from screen edges
+    const screenMargin = 16; // page side padding
+    const gap = 4; // small gap between button and popover
     
-    // Determine vertical position based on screen position
-    const isInTopHalf = y < screenHeight / 2;
-    let top;
+    // Position directly below the button
+    let top = y + height + gap;
     
-    if (isInTopHalf) {
-      // Position below button
-      top = y + height + 5;
-    } else {
-      // Position above button
-      top = y - popoverHeight - 5;
+    // Safety check for screen bounds
+    if (top + popoverHeight > screenHeight - screenMargin) {
+      top = y - popoverHeight - gap; // Position above if no room below
     }
-    
-    // Safety checks for screen bounds
     if (top < screenMargin) {
       top = screenMargin;
     }
-    if (top + popoverHeight > screenHeight - screenMargin) {
-      top = screenHeight - popoverHeight - screenMargin;
+    
+    // Position to align with the right edge of the button, maintaining page side padding
+    let left = x + width - popoverWidth;
+    
+    // Ensure it doesn't go beyond the right edge (maintain page side padding)
+    if (left + popoverWidth > screenWidth - screenMargin) {
+      left = screenWidth - popoverWidth - screenMargin;
     }
     
-    // Determine horizontal alignment based on button position
-    const isCloserToLeft = x < screenWidth / 2;
-    let left;
-    
-    if (isCloserToLeft) {
-      // Button is closer to left edge, align left edges (button's left edge is closest to screen)
-      left = x;
-    } else {
-      // Button is closer to right edge, align right edges (button's right edge is closest to screen)
-      left = x + width - popoverWidth;
+    // Ensure it doesn't go beyond the left edge (maintain page side padding)
+    if (left < screenMargin) {
+      left = screenMargin;
     }
-    
-    // Debug logging
-    console.log('Button position:', { x, y, width, height });
-    console.log('Screen size:', { screenWidth, screenHeight });
-    console.log('Popover positioning:', { left, top, popoverWidth, isCloserToLeft });
-    
-    const translateX = 0; // No transform needed since we're positioning directly
     
     return {
       position: 'absolute' as const,
       top,
       left,
-      transform: [{ translateX }],
     };
   };
 
@@ -142,6 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.grey[600],
     borderRadius: theme.radius.lg,
     paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: {
@@ -150,13 +138,15 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    minWidth: 120,
+    maxWidth: 160,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   optionText: {
     fontFamily: theme.typography.fontFamily.system,

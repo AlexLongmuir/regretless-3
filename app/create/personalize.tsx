@@ -5,10 +5,13 @@ import * as ImagePicker from 'expo-image-picker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
+import { upsertDream } from '../../frontend-services/backend-bridge'
+import { supabaseClient } from '../../lib/supabaseClient'
+import { theme } from '../../utils/theme'
 
 export default function AreasStep() {
   const navigation = useNavigation<any>()
-  const { image_url, setField } = useCreateDream()
+  const { dreamId, title, start_date, end_date, image_url, setField } = useCreateDream()
   const [selectedEmoji, setSelectedEmoji] = useState<string>('')
   const [selectedImage, setSelectedImage] = useState<string | null>(image_url || null)
   const textInputRef = useRef<TextInput>(null)
@@ -49,8 +52,31 @@ export default function AreasStep() {
     }
   }
 
+  const handleContinue = async () => {
+    // Navigate immediately for smooth UX
+    navigation.navigate('Dates')
+
+    // Handle backend operations in background
+    if (dreamId) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session?.access_token) {
+          await upsertDream({
+            id: dreamId,
+            title,
+            start_date,
+            end_date,
+            image_url
+          }, session.access_token)
+        }
+      } catch (error) {
+        console.error('Failed to save dream:', error)
+      }
+    }
+  }
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="personalize" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={{ 
@@ -158,9 +184,9 @@ export default function AreasStep() {
         paddingBottom: 32
       }}>
         <Button 
-          title="Continue" 
+          title="Continue"
           variant={"black" as any}
-          onPress={() => navigation.navigate('Dates')} 
+          onPress={handleContinue}
         />
       </View>
     </View>

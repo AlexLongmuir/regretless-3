@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 
 export const supabaseClient = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+  Constants.expoConfig?.extra?.supabaseUrl!,
+  Constants.expoConfig?.extra?.supabaseAnonKey!,
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
 );
 

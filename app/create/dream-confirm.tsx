@@ -3,6 +3,7 @@ import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
+import { theme } from '../../utils/theme'
 
 export default function ConfirmStep() {
   const navigation = useNavigation<any>()
@@ -12,7 +13,7 @@ export default function ConfirmStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="confirm" />
       
       <View style={{ 
@@ -71,7 +72,7 @@ export default function ConfirmStep() {
         right: 0, 
         padding: 16,
         paddingBottom: 32,
-        backgroundColor: '#F3F4F6'
+        backgroundColor: theme.colors.pageBackground
       }}>
         <Button 
           title="Next" 

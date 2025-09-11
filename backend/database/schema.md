@@ -10,10 +10,8 @@ One row per Supabase auth user (FK to auth.users).
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
-| id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
-| email | text | User's email address | NOT NULL |
-| display_name | text | User's display name | |
-| avatar_url | text | URL to user's avatar image | |
+| user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
+| username | text | User's username | NOT NULL, UNIQUE |
 | created_at | timestamptz | When profile was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When profile was last modified | NOT NULL, DEFAULT now() |
 
@@ -23,11 +21,16 @@ User's goal container with title, start_date, optional end_date, and archive cap
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
-| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) |
 | title | text | Dream title | NOT NULL |
 | description | text | Dream description | |
 | start_date | date | When dream starts | NOT NULL |
 | end_date | date | Optional target end date | |
+| activated_at | timestamptz | When dream was activated (moved from draft) | |
+| image_url | text | URL to dream cover image | |
+| baseline | text | User's current baseline state | |
+| obstacles | text | Potential obstacles identified | |
+| enjoyment | text | What user enjoys about this dream | |
 | archived_at | timestamptz | When dream was archived (soft delete) | |
 | created_at | timestamptz | When dream was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When dream was last modified | NOT NULL, DEFAULT now() |
@@ -42,6 +45,7 @@ Categories inside a dream with soft-delete capability.
 | title | text | Area title | NOT NULL |
 | icon | text | Icon identifier for UI | |
 | color | text | Hex color code for UI | |
+| approved_at | timestamptz | When area was approved (locked) | |
 | deleted_at | timestamptz | When area was soft-deleted | |
 | created_at | timestamptz | When area was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When area was last modified | NOT NULL, DEFAULT now() |
@@ -71,6 +75,7 @@ Each scheduled/finished unit of work (instances of actions).
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
 | action_id | uuid | Reference to actions table | NOT NULL, FOREIGN KEY |
+| occurrence_no | integer | Sequence number within action | NOT NULL, CHECK (occurrence_no > 0) |
 | planned_due_on | date | Original planned due date | NOT NULL |
 | due_on | date | Mutable due date (for defers) | NOT NULL |
 | defer_count | integer | Number of times deferred | NOT NULL, DEFAULT 0 |
@@ -92,8 +97,74 @@ Many photos/files per occurrence with storage path and metadata.
 | file_name | text | Original file name | NOT NULL |
 | file_size | bigint | File size in bytes | |
 | mime_type | text | File MIME type | |
+| kind | text | Type of artifact (e.g., 'photo', 'document') | NOT NULL |
 | metadata | jsonb | Additional file metadata | |
 | created_at | timestamptz | When artifact was uploaded | NOT NULL, DEFAULT now() |
+
+### ai_events
+AI usage tracking and telemetry for monitoring costs and performance.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) |
+| kind | text | Type of AI operation | NOT NULL |
+| model | text | AI model used | NOT NULL |
+| prompt_tokens | integer | Number of input tokens | |
+| output_tokens | integer | Number of output tokens | |
+| total_tokens | integer | Total tokens used | |
+| latency_ms | integer | Request latency in milliseconds | |
+| created_at | timestamptz | When event was recorded | NOT NULL, DEFAULT now() |
+
+### notification_preferences
+User notification settings and preferences.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) ON DELETE CASCADE |
+| push_enabled | boolean | Whether push notifications are enabled | NOT NULL, DEFAULT true |
+| daily_reminders | boolean | Whether daily reminders are enabled | NOT NULL, DEFAULT true |
+| reminder_time | time | Time to send daily reminders | NOT NULL, DEFAULT '09:00:00' |
+| overdue_alerts | boolean | Whether overdue task alerts are enabled | NOT NULL, DEFAULT true |
+| achievement_notifications | boolean | Whether achievement notifications are enabled | NOT NULL, DEFAULT true |
+| created_at | timestamptz | When preferences were created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When preferences were last modified | NOT NULL, DEFAULT now() |
+
+**SQL Setup:**
+```sql
+CREATE TABLE notification_preferences (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES profiles(user_id) ON DELETE CASCADE,
+  push_enabled boolean NOT NULL DEFAULT true,
+  daily_reminders boolean NOT NULL DEFAULT true,
+  reminder_time time NOT NULL DEFAULT '09:00:00',
+  overdue_alerts boolean NOT NULL DEFAULT true,
+  achievement_notifications boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;
+
+-- Create RLS policy
+CREATE POLICY "Users can access own notification preferences" ON notification_preferences
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Create index for performance
+CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(user_id);
+
+-- Add trigger for updated_at
+CREATE TRIGGER trigger_notification_preferences_updated_at 
+  BEFORE UPDATE ON notification_preferences 
+  FOR EACH ROW 
+  EXECUTE FUNCTION set_updated_at();
+
+-- Grant permissions to authenticated role
+GRANT SELECT, INSERT, UPDATE, DELETE ON notification_preferences TO authenticated;
+```
 
 ## Helper Views & Functions
 
@@ -111,6 +182,40 @@ SELECT
     ELSE 0 
   END as overdue_days
 FROM action_occurrences ao;
+```
+
+### v_active_actions
+Active actions with their area and dream context.
+
+```sql
+CREATE VIEW v_active_actions AS
+SELECT 
+  act.*,
+  a.title as area_title,
+  a.icon as area_icon,
+  a.color as area_color,
+  d.id as dream_id,
+  d.title as dream_title,
+  d.user_id
+FROM actions act
+JOIN areas a ON a.id = act.area_id AND a.deleted_at IS NULL
+JOIN dreams d ON d.id = a.dream_id AND d.archived_at IS NULL
+WHERE act.deleted_at IS NULL AND act.is_active = true;
+```
+
+### v_active_areas
+Active areas with their dream context.
+
+```sql
+CREATE VIEW v_active_areas AS
+SELECT 
+  a.*,
+  d.id as dream_id,
+  d.title as dream_title,
+  d.user_id
+FROM areas a
+JOIN dreams d ON d.id = a.dream_id AND d.archived_at IS NULL
+WHERE a.deleted_at IS NULL;
 ```
 
 ### v_dream_daily_summary
@@ -212,16 +317,18 @@ $$;
 -- Performance indexes for common queries
 
 -- Profiles
-CREATE INDEX idx_profiles_user_id ON profiles(id);
+CREATE INDEX idx_profiles_user_id ON profiles(user_id);
 
 -- Dreams
 CREATE INDEX idx_dreams_user_id ON dreams(user_id);
 CREATE INDEX idx_dreams_archived_at ON dreams(archived_at) WHERE archived_at IS NULL;
 CREATE INDEX idx_dreams_start_date ON dreams(start_date);
+CREATE INDEX idx_dreams_user_activated ON dreams(user_id, activated_at);
 
 -- Areas
 CREATE INDEX idx_areas_dream_id ON areas(dream_id);
 CREATE INDEX idx_areas_deleted_at ON areas(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_areas_dream_approved ON areas(dream_id, approved_at);
 
 -- Actions
 CREATE INDEX idx_actions_area_id ON actions(area_id);
@@ -235,9 +342,30 @@ CREATE INDEX idx_action_occurrences_due_completed ON action_occurrences(due_on, 
 CREATE INDEX idx_action_occurrences_action_id ON action_occurrences(action_id);
 CREATE INDEX idx_action_occurrences_completed_at ON action_occurrences(completed_at) 
   WHERE completed_at IS NOT NULL;
+CREATE INDEX idx_occ_user_due_open ON action_occurrences(user_id, due_on)
+  WHERE completed_at IS NULL;
+CREATE INDEX idx_occ_by_action_no ON action_occurrences(action_id, occurrence_no);
 
 -- Action artifacts
 CREATE INDEX idx_action_artifacts_occurrence_id ON action_artifacts(occurrence_id);
+
+-- AI events
+CREATE INDEX idx_ai_events_user_id ON ai_events(user_id);
+CREATE INDEX idx_ai_events_created_at ON ai_events(created_at);
+CREATE INDEX idx_ai_events_kind ON ai_events(kind);
+
+-- Notification preferences
+CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(user_id);
+
+-- Unique constraints for ordering (ignores soft-deleted rows)
+CREATE UNIQUE INDEX ux_areas_position_live ON areas(user_id, dream_id, position)
+  WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX ux_actions_position_live ON actions(user_id, area_id, position)
+  WHERE deleted_at IS NULL;
+
+-- Unique constraint for occurrence sequence per action
+ALTER TABLE action_occurrences ADD CONSTRAINT uq_action_occurrence UNIQUE (action_id, occurrence_no);
 ```
 
 ## Triggers
@@ -255,6 +383,7 @@ DECLARE
   action_record actions%ROWTYPE;
   next_due_date date;
   dream_end_date date;
+  next_occurrence_no integer;
 BEGIN
   -- Only process if this is a new completion
   IF NEW.completed_at IS NOT NULL AND (OLD.completed_at IS NULL OR OLD.completed_at IS DISTINCT FROM NEW.completed_at) THEN
@@ -276,8 +405,13 @@ BEGIN
       
       -- Only create if we haven't hit the dream end_date
       IF dream_end_date IS NULL OR next_due_date <= dream_end_date THEN
-        INSERT INTO action_occurrences (action_id, planned_due_on, due_on)
-        VALUES (action_record.id, next_due_date, next_due_date);
+        -- Get the next occurrence number for this action
+        SELECT COALESCE(MAX(occurrence_no), 0) + 1 INTO next_occurrence_no
+        FROM action_occurrences 
+        WHERE action_id = action_record.id;
+        
+        INSERT INTO action_occurrences (action_id, occurrence_no, planned_due_on, due_on)
+        VALUES (action_record.id, next_occurrence_no, next_due_date, next_due_date);
       END IF;
     END IF;
   END IF;
@@ -312,7 +446,122 @@ CREATE TRIGGER trigger_dreams_updated_at BEFORE UPDATE ON dreams FOR EACH ROW EX
 CREATE TRIGGER trigger_areas_updated_at BEFORE UPDATE ON areas FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trigger_actions_updated_at BEFORE UPDATE ON actions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trigger_action_occurrences_updated_at BEFORE UPDATE ON action_occurrences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trigger_notification_preferences_updated_at BEFORE UPDATE ON notification_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 ```
+
+## Utility Functions
+
+### soft_delete_area(area_id)
+Atomically soft-delete an area and all its actions.
+
+```sql
+CREATE OR REPLACE FUNCTION public.soft_delete_area(p_area_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+BEGIN
+  -- mark area deleted (respecting RLS via auth.uid())
+  UPDATE public.areas
+     SET deleted_at = NOW()
+   WHERE id = p_area_id
+     AND user_id = auth.uid()
+     AND deleted_at IS NULL;
+
+  -- cascade soft-delete actions in that area
+  UPDATE public.actions a
+     SET deleted_at = NOW()
+   WHERE a.area_id = p_area_id
+     AND a.user_id = auth.uid()
+     AND a.deleted_at IS NULL;
+END
+$$;
+
+### create_occurrence_series(p_action_id)
+Create a series of occurrences for finite-slice actions.
+
+```sql
+CREATE OR REPLACE FUNCTION public.create_occurrence_series(p_action_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_action record;
+  i int;
+BEGIN
+  SELECT * INTO v_action
+  FROM public.actions
+  WHERE id = p_action_id;
+
+  IF v_action.slice_count_target IS NULL THEN
+    RETURN 0;
+  END IF;
+
+  IF v_action.user_id <> auth.uid() THEN
+    RAISE EXCEPTION 'not owner';
+  END IF;
+
+  FOR i IN 1..v_action.slice_count_target LOOP
+    INSERT INTO public.action_occurrences(
+      action_id, user_id, dream_id, area_id,
+      occurrence_no, planned_due_on, due_on, defer_count, note
+    )
+    VALUES (
+      v_action.id, v_action.user_id, v_action.dream_id, v_action.area_id,
+      i, NULL, NULL, 0, NULL
+    )
+    ON CONFLICT (action_id, occurrence_no) DO NOTHING;
+  END LOOP;
+
+  RETURN v_action.slice_count_target;
+END
+$$;
+```
+
+## Security & Permissions
+
+### View Security Configuration
+All views are configured with `security_invoker = on` to ensure they respect RLS policies and run with the permissions of the calling user, not the view creator.
+
+### Permission Grants
+The following permissions are configured for the `authenticated` role:
+
+**Views (SELECT only):**
+- `v_action_occurrence_status`
+- `v_active_actions` 
+- `v_active_areas`
+- `v_dream_daily_summary`
+- `v_overdue_counts`
+
+**Tables (SELECT, INSERT, UPDATE, DELETE):**
+- `dreams`
+- `areas`
+- `actions`
+- `action_occurrences`
+- `action_artifacts`
+- `profiles`
+- `ai_events`
+- `notification_preferences`
+
+**Functions (EXECUTE):**
+- `defer_occurrence(uuid)`
+- `current_streak(uuid, uuid)`
+- `soft_delete_area(uuid)`
+- `create_occurrence_series(uuid)`
+
+**Schema Access:**
+- `USAGE` on `public` schema
+- `CREATE` on `public` schema (for temporary tables)
+
+The `anon` role has all permissions revoked on these objects, ensuring only authenticated users can access data.
+
+### API Integration
+All API routes now use the `supabaseServerAuth(userToken)` function instead of the service role client. This ensures:
+- RLS policies are enforced automatically
+- Users can only access their own data
+- No manual user ownership checks are needed in API code
+- Better security through principle of least privilege
 
 ## Row Level Security (RLS)
 
@@ -326,6 +575,8 @@ ALTER TABLE areas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_occurrences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_artifacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS (prevents bypassing policies)
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
@@ -334,10 +585,12 @@ ALTER TABLE areas FORCE ROW LEVEL SECURITY;
 ALTER TABLE actions FORCE ROW LEVEL SECURITY;
 ALTER TABLE action_occurrences FORCE ROW LEVEL SECURITY;
 ALTER TABLE action_artifacts FORCE ROW LEVEL SECURITY;
+ALTER TABLE ai_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can access own profile" ON profiles
-  FOR ALL USING (auth.uid() = id);
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Dreams policies
 CREATE POLICY "Users can access own dreams" ON dreams
@@ -388,6 +641,17 @@ CREATE POLICY "Users can access artifacts for their dreams" ON action_artifacts
       AND d.user_id = auth.uid()
     )
   );
+
+-- AI events policies
+CREATE POLICY "Users can read own ai_events" ON ai_events
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own ai_events" ON ai_events
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Notification preferences policies
+CREATE POLICY "Users can access own notification preferences" ON notification_preferences
+  FOR ALL USING (auth.uid() = user_id);
 ```
 
 ## Storage Policies

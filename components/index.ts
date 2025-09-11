@@ -13,6 +13,7 @@ export { AITip } from './AITip'
 export { ActionCard } from './ActionCard'
 export { CompactActionCard } from './CompactActionCard'
 export { DreamCard } from './DreamCard'
+export { DreamChipList } from './DreamChipList'
 export { JournalCard } from './JournalCard'
 export { ProgressEntryCard } from './ProgressEntryCard'
 export { ProgressGalleryItem } from './ProgressGalleryItem'
@@ -23,9 +24,11 @@ export { AIQuestions } from './AIQuestions'
 export { FilterTabs } from './FilterTabs'
 export { ImageGallery } from './ImageGallery'
 export { OptionsPopover } from './OptionsPopover'
-export { ScheduleSelector } from './ScheduleSelector'
 export { StickyActionSuggestions } from './StickyActionSuggestions'
 export { BottomNavigation } from './BottomNavigation'
+export { default as AIRatingRing } from './AIRatingRing'
+
+// Progress components
+export * from './progress'
 
 // Chat components
-export * from './Chat'

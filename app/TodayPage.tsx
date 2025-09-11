@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
-import { FilterTabs } from '../components/FilterTabs';
-import { ActionCard } from '../components/ActionCard';
+import { ActionChipsList } from '../components/ActionChipsList';
+import { useData } from '../contexts/DataContext';
+import type { TodayAction, ActionOccurrenceStatus } from '../backend/database/types';
 
-interface ActionItem {
+interface ActionOccurrenceItem {
   id: string;
   title: string;
-  description?: string;
-  status: 'todo' | 'done' | 'overdue';
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
+  est_minutes: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  repeat_every_days?: number;
+  slice_count_target?: number;
+  acceptance_criteria?: string[];
+  due_on: string;
+  completed_at?: string;
+  is_done: boolean;
+  is_overdue: boolean;
+  occurrence_no?: number;
+  dream_image?: string;
+  hideEditButtons?: boolean;
 }
 
 const inspirationalQuotes = [
@@ -24,45 +34,39 @@ const inspirationalQuotes = [
   "Consistency is the mother of mastery."
 ];
 
-const mockActions: ActionItem[] = [
-  {
-    id: '1',
-    title: 'Practice Piano',
-    description: 'Focus on daily practice routine',
-    status: 'todo',
-    priority: 'high',
-    dueDate: '2025-01-07'
-  },
-  {
-    id: '2',
-    title: 'Review technique',
-    description: 'Study and improve current methods',
-    status: 'todo',
-    priority: 'high',
-    dueDate: '2025-01-08'
-  },
-  {
-    id: '3',
-    title: 'Record progress',
-    description: 'Document current achievements',
-    status: 'done',
-    priority: 'medium',
-    dueDate: '2025-01-06'
-  },
-  {
-    id: '4',
-    title: 'Plan next steps',
-    description: 'Outline upcoming goals and milestones',
-    status: 'todo',
-    priority: 'low',
-    dueDate: '2025-01-09'
-  }
-];
-
 const TodayPage = ({ navigation }: { navigation?: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeFilter, setActiveFilter] = useState('todo');
-  const [actions, setActions] = useState<ActionItem[]>(mockActions);
+  const { state, getToday, completeOccurrence, deferOccurrence } = useData();
+  
+  // Convert ActionOccurrenceStatus to ActionOccurrenceItem format for the UI
+  const actionOccurrences: ActionOccurrenceItem[] = (state.today?.occurrences || []).map(occurrence => ({
+    id: occurrence.id,
+    title: (occurrence as any).actions?.title || 'Untitled Action',
+    est_minutes: (occurrence as any).actions?.est_minutes || 30,
+    difficulty: (occurrence as any).actions?.difficulty,
+    repeat_every_days: (occurrence as any).actions?.repeat_every_days,
+    slice_count_target: (occurrence as any).actions?.slice_count_target,
+    acceptance_criteria: (occurrence as any).actions?.acceptance_criteria || [],
+    due_on: occurrence.due_on,
+    completed_at: occurrence.completed_at,
+    is_done: occurrence.is_done,
+    is_overdue: occurrence.is_overdue,
+    occurrence_no: occurrence.occurrence_no,
+    dream_image: (occurrence as any).actions?.areas?.icon || '🎯', // Use area icon if available
+    hideEditButtons: true
+  }));
+
+  // Sort tasks by creation date (most recent first)
+  const sortedActionOccurrences = [...actionOccurrences].sort((a, b) => {
+    // Get the creation date from the original occurrence data
+    const aOccurrence = state.today?.occurrences.find(occ => occ.id === a.id);
+    const bOccurrence = state.today?.occurrences.find(occ => occ.id === b.id);
+    
+    const aCreatedAt = aOccurrence?.created_at || '';
+    const bCreatedAt = bOccurrence?.created_at || '';
+    
+    return new Date(bCreatedAt).getTime() - new Date(aCreatedAt).getTime();
+  });
 
   const getDayOfYear = (date: Date) => {
     const start = new Date(date.getFullYear(), 0, 0);
@@ -77,11 +81,31 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
   };
 
   const getFormattedDate = () => {
-    return currentDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric'
-    });
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Reset time to compare only dates
+    const currentDateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+
+    if (currentDateOnly.getTime() === todayOnly.getTime()) {
+      return 'Today';
+    } else if (currentDateOnly.getTime() === yesterdayOnly.getTime()) {
+      return 'Yesterday';
+    } else if (currentDateOnly.getTime() === tomorrowOnly.getTime()) {
+      return 'Tomorrow';
+    } else {
+      return currentDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
   };
 
   const navigateDate = (direction: 'prev' | 'next') => {
@@ -90,50 +114,54 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     setCurrentDate(newDate);
   };
 
-  const getFilterCounts = () => {
-    const todo = actions.filter(a => a.status === 'todo').length;
-    const done = actions.filter(a => a.status === 'done').length;
-    const overdue = actions.filter(a => a.status === 'overdue').length;
-    
-    return [
-      { key: 'todo', label: 'To Do', count: todo },
-      { key: 'done', label: 'Done', count: done },
-      { key: 'overdue', label: 'Overdue', count: overdue }
-    ];
-  };
-
-  const filteredActions = actions.filter(action => action.status === activeFilter);
+  // No need for filtering since we're showing all action occurrences
 
   const handleActionPress = (actionId: string) => {
-    const action = actions.find(a => a.id === actionId);
-    if (action && navigation) {
-      navigation.navigate('Action', {
-        actionId: action.id,
-        goalName: 'Learn Piano in 90 days', // This would come from the action's associated goal
-        actionTitle: action.title,
-        actionDescription: action.description || 'Complete this action to progress toward your goal.',
-        aiTip: `Here's a tip for "${action.title}": Break this task into smaller 15-minute chunks to make it more manageable and build momentum.`,
-        dueDate: 'Today',
-        frequency: 'daily',
-        estimatedTime: 30,
-        inspirationImages: [
-          'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop',
-          'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop',
-          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop'
-        ]
+    const actionOccurrence = actionOccurrences.find(a => a.id === actionId);
+    if (actionOccurrence && navigation) {
+      // Get the original occurrence data from state to access dream/area info
+      const originalOccurrence = state.today?.occurrences.find(occ => occ.id === actionId);
+      const dreamTitle = (originalOccurrence as any)?.actions?.areas?.dreams?.title;
+      const areaName = (originalOccurrence as any)?.actions?.areas?.title;
+      const areaEmoji = (originalOccurrence as any)?.actions?.areas?.icon;
+      
+      navigation.navigate('ActionOccurrence', {
+        occurrenceId: actionOccurrence.id,
+        actionTitle: actionOccurrence.title,
+        dreamTitle: dreamTitle || 'My Dream',
+        areaName: areaName || 'Area',
+        areaEmoji: areaEmoji,
+        actionDescription: 'Complete this action to progress toward your goal.',
+        dueDate: actionOccurrence.due_on,
+        estimatedTime: actionOccurrence.est_minutes,
+        difficulty: actionOccurrence.difficulty,
+        dreamImage: actionOccurrence.dream_image,
+        isCompleted: actionOccurrence.is_done,
+        isOverdue: actionOccurrence.is_overdue,
+        completedAt: actionOccurrence.completed_at,
+        note: undefined, // This would come from the occurrence data
+        aiRating: undefined, // This would come from the occurrence data
+        aiFeedback: undefined // This would come from the occurrence data
       });
     }
   };
 
-  const handleStatusChange = (actionId: string, newStatus: 'todo' | 'done' | 'overdue') => {
-    setActions(prev => prev.map(action => 
-      action.id === actionId ? { ...action, status: newStatus } : action
-    ));
+  // Revalidate data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      getToday();
+    }, [getToday])
+  );
+
+  const handleStatusChange = async (actionId: string, newStatus: 'todo' | 'done' | 'overdue') => {
+    if (newStatus === 'done') {
+      await completeOccurrence(actionId);
+    } else if (newStatus === 'overdue') {
+      await deferOccurrence(actionId);
+    }
+    // For 'todo' status, we don't need to do anything as it's the default state
   };
 
-  const handleAddAction = () => {
-    console.log('Add action pressed');
-  };
 
   return (
     <View style={styles.container}>
@@ -162,51 +190,27 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
                   />
                 </View>
               </View>
-              <View style={styles.streakContainer}>
-                <Text style={styles.streakText}>🔥 7D</Text>
-              </View>
             </View>
           </View>
         </View>
 
         <Text style={styles.quote}>{getQuoteOfTheDay()}</Text>
 
-        <View style={styles.filtersContainer}>
-          <View style={styles.filtersWrapper}>
-            <FilterTabs
-              options={getFilterCounts()}
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-            />
-          </View>
-          <IconButton
-            icon="add"
-            onPress={handleAddAction}
-            variant="secondary"
-            size="md"
-            style={styles.addButton}
-          />
-        </View>
 
         <View style={styles.actionsContainer}>
-          {filteredActions.map((action) => (
-            <ActionCard
-              key={action.id}
-              id={action.id}
-              title={action.title}
-              description={action.description}
-              status={action.status}
-              priority={action.priority}
-              dueDate={action.dueDate}
-              onPress={handleActionPress}
-              onStatusChange={handleStatusChange}
-            />
-          ))}
+          <ActionChipsList
+            actions={sortedActionOccurrences as any}
+            onEdit={() => {}} // No-op since we hide edit buttons
+            onRemove={() => {}} // No-op since we hide remove buttons
+            onAdd={() => {}} // No-op since we hide add functionality
+            onReorder={() => {}} // No-op since we hide reorder buttons
+            onPress={handleActionPress} // Handle action occurrence clicks
+          />
           
-          {filteredActions.length === 0 && (
+          {actionOccurrences.length === 0 && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>
-                No {activeFilter} items for today
+                No actions for today
               </Text>
             </View>
           )}
@@ -219,7 +223,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.pageBackground,
   },
   scrollView: {
     flex: 1,
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: 60,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 100, // Extra padding for bottom navigation
   },
   header: {
     marginBottom: theme.spacing.lg,
@@ -256,37 +260,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.xs,
   },
-  streakContainer: {
-    backgroundColor: theme.colors.warning[800],
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.radius.lg,
-    alignSelf: 'flex-start',
-  },
-  streakText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.caption1,
-    fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.warning[500],
-  },
   quote: {
     fontSize: 16,
     color: theme.colors.grey[600],
     lineHeight: 22,
     marginBottom: theme.spacing.lg,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-  },
-  filtersWrapper: {
-    flex: 1,
-  },
-  addButton: {
-    height: 36,
-    width: 36,
   },
   actionsContainer: {
     flex: 1,

@@ -28,17 +28,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Import pages
-import ProfilePage from '../app/ProfilePage';
+import AccountPage from '../app/AccountPage';
 import DreamsPage from '../app/DreamsPage';
 import TodayPage from '../app/TodayPage';
-import JournalPage from '../app/JournalPage';
 import UtilitiesPage from '../app/UtilitiesPage';
 import LoginPage from '../app/LoginPage';
 import AuthLoadingPage from '../app/AuthLoadingPage';
 import ActionPage from '../app/ActionPage';
+import ActionOccurrencePage from '../app/ActionOccurrencePage';
+import ArtifactSubmittedPage from '../app/ArtifactSubmittedPage';
 import DreamPage from '../app/DreamPage';
+import AreaPage from '../app/AreaPage';
 import ProgressPage from '../app/ProgressPage';
-import AddJourneyEntryPage from '../app/AddJourneyEntryPage';
+import ContactUsPage from '../app/ContactUsPage';
+import TermsOfServicePage from '../app/TermsOfServicePage';
+import PrivacyPolicyPage from '../app/PrivacyPolicyPage';
 import CreateNavigator from './CreateNavigator';
 
 // Import components and hooks
@@ -82,7 +86,7 @@ const TabNavigator = ({ navigation, route }: any) => {
   const [activeTab, setActiveTab] = useState('Dreams');
   const [showActionSuggestions, setShowActionSuggestions] = useState(false);
 
-  // Listen for navigation events to show action suggestions
+  // Listen for navigation events to show action suggestions and handle tab changes
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (route?.params?.showActionSuggestions) {
@@ -90,10 +94,17 @@ const TabNavigator = ({ navigation, route }: any) => {
         // Clear the param to prevent showing again
         navigation.setParams({ showActionSuggestions: undefined });
       }
+      
+      // Handle activeTab parameter
+      if (route?.params?.activeTab) {
+        setActiveTab(route.params.activeTab);
+        // Clear the param to prevent showing again
+        navigation.setParams({ activeTab: undefined });
+      }
     });
 
     return unsubscribe;
-  }, [navigation, route?.params?.showActionSuggestions]);
+  }, [navigation, route?.params?.showActionSuggestions, route?.params?.activeTab]);
 
   /**
    * Handle tab press events
@@ -132,12 +143,10 @@ const TabNavigator = ({ navigation, route }: any) => {
         return <DreamsPage {...commonProps} />;
       case 'Today':
         return <TodayPage {...commonProps} />;
-      case 'Journal':
-        return <JournalPage {...commonProps} />;
-      case 'Utilities':
-        return <UtilitiesPage {...commonProps} />;
-      case 'Profile':
-        return <ProfilePage {...commonProps} />;
+      case 'Progress':
+        return <ProgressPage {...commonProps} />;
+      case 'Account':
+        return <AccountPage {...commonProps} />;
       default:
         return <DreamsPage {...commonProps} />;
     }
@@ -176,9 +185,14 @@ const MainNavigator = () => (
   <MainStack.Navigator screenOptions={{ headerShown: false }}>
     <MainStack.Screen name="Tabs" component={TabNavigator} />
     <MainStack.Screen name="Action" component={ActionPage} />
+    <MainStack.Screen name="ActionOccurrence" component={ActionOccurrencePage} />
+    <MainStack.Screen name="ArtifactSubmitted" component={ArtifactSubmittedPage} />
     <MainStack.Screen name="Dream" component={DreamPage} />
+    <MainStack.Screen name="Area" component={AreaPage} />
     <MainStack.Screen name="Progress" component={ProgressPage} />
-    <MainStack.Screen name="AddJourneyEntryPage" component={AddJourneyEntryPage} />
+    <MainStack.Screen name="ContactUs" component={ContactUsPage} />
+    <MainStack.Screen name="TermsOfService" component={TermsOfServicePage} />
+    <MainStack.Screen name="PrivacyPolicy" component={PrivacyPolicyPage} />
     <MainStack.Screen name="CreateFlow" component={CreateNavigator} />
   </MainStack.Navigator>
 );
@@ -222,9 +236,11 @@ const AppNavigator = () => {
      */
     const handleUrlEvent = async (event: { url: string }) => {
       console.log('Received URL while app running:', event.url);
+      console.log('URL includes auth/callback:', event.url.includes('auth/callback'));
       
       // Check if this is an auth callback URL
       if (event.url.includes('auth/callback')) {
+        console.log('Processing auth callback URL...');
         await handleAuthRedirect(event.url);
       }
     };

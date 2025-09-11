@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[600],
   },
   secondary: {
-    backgroundColor: theme.colors.defaultGrey,
+    backgroundColor: theme.colors.surface[50], // White background
   },
   ghost: {
     backgroundColor: 'transparent',

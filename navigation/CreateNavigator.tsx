@@ -5,7 +5,7 @@
  * 1. Title step - User enters their dream title
  * 2. Areas step - User selects focus areas
  * 3. Actions step - User defines specific actions
- * 4. Review step - User reviews and confirms their dream
+ * 4. Actions confirm step - User confirms their action plan
  * 
  * This keeps the create flow navigation separate from the main app navigation
  * and allows for easy management of the step-by-step process.
@@ -25,7 +25,6 @@ import AreasStep from '../app/create/areas';
 import AreasConfirmStep from '../app/create/areas-confirm';
 import ActionsStep from '../app/create/actions';
 import ActionsConfirmStep from '../app/create/actions-confirm';
-import ReviewStep from '../app/create/review';
 
 // Create stack navigator for create flow
 const CreateStack = createNativeStackNavigator();
@@ -55,7 +54,6 @@ const CreateNavigator = () => (
     <CreateStack.Screen name="AreasConfirm" component={AreasConfirmStep} />
     <CreateStack.Screen name="Actions" component={ActionsStep} />
     <CreateStack.Screen name="ActionsConfirm" component={ActionsConfirmStep} />
-    <CreateStack.Screen name="Review" component={ReviewStep} />
   </CreateStack.Navigator>
 );
 

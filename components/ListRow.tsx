@@ -47,8 +47,8 @@ export const ListRow: React.FC<ListRowProps> = ({
         <Switch
           value={toggleValue}
           onValueChange={onToggleChange}
-          trackColor={{ false: theme.colors.grey[300], true: theme.colors.primary[500] }}
-          thumbColor={toggleValue ? theme.colors.primary[600] : theme.colors.surface[50]}
+          trackColor={{ false: theme.colors.grey[300], true: theme.colors.success[500] }}
+          thumbColor={toggleValue ? theme.colors.surface[50] : theme.colors.surface[50]}
         />
       );
     }

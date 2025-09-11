@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -8,9 +8,19 @@ interface AreaChipProps {
   emoji: string
   onEdit?: (id: string) => void
   onRemove?: (id: string) => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
   showEditButton?: boolean
   showRemoveButton?: boolean
   style?: any
+  onPress?: (id: string) => void
+  clickable?: boolean
+  // Progress indicator props
+  showProgress?: boolean
+  completedActions?: number
+  totalActions?: number
 }
 
 interface AddAreaChipProps {
@@ -24,9 +34,18 @@ export function AreaChip({
   emoji,
   onEdit,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   showEditButton = true,
   showRemoveButton = true,
-  style
+  style,
+  onPress,
+  clickable = false,
+  showProgress = false,
+  completedActions = 0,
+  totalActions = 0
 }: AreaChipProps) {
   const handleDelete = () => {
     Alert.alert(
@@ -46,13 +65,28 @@ export function AreaChip({
       { cancelable: true }
     )
   }
+
+  // Calculate progress
+  const progressPercentage = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0
+  const isComplete = totalActions > 0 && completedActions === totalActions
+
+  // Get background color based on completion status
+  const getBackgroundColor = () => {
+    if (isComplete) return '#E8F5E8' // Light green for completed (same as ActionChipsList)
+    return 'white' // Default white
+  }
+
+  const ChipWrapper = clickable ? TouchableOpacity : View
+
   return (
-    <View
+    <ChipWrapper
+      onPress={clickable ? () => onPress?.(id) : undefined}
+      activeOpacity={clickable ? 0.7 : 1}
       style={[
         {
           width: '48%',
           aspectRatio: 1,
-          backgroundColor: 'white',
+          backgroundColor: getBackgroundColor(),
           borderRadius: 12,
           padding: 16,
           marginBottom: 16,
@@ -64,9 +98,10 @@ export function AreaChip({
         style
       ]}
     >
-      {showEditButton && onEdit && (
+      {/* Move Up Button */}
+      {canMoveUp && onMoveUp && (
         <TouchableOpacity
-          onPress={() => onEdit(id)}
+          onPress={onMoveUp}
           style={{
             position: 'absolute',
             top: 8,
@@ -80,10 +115,32 @@ export function AreaChip({
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={12} color="#666" />
+          <Ionicons name="chevron-up" size={12} color="#666" />
         </TouchableOpacity>
       )}
-      
+
+      {/* Move Down Button */}
+      {canMoveDown && onMoveDown && (
+        <TouchableOpacity
+          onPress={onMoveDown}
+          style={{
+            position: 'absolute',
+            top: canMoveUp ? 36 : 8,
+            right: 8,
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: '#f0f0f0',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-down" size={12} color="#666" />
+        </TouchableOpacity>
+      )}
+
+      {/* Remove Button */}
       {showRemoveButton && onRemove && (
         <TouchableOpacity
           onPress={handleDelete}
@@ -103,16 +160,83 @@ export function AreaChip({
         </TouchableOpacity>
       )}
       
+      {/* Edit Button */}
+      {showEditButton && onEdit && (
+        <TouchableOpacity
+          onPress={() => onEdit(id)}
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: '#f0f0f0',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="create-outline" size={12} color="#666" />
+        </TouchableOpacity>
+      )}
+      
       <Text style={{ fontSize: 40, marginBottom: 8 }}>{emoji}</Text>
       <Text style={{ 
         fontSize: 16, 
         fontWeight: 'bold',
         color: '#000',
-        textAlign: 'center'
+        textAlign: 'center',
+        marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0
       }}>
         {title}
       </Text>
-    </View>
+      
+      {/* Progress Indicator - only show when clickable and has actions */}
+      {showProgress && clickable && totalActions > 0 && (
+        <View style={{ width: '100%', marginTop: 4 }}>
+          {/* Progress Text */}
+          <View style={{ 
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: 4
+          }}>
+            <Text style={{ 
+              fontSize: 10, 
+              fontWeight: '500',
+              color: '#666'
+            }}>
+              {completedActions} of {totalActions}
+            </Text>
+            <Text style={{ 
+              fontSize: 10, 
+              fontWeight: 'bold',
+              color: '#666'
+            }}>
+              {progressPercentage}%
+            </Text>
+          </View>
+          
+          {/* Progress Bar */}
+          <View style={{
+            height: 6,
+            backgroundColor: '#E0E0E0',
+            borderRadius: 3,
+            overflow: 'hidden'
+          }}>
+            <View 
+              style={{
+                height: '100%',
+                backgroundColor: '#4CAF50',
+                borderRadius: 3,
+                width: `${progressPercentage}%`
+              }} 
+            />
+          </View>
+        </View>
+      )}
+    </ChipWrapper>
   )
 }
 
@@ -171,6 +295,8 @@ interface AreaSuggestion {
   id: string
   title: string
   emoji: string
+  completedActions?: number
+  totalActions?: number
 }
 
 interface AreaGridProps {
@@ -178,10 +304,32 @@ interface AreaGridProps {
   onEdit: (id: string) => void
   onRemove: (id: string) => void
   onAdd: () => void
+  onReorder?: (areas: AreaSuggestion[]) => void
+  onPress?: (id: string) => void
+  clickable?: boolean
+  showProgress?: boolean
   style?: any
 }
 
-export function AreaGrid({ areas, onEdit, onRemove, onAdd, style }: AreaGridProps) {
+export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, clickable = false, showProgress = false, style }: AreaGridProps) {
+  const handleMoveUp = (index: number) => {
+    if (index > 0 && onReorder) {
+      const newAreas = [...areas]
+      const [movedArea] = newAreas.splice(index, 1)
+      newAreas.splice(index - 1, 0, movedArea)
+      onReorder(newAreas)
+    }
+  }
+
+  const handleMoveDown = (index: number) => {
+    if (index < areas.length - 1 && onReorder) {
+      const newAreas = [...areas]
+      const [movedArea] = newAreas.splice(index, 1)
+      newAreas.splice(index + 1, 0, movedArea)
+      onReorder(newAreas)
+    }
+  }
+
   return (
     <View style={[
       {
@@ -193,7 +341,7 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, style }: AreaGridProp
       },
       style
     ]}>
-      {areas.map((area) => (
+      {areas.map((area, index) => (
         <AreaChip
           key={area.id}
           id={area.id}
@@ -201,6 +349,15 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, style }: AreaGridProp
           emoji={area.emoji}
           onEdit={onEdit}
           onRemove={onRemove}
+          onMoveUp={onReorder ? () => handleMoveUp(index) : undefined}
+          onMoveDown={onReorder ? () => handleMoveDown(index) : undefined}
+          canMoveUp={index > 0}
+          canMoveDown={index < areas.length - 1}
+          onPress={onPress}
+          clickable={clickable}
+          showProgress={showProgress}
+          completedActions={area.completedActions}
+          totalActions={area.totalActions}
         />
       ))}
       

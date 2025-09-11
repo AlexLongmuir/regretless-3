@@ -1,143 +1,39 @@
-import React from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { ScrollView, View, Text, StyleSheet, Image } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
-import { DreamCard } from '../components/DreamCard';
+import { DreamCard, DreamChipList } from '../components';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
+import { useData } from '../contexts/DataContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import type { Dream, DreamWithStats } from '../backend/database/types';
 
-interface Dream {
-  id: string;
-  title: string;
-  progressPercentage: number;
-  streakCount: number;
-  daysRemaining: number;
-  currentDay: number;
-  totalDays: number;
-  backgroundImages: string[];
-  recentPhotos: string[];
-  nextMilestone?: {
-    title: string;
-    dueDate: string;
-  };
-}
-
-const mockDreams: Dream[] = [
-  {
-    id: '1',
-    title: 'Learn Piano in 90 days',
-    progressPercentage: 75,
-    streakCount: 12,
-    daysRemaining: 45,
-    currentDay: 45,
-    totalDays: 90,
-    backgroundImages: [
-      'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
-    ],
-    recentPhotos: [
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop',
-    ],
-    nextMilestone: {
-      title: 'Master Chopin Etude No. 1',
-      dueDate: 'Jun 28',
-    },
-  },
-  {
-    id: '2',
-    title: 'Run a Marathon in 90 days',
-    progressPercentage: 45,
-    streakCount: 8,
-    daysRemaining: 82,
-    currentDay: 8,
-    totalDays: 90,
-    backgroundImages: [
-      'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400&h=300&fit=crop'
-    ],
-    recentPhotos: [
-      'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop',
-    ],
-    nextMilestone: {
-      title: 'Complete 15-mile long run',
-      dueDate: 'Jul 02',
-    },
-  },
-  {
-    id: '3',
-    title: 'Master Japanese Conversation in 200 days',
-    progressPercentage: 30,
-    streakCount: 25,
-    daysRemaining: 156,
-    currentDay: 44,
-    totalDays: 200,
-    backgroundImages: [
-      'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=400&h=300&fit=crop',
-      'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop'
-    ],
-    recentPhotos: [
-      'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=100&h=100&fit=crop',
-      'https://images.unsplash.com/photo-1480796927426-f609979314bd?w=100&h=100&fit=crop',
-    ],
-    nextMilestone: {
-      title: 'Complete N4 practice test',
-      dueDate: 'Jun 30',
-    },
-  },
-  {
-    id: '4',
-    title: 'Build a Mobile App in 60 days',
-    progressPercentage: 60,
-    streakCount: 5,
-    daysRemaining: 21,
-    currentDay: 39,
-    totalDays: 60,
-    backgroundImages: ['https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=300&fit=crop'],
-    recentPhotos: [],
-    nextMilestone: {
-      title: 'Implement user authentication',
-      dueDate: 'Jul 05',
-    },
-  },
-];
 
 const DreamsPage = ({ navigation }: { navigation?: any }) => {
+  const { state, getDreamsSummary, getDreamsWithStats } = useData();
+  const { user, isAuthenticated, loading: authLoading } = useAuthContext();
+  const dreams = state.dreamsSummary?.dreams || [];
+  const dreamsWithStats = state.dreamsWithStats?.dreams || [];
+
+  // Re-fetch data when user navigates back to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('DreamsPage: useFocusEffect triggered');
+      getDreamsSummary({ force: true });
+      getDreamsWithStats({ force: true });
+    }, [getDreamsSummary, getDreamsWithStats])
+  );
+
   const handleDreamPress = (dreamId: string) => {
-    const dream = mockDreams.find(d => d.id === dreamId);
+    const dream = dreams.find(d => d.id === dreamId);
     if (dream && navigation?.navigate) {
       navigation.navigate('Dream', {
         dreamId: dream.id,
         title: dream.title,
-        progressPercentage: dream.progressPercentage,
-        streakCount: dream.streakCount,
-        daysRemaining: dream.daysRemaining,
-        currentDay: dream.currentDay,
-        totalDays: dream.totalDays,
-        backgroundImages: dream.backgroundImages,
-        recentPhotos: dream.recentPhotos,
-        completedActions: Math.floor(dream.progressPercentage / 100 * 15), // Mock calculation
-        totalActions: 15, // Mock total actions
-        recentCompletedActions: [
-          { id: '1', title: 'Practice daily routine', completedDate: 'Today' },
-          { id: '2', title: 'Complete milestone task', completedDate: 'Yesterday' },
-          { id: '3', title: 'Record progress', completedDate: '2 days ago' },
-          { id: '4', title: 'Review goals', completedDate: '3 days ago' }
-        ],
-        actions: [
-          { id: '1', title: `Practice ${dream.title.split(' ')[1] || 'skills'}`, description: 'Focus on daily practice routine', dueDate: 'Today', estimatedTime: 45, status: 'todo' },
-          { id: '2', title: 'Review technique', description: 'Study and improve current methods', dueDate: 'Tomorrow', estimatedTime: 30, status: 'todo' },
-          { id: '3', title: 'Record progress', description: 'Document current achievements', dueDate: 'This week', estimatedTime: 20, status: 'todo' },
-          { id: '4', title: 'Plan next steps', description: 'Outline upcoming goals and milestones', dueDate: 'This week', estimatedTime: 25, status: 'todo' }
-        ],
-        nextMilestone: dream.nextMilestone,
+        startDate: dream.start_date,
+        endDate: dream.end_date,
+        description: dream.description,
       });
     }
   };
@@ -148,7 +44,36 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
     }
   };
 
-  if (mockDreams.length === 0) {
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Loading...</Text>
+        <Text style={styles.emptySubtitle}>
+          Checking authentication status...
+        </Text>
+      </View>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>Please Sign In</Text>
+        <Text style={styles.emptySubtitle}>
+          You need to be signed in to view your dreams.
+        </Text>
+        <Button
+          title="Go to Login"
+          onPress={() => navigation?.navigate?.('Login')}
+          style={styles.addButton}
+        />
+      </View>
+    );
+  }
+
+  if (dreams.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Start Your Journey</Text>
@@ -174,7 +99,10 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerText}>
-              <Text style={styles.title}>Your Dreams</Text>
+              <View style={styles.titleContainer}>
+                <Image source={require('../assets/star.png')} style={styles.appIcon} />
+                <Text style={styles.title}>Regretless</Text>
+              </View>
               <Text style={styles.subtitle}>
                 Keep pushing forward. Every step counts.
               </Text>
@@ -188,13 +116,10 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
           </View>
         </View>
 
-        {mockDreams.map((dream) => (
-          <DreamCard
-            key={dream.id}
-            dream={dream}
-            onPress={handleDreamPress}
-          />
-        ))}
+        <DreamChipList
+          dreams={dreamsWithStats}
+          onDreamPress={handleDreamPress}
+        />
 
       </ScrollView>
     </View>
@@ -204,7 +129,7 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.pageBackground,
   },
   scrollView: {
     flex: 1,
@@ -212,7 +137,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: 60,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 100, // Extra padding for bottom navigation
   },
   header: {
     marginBottom: theme.spacing.lg,
@@ -225,11 +150,20 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  appIcon: {
+    width: 32,
+    height: 32,
+    marginRight: theme.spacing.sm,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: theme.colors.grey[900],
-    marginBottom: theme.spacing.xs,
   },
   subtitle: {
     fontSize: 16,
@@ -242,7 +176,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.pageBackground,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,

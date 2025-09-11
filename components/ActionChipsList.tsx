@@ -7,21 +7,35 @@ import { Input } from './Input'
 interface ActionCard {
   id: string
   title: string
-  est_minutes?: number
+  est_minutes: number
   difficulty?: 'easy' | 'medium' | 'hard'
   repeat_every_days?: number
+  slice_count_target?: number
   acceptance_criteria?: string[]
-  due_date?: string
   dream_image?: string
+  // For action occurrences
+  occurrence_no?: number
+  due_on?: string
+  completed_at?: string
+  is_overdue?: boolean
+  is_done?: boolean
+  // For hiding buttons
+  hideEditButtons?: boolean
 }
 
 interface ActionChipProps {
   action: ActionCard
   onEdit?: (id: string) => void
   onRemove?: (id: string) => void
+  onMoveUp?: (id: string) => void
+  onMoveDown?: (id: string) => void
   showEditButton?: boolean
   showRemoveButton?: boolean
+  showReorderButtons?: boolean
+  isFirst?: boolean
+  isLast?: boolean
   style?: any
+  onPress?: (id: string) => void
 }
 
 interface AddActionChipProps {
@@ -34,6 +48,8 @@ interface ActionChipsListProps {
   onEdit: (id: string, updatedAction: ActionCard) => void
   onRemove: (id: string) => void
   onAdd: (action: ActionCard) => void
+  onReorder?: (reorderedActions: ActionCard[]) => void
+  onPress?: (id: string) => void
   style?: any
 }
 
@@ -41,9 +57,15 @@ export function ActionChip({
   action,
   onEdit,
   onRemove,
+  onMoveUp,
+  onMoveDown,
   showEditButton = true,
   showRemoveButton = true,
-  style
+  showReorderButtons = false,
+  isFirst = false,
+  isLast = false,
+  style,
+  onPress
 }: ActionChipProps) {
   const handleDelete = () => {
     Alert.alert(
@@ -75,13 +97,19 @@ export function ActionChip({
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
   }
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return { day: '?', month: '???' }
+  const formatDueDate = (dateString: string) => {
     const date = new Date(dateString)
     const day = date.getDate()
-    const month = date.toLocaleDateString('en', { month: 'short' }).toUpperCase()
+    const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
     return { day, month }
   }
+
+  const getStatusBackgroundColor = () => {
+    if (action.is_done) return '#E8F5E8' // Light green for completed
+    if (action.is_overdue) return '#FFF3E0' // Light orange for overdue
+    return 'white' // Default white
+  }
+
 
   const isEmoji = (str: string) => {
     return !str.startsWith('http') && /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(str)
@@ -126,13 +154,14 @@ export function ActionChip({
     )
   }
 
-  const { day, month } = formatDate(action.due_date || '')
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={() => onPress?.(action.id)}
+      activeOpacity={onPress ? 0.7 : 1}
       style={[
         {
-          backgroundColor: 'white',
+          backgroundColor: getStatusBackgroundColor(),
           borderRadius: 12,
           position: 'relative',
           overflow: 'hidden',
@@ -142,28 +171,9 @@ export function ActionChip({
         style
       ]}
     >
-      {showEditButton && onEdit && (
-        <TouchableOpacity
-          onPress={handleEdit}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: '#f0f0f0',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="create-outline" size={12} color="#666" />
-        </TouchableOpacity>
-      )}
-      
-      {showRemoveButton && onRemove && (
+
+      {/* Remove Button */}
+      {showRemoveButton && onRemove && !action.hideEditButtons && (
         <TouchableOpacity
           onPress={handleDelete}
           style={{
@@ -183,10 +193,77 @@ export function ActionChip({
           <Ionicons name="close" size={12} color="#666" />
         </TouchableOpacity>
       )}
+      
+      {/* Reorder Buttons */}
+      {showReorderButtons && !action.hideEditButtons && (
+        <View style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          flexDirection: 'column',
+          gap: 4,
+          zIndex: 1
+        }}>
+          {!isFirst && onMoveUp && (
+            <TouchableOpacity
+              onPress={() => onMoveUp(action.id)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: '#f0f0f0',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-up" size={12} color="#666" />
+            </TouchableOpacity>
+          )}
+          {!isLast && onMoveDown && (
+            <TouchableOpacity
+              onPress={() => onMoveDown(action.id)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                backgroundColor: '#f0f0f0',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-down" size={12} color="#666" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      
+      {/* Edit Button */}
+      {showEditButton && onEdit && !action.hideEditButtons && (
+        <TouchableOpacity
+          onPress={handleEdit}
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: '#f0f0f0',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="create-outline" size={12} color="#666" />
+        </TouchableOpacity>
+      )}
 
-      <View style={{ flexDirection: 'row', minHeight: 120 }}>
+      <View style={{ flexDirection: 'row', minHeight: 80 }}>
         {/* Left Image Section */}
-        <View style={{ width: 120, position: 'relative', marginRight: 16, height: 120 }}>
+        <View style={{ width: 80, position: 'relative', marginRight: 16, height: 80 }}>
           {action.dream_image ? (
             isEmoji(action.dream_image) ? (
               <View
@@ -199,7 +276,7 @@ export function ActionChip({
                   alignItems: 'center'
                 }}
               >
-                <Text style={{ fontSize: 48, textAlign: 'center' }}>
+                <Text style={{ fontSize: 32, textAlign: 'center' }}>
                   {action.dream_image}
                 </Text>
               </View>
@@ -225,44 +302,51 @@ export function ActionChip({
                 alignItems: 'center'
               }}
             >
-              <Ionicons name="flag" size={32} color="#999" />
+              <Ionicons name="flag" size={24} color="#999" />
             </View>
           )}
           
-          {/* Date Overlay */}
-          <View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            <Text style={{ 
-              fontSize: 40, 
-              fontWeight: 'bold', 
-              color: '#fff', 
-              lineHeight: 40,
-              textShadowColor: 'rgba(0, 0, 0, 0.5)',
-              textShadowOffset: { width: 1, height: 1 },
-              textShadowRadius: 6
-            }}>
-              {day}
-            </Text>
-            <Text style={{ 
-              fontSize: 12, 
-              fontWeight: 'bold', 
-              color: '#fff',
-              textShadowColor: 'rgba(0, 0, 0, 0.5)',
-              textShadowOffset: { width: 1, height: 1 },
-              textShadowRadius: 6
-            }}>
-              {month}
-            </Text>
-          </View>
+          {/* Due Date Overlay */}
+          {action.due_on && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 40,
+                  fontWeight: 'bold',
+                  color: 'white',
+                  textShadowColor: 'rgba(0, 0, 0, 0.5)',
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: 6,
+                  lineHeight: 40
+                }}
+              >
+                {formatDueDate(action.due_on).day}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                  color: 'white',
+                  textShadowColor: 'rgba(0, 0, 0, 0.5)',
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: 6,
+                  marginTop: -8
+                }}
+              >
+                {formatDueDate(action.due_on).month}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Right Content Section */}
@@ -307,6 +391,15 @@ export function ActionChip({
                 </Text>
               </View>
             )}
+            
+            {action.slice_count_target && (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="layers-outline" size={12} color="#666" style={{ marginRight: 4 }} />
+                <Text style={{ fontSize: 12, color: '#666' }}>
+                  {action.occurrence_no ? `${action.occurrence_no} of ${action.slice_count_target}` : `${action.slice_count_target} repeats`}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Acceptance Criteria */}
@@ -324,7 +417,7 @@ export function ActionChip({
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -369,11 +462,11 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
     est_minutes: 0,
     difficulty: 'medium',
     repeat_every_days: undefined,
+    slice_count_target: undefined,
     acceptance_criteria: [],
-    due_date: '',
-    dream_image: ''
+    dream_image: '',
+    occurrence_no: 1
   })
-  const [showDatePicker, setShowDatePicker] = useState(false)
 
   React.useEffect(() => {
     if (action) {
@@ -384,6 +477,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
   const handleSave = () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a title for the action')
+      return
+    }
+    if (!formData.est_minutes || formData.est_minutes <= 0) {
+      Alert.alert('Error', 'Please enter a valid duration in minutes')
       return
     }
     onSave(formData)
@@ -452,10 +549,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes) *</Text>
             <TextInput
-              value={formData.est_minutes?.toString() || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: parseInt(text) || 0 }))}
+              value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
               keyboardType="numeric"
               style={{
@@ -494,23 +591,6 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
             </View>
           </View>
 
-          {/* Due Date */}
-          <View style={{ marginBottom: 16 }}>
-            <Input
-              label="Due Date"
-              value={formData.due_date || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, due_date: text }))}
-              type="date"
-              variant="borderless"
-              showDatePicker={showDatePicker}
-              onToggleDatePicker={() => setShowDatePicker(!showDatePicker)}
-              onDateChange={(date) => {
-                const dateString = date.toISOString().split('T')[0]
-                setFormData(prev => ({ ...prev, due_date: dateString }))
-                setShowDatePicker(false)
-              }}
-            />
-          </View>
 
           {/* Repeat Every Days */}
           <View style={{ marginBottom: 16 }}>
@@ -545,6 +625,26 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* Slice Count Target */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Series Parts (optional)</Text>
+            <TextInput
+              value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
+              placeholder="Number of parts in series (3-12)"
+              keyboardType="numeric"
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16
+              }}
+            />
+            <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              For finite series actions only. Leave empty for one-off or repeating actions.
+            </Text>
           </View>
 
           {/* Acceptance Criteria */}
@@ -596,15 +696,19 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
     est_minutes: 0,
     difficulty: 'medium',
     repeat_every_days: undefined,
+    slice_count_target: undefined,
     acceptance_criteria: [],
-    due_date: '',
-    dream_image: ''
+    dream_image: '',
+    occurrence_no: 1
   })
-  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const handleSave = () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a title for the action')
+      return
+    }
+    if (!formData.est_minutes || formData.est_minutes <= 0) {
+      Alert.alert('Error', 'Please enter a valid duration in minutes')
       return
     }
     const newAction = {
@@ -620,9 +724,10 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
       est_minutes: 0,
       difficulty: 'medium',
       repeat_every_days: undefined,
+      slice_count_target: undefined,
       acceptance_criteria: [],
-      due_date: '',
-      dream_image: ''
+      dream_image: '',
+      occurrence_no: 1
     })
   }
 
@@ -688,10 +793,10 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes) *</Text>
             <TextInput
-              value={formData.est_minutes?.toString() || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: parseInt(text) || 0 }))}
+              value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
               keyboardType="numeric"
               style={{
@@ -730,23 +835,6 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
             </View>
           </View>
 
-          {/* Due Date */}
-          <View style={{ marginBottom: 16 }}>
-            <Input
-              label="Due Date"
-              value={formData.due_date || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, due_date: text }))}
-              type="date"
-              variant="borderless"
-              showDatePicker={showDatePicker}
-              onToggleDatePicker={() => setShowDatePicker(!showDatePicker)}
-              onDateChange={(date) => {
-                const dateString = date.toISOString().split('T')[0]
-                setFormData(prev => ({ ...prev, due_date: dateString }))
-                setShowDatePicker(false)
-              }}
-            />
-          </View>
 
           {/* Repeat Every Days */}
           <View style={{ marginBottom: 16 }}>
@@ -781,6 +869,26 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* Slice Count Target */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Series Parts (optional)</Text>
+            <TextInput
+              value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
+              placeholder="Number of parts in series (3-12)"
+              keyboardType="numeric"
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16
+              }}
+            />
+            <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              For finite series actions only. Leave empty for one-off or repeating actions.
+            </Text>
           </View>
 
           {/* Acceptance Criteria */}
@@ -819,7 +927,7 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
 }
 
 // Main ActionChipsList component
-export function ActionChipsList({ actions, onEdit, onRemove, onAdd, style }: ActionChipsListProps) {
+export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style }: ActionChipsListProps) {
   const [editingAction, setEditingAction] = useState<ActionCard | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -844,14 +952,42 @@ export function ActionChipsList({ actions, onEdit, onRemove, onAdd, style }: Act
     setShowAddModal(false)
   }
 
+  const handleMoveUp = (id: string) => {
+    const currentIndex = actions.findIndex(a => a.id === id)
+    if (currentIndex > 0) {
+      const newActions = [...actions]
+      const temp = newActions[currentIndex]
+      newActions[currentIndex] = newActions[currentIndex - 1]
+      newActions[currentIndex - 1] = temp
+      onReorder?.(newActions)
+    }
+  }
+
+  const handleMoveDown = (id: string) => {
+    const currentIndex = actions.findIndex(a => a.id === id)
+    if (currentIndex < actions.length - 1) {
+      const newActions = [...actions]
+      const temp = newActions[currentIndex]
+      newActions[currentIndex] = newActions[currentIndex + 1]
+      newActions[currentIndex + 1] = temp
+      onReorder?.(newActions)
+    }
+  }
+
   return (
     <View style={[{ gap: 0 }, style]}>
-      {actions.map((action) => (
+      {actions.map((action, index) => (
         <ActionChip
           key={action.id}
           action={action}
           onEdit={handleEdit}
           onRemove={onRemove}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
+          showReorderButtons={true}
+          isFirst={index === 0}
+          isLast={index === actions.length - 1}
+          onPress={onPress}
         />
       ))}
       

@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { supabaseClient } from '../lib/supabaseClient';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
@@ -222,9 +223,9 @@ export const useAuth = (): AuthHook => {
       const isAvailable = await AppleAuthentication.isAvailableAsync();
       
       if (!isAvailable) {
-        const errorMessage = 'Apple Sign In is not available on this device';
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
+        console.log('Native Apple Sign In not available, falling back to OAuth...');
+        // Fall back to OAuth flow if native is not available
+        return await signInWithOAuth('apple');
       }
 
       console.log('Starting native Apple Sign In...');
@@ -250,7 +251,6 @@ export const useAuth = (): AuthHook => {
       const { data, error: supabaseError } = await supabaseClient.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
-        nonce: credential.nonce,
       });
 
       if (supabaseError) {
@@ -298,6 +298,7 @@ export const useAuth = (): AuthHook => {
       setError(null);
 
       console.log('Handling auth redirect:', url);
+      console.log('URL includes auth/callback:', url.includes('auth/callback'));
 
       // Parse the URL to extract authentication parameters
       const parsedUrl = new URL(url);
@@ -411,6 +412,8 @@ export const useAuth = (): AuthHook => {
       );
 
       console.log(`${provider} OAuth session result:`, result);
+      console.log('Result type:', result.type);
+      console.log('Result URL:', 'url' in result ? result.url : 'No URL in result');
 
       // Step 3: Handle the result
       if (result.type === 'success' && result.url) {

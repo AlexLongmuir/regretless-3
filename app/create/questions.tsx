@@ -5,25 +5,42 @@ import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
+import { upsertDream } from '../../frontend-services/backend-bridge'
+import { supabaseClient } from '../../lib/supabaseClient'
+import { theme } from '../../utils/theme'
 
 export default function QuestionsStep() {
   const navigation = useNavigation<any>()
-  const { setField } = useCreateDream()
-  
-  const [currentProgress, setCurrentProgress] = useState('')
-  const [obstacles, setObstacles] = useState('')
-  const [enjoyment, setEnjoyment] = useState('')
+  const { dreamId, title, start_date, end_date, image_url, baseline, obstacles, enjoyment, setField } = useCreateDream()
 
-  const handleContinue = () => {
-    // Save the answers to context
-    setField('baseline', currentProgress)
-    setField('obstacles', obstacles)
-    setField('enjoyment', enjoyment)
+  const handleContinue = async () => {
+    // Navigate immediately for smooth UX
     navigation.navigate('Feasibility')
+
+    // Handle backend operations in background
+    if (dreamId) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session?.access_token) {
+          await upsertDream({
+            id: dreamId,
+            title,
+            start_date,
+            end_date,
+            image_url,
+            baseline,
+            obstacles,
+            enjoyment
+          }, session.access_token)
+        }
+      } catch (error) {
+        console.error('Failed to save dream:', error)
+      }
+    }
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="questions" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={{ 
@@ -38,8 +55,8 @@ export default function QuestionsStep() {
 
         {/* Question 1 */}
         <Input
-          value={currentProgress}
-          onChangeText={setCurrentProgress}
+          value={baseline || ''}
+          onChangeText={(text) => setField('baseline', text)}
           placeholder="Start writing..."
           label="What's your current progress"
           multiline
@@ -49,8 +66,8 @@ export default function QuestionsStep() {
 
         {/* Question 2 */}
         <Input
-          value={obstacles}
-          onChangeText={setObstacles}
+          value={obstacles || ''}
+          onChangeText={(text) => setField('obstacles', text)}
           placeholder="Start writing..."
           label="What's most likely going to cause you not to achieve this?"
           multiline
@@ -60,8 +77,8 @@ export default function QuestionsStep() {
 
         {/* Question 3 */}
         <Input
-          value={enjoyment}
-          onChangeText={setEnjoyment}
+          value={enjoyment || ''}
+          onChangeText={(text) => setField('enjoyment', text)}
           placeholder="Start writing..."
           label="What's most likely to cause you to enjoy the journey?"
           multiline
@@ -80,9 +97,9 @@ export default function QuestionsStep() {
         paddingBottom: 32
       }}>
         <Button 
-          title="Continue" 
+          title="Continue"
           variant={"black" as any}
-          onPress={handleContinue} 
+          onPress={handleContinue}
         />
       </View>
     </View>

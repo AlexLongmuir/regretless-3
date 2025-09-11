@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform } from 'react-native';
+import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform, TouchableOpacity } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../utils/theme';
 import { IconButton } from './IconButton';
@@ -46,6 +46,17 @@ export const Input: React.FC<InputProps> = ({
   minimumDate,
 }) => {
   const [internalDate, setInternalDate] = useState<Date>(new Date());
+  
+  // Update internal date when value changes
+  React.useEffect(() => {
+    if (value && type === 'date') {
+      const dateValue = new Date(value);
+      if (!isNaN(dateValue.getTime())) {
+        setInternalDate(dateValue);
+      }
+    }
+  }, [value, type]);
+  
   const handleDateChange = (_event: any, selectedDate?: Date) => {
     if (selectedDate) {
       setInternalDate(selectedDate);
@@ -58,31 +69,36 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, size === 'small' && styles.smallContainer, style]}>
       {label && <Text style={[styles.label, size === 'small' && styles.smallLabel]}>{label}</Text>}
-      <View style={[
-        styles.inputContainer,
-        size === 'small' && styles.smallInputContainer,
-        variant === 'borderless' && styles.borderlessInputContainer,
-        error && styles.inputContainerError,
-        disabled && styles.inputContainerDisabled,
-      ]}>
-        <TextInput
+      {type === 'date' && onToggleDatePicker ? (
+        <TouchableOpacity
           style={[
-            styles.input,
-            size === 'small' && styles.smallInput,
-            type === 'date' && styles.dateInput,
-            multiline && styles.inputMultiline,
+            styles.inputContainer,
+            size === 'small' && styles.smallInputContainer,
+            variant === 'borderless' && styles.borderlessInputContainer,
+            error && styles.inputContainerError,
+            disabled && styles.inputContainerDisabled,
           ]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={theme.colors.grey[400]}
-          editable={!disabled && type !== 'date'}
-          secureTextEntry={secureTextEntry}
-          multiline={type === 'singleline' ? true : multiline}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-        />
-        {type === 'date' && onToggleDatePicker && (
+          onPress={onToggleDatePicker}
+          disabled={disabled}
+          activeOpacity={0.7}
+        >
+          <TextInput
+            style={[
+              styles.input,
+              size === 'small' && styles.smallInput,
+              type === 'date' && styles.dateInput,
+              multiline && styles.inputMultiline,
+            ]}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={theme.colors.grey[400]}
+            editable={false}
+            secureTextEntry={secureTextEntry}
+            multiline={multiline}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+          />
           <IconButton
             icon="calendar"
             size="sm"
@@ -90,8 +106,43 @@ export const Input: React.FC<InputProps> = ({
             onPress={onToggleDatePicker}
             style={styles.calendarButton}
           />
-        )}
-      </View>
+        </TouchableOpacity>
+      ) : (
+        <View style={[
+          styles.inputContainer,
+          size === 'small' && styles.smallInputContainer,
+          variant === 'borderless' && styles.borderlessInputContainer,
+          error && styles.inputContainerError,
+          disabled && styles.inputContainerDisabled,
+        ]}>
+          <TextInput
+            style={[
+              styles.input,
+              size === 'small' && styles.smallInput,
+              type === 'date' && styles.dateInput,
+              multiline && styles.inputMultiline,
+            ]}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={theme.colors.grey[400]}
+            editable={!disabled && type !== 'date'}
+            secureTextEntry={secureTextEntry}
+            multiline={multiline}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+          />
+          {type === 'date' && onToggleDatePicker && (
+            <IconButton
+              icon="calendar"
+              size="sm"
+              variant="ghost"
+              onPress={onToggleDatePicker}
+              style={styles.calendarButton}
+            />
+          )}
+        </View>
+      )}
       {error && <Text style={[styles.error, size === 'small' && styles.smallError]}>{error}</Text>}
       {type === 'date' && showDatePicker && Platform.OS !== 'web' && (
         <DateTimePicker

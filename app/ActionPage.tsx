@@ -284,7 +284,7 @@ const ActionPage: React.FC<ActionPageProps> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.pageBackground,
   },
   keyboardContainer: {
     flex: 1,
