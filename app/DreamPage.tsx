@@ -7,6 +7,7 @@ import { IconButton } from '../components/IconButton';
 import { AreaGrid } from '../components/AreaChips';
 import { OptionsPopover } from '../components/OptionsPopover';
 import { Button } from '../components/Button';
+import { ProgressPhotosSection, HistorySection } from '../components/progress';
 import { useData } from '../contexts/DataContext';
 import { upsertDream } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
@@ -33,7 +34,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const params = route?.params || {};
   const { dreamId, title = 'Sample Dream' } = params;
   
-  const { state, getDreamDetail, getDreamsWithStats, deleteDream, archiveDream } = useData();
+  const { state, getDreamDetail, getDreamsWithStats, getProgress, deleteDream, archiveDream, onScreenFocus } = useData();
   const [areas, setAreas] = useState<Area[]>([]);
   const [dreamData, setDreamData] = useState<DreamWithStats | null>(null);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
@@ -43,23 +44,29 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const optionsButtonRef = useRef<View>(null);
 
   useEffect(() => {
     if (dreamId) {
+      // Initial load - force fetch to ensure we have data
       getDreamDetail(dreamId, { force: true });
       getDreamsWithStats({ force: true });
+      getProgress({ force: true });
     }
-  }, [dreamId, getDreamDetail, getDreamsWithStats]);
+  }, [dreamId]); // Only depend on dreamId - functions are stable from DataContext
 
   // Re-fetch data when user navigates back to this screen
   useFocusEffect(
     React.useCallback(() => {
       if (dreamId) {
-        getDreamDetail(dreamId, { force: true });
-        getDreamsWithStats({ force: true });
+        onScreenFocus('dream-detail', dreamId);
+        // Let the refresh system handle the fetching based on staleness
+        getDreamDetail(dreamId);
+        getDreamsWithStats();
+        getProgress();
       }
-    }, [dreamId, getDreamDetail, getDreamsWithStats])
+    }, [dreamId]) // Only depend on dreamId - functions are stable from DataContext
   );
 
   useEffect(() => {
@@ -78,7 +85,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         setDreamData(dream);
       }
     }
-  }, [dreamId, state.dreamsWithStats]);
+  }, [dreamId, state.dreamsWithStats?.dreams]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -265,6 +272,78 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const dayProgress = calculateDayProgress();
   const streak = dreamData?.current_streak || 0;
 
+  // Filter progress data for this specific dream
+  const dreamProgressPhotos = dreamId && state.progress?.progressPhotos 
+    ? state.progress.progressPhotos.filter(photo => photo.dream_id === dreamId)
+    : [];
+
+  // Debug logging for progress photos
+  console.log('DreamPage progress photos debug:', {
+    dreamId,
+    totalProgressPhotos: state.progress?.progressPhotos?.length || 0,
+    dreamProgressPhotos: dreamProgressPhotos.length,
+    allProgressPhotos: state.progress?.progressPhotos?.map(p => ({ id: p.id, dream_id: p.dream_id })) || []
+  });
+
+  // Calculate dream-specific history stats
+  const calculateDreamHistoryStats = () => {
+    if (!dreamId || !state.dreamDetail[dreamId]) {
+      return {
+        week: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+        month: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+        year: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+        allTime: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+      };
+    }
+
+    const detailData = state.dreamDetail[dreamId];
+    const occurrences = detailData.occurrences || [];
+    const completedOccurrences = occurrences.filter(o => o.completed_at);
+    
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    
+    const calculateStatsForPeriod = (startDate: Date, endDate?: Date) => {
+      const filtered = completedOccurrences.filter(o => {
+        const completedDate = new Date(o.completed_at!);
+        const isAfterStart = completedDate >= startDate;
+        const isBeforeEnd = !endDate || completedDate <= endDate;
+        return isAfterStart && isBeforeEnd;
+      });
+      
+      const uniqueActiveDays = new Set<string>();
+      filtered.forEach(o => {
+        const date = new Date(o.completed_at!);
+        uniqueActiveDays.add(date.toISOString().slice(0, 10));
+      });
+      
+      return {
+        actionsComplete: filtered.length,
+        activeDays: uniqueActiveDays.size,
+        actionsOverdue: 0, // Could be calculated from overdue view for specific periods
+      };
+    };
+
+    return {
+      week: calculateStatsForPeriod(startOfWeek),
+      month: calculateStatsForPeriod(startOfMonth),
+      year: calculateStatsForPeriod(startOfYear),
+      allTime: calculateStatsForPeriod(new Date(0)),
+    };
+  };
+
+  const dreamHistoryStats = calculateDreamHistoryStats();
+  const currentHistoryStats = dreamHistoryStats[selectedTimePeriod.toLowerCase() as keyof typeof dreamHistoryStats] || dreamHistoryStats.week;
+
+  const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
+    setSelectedTimePeriod(period);
+  };
+
 
   const optionsPopoverItems = [
     {
@@ -340,42 +419,64 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           )}
 
           {/* Areas */}
-          <View style={styles.areasContainer}>
-            <AreaGrid
-              areas={areas.map(area => {
-                // Calculate progress for this area
-                const detailData = state.dreamDetail[dreamId || ''];
-                let completedActions = 0;
-                let totalActions = 0;
+          <AreaGrid
+            areas={areas.map(area => {
+              // Calculate progress for this area
+              const detailData = state.dreamDetail[dreamId || ''];
+              let completedActions = 0;
+              let totalActions = 0;
+              
+              if (detailData?.actions && detailData?.occurrences) {
+                // Filter actions for this area
+                const areaActions = detailData.actions.filter(action => action.area_id === area.id);
+                totalActions = areaActions.length;
                 
-                if (detailData?.actions && detailData?.occurrences) {
-                  // Filter actions for this area
-                  const areaActions = detailData.actions.filter(action => action.area_id === area.id);
-                  totalActions = areaActions.length;
-                  
-                  // Count completed occurrences for this area's actions
-                  const areaActionIds = areaActions.map(action => action.id);
-                  completedActions = detailData.occurrences.filter(occurrence => 
-                    areaActionIds.includes(occurrence.action_id) && occurrence.completed_at
-                  ).length;
-                }
-                
-                return {
-                  id: area.id,
-                  title: area.title,
-                  emoji: area.icon || '🚀',
-                  completedActions,
-                  totalActions
-                };
-              })}
-              onEdit={() => {}} // No edit functionality in DreamPage
-              onRemove={() => {}} // No remove functionality in DreamPage
-              onAdd={() => {}} // No add functionality in DreamPage
-              onPress={handleAreaPress}
-              clickable={true}
-              showProgress={true}
-            />
-          </View>
+                // Count completed occurrences for this area's actions
+                const areaActionIds = areaActions.map(action => action.id);
+                completedActions = detailData.occurrences.filter(occurrence => 
+                  areaActionIds.includes(occurrence.action_id) && occurrence.completed_at
+                ).length;
+              }
+              
+              return {
+                id: area.id,
+                title: area.title,
+                emoji: area.icon || '🚀',
+                completedActions,
+                totalActions
+              };
+            })}
+            onEdit={() => {}} // No edit functionality in DreamPage
+            onRemove={() => {}} // No remove functionality in DreamPage
+            onAdd={() => {}} // No add functionality in DreamPage
+            onPress={handleAreaPress}
+            clickable={true}
+            showProgress={true}
+            title="Areas"
+            style={styles.areasContainer}
+            showAddButton={false}
+            showEditButtons={false}
+            showRemoveButtons={false}
+          />
+
+          {/* Progress Photos Section */}
+          <ProgressPhotosSection
+            photos={dreamProgressPhotos}
+            onPhotoPress={(photo) => {
+              // Handle photo press - could open full screen view
+              console.log('Photo pressed:', photo);
+            }}
+            columns={4}
+          />
+
+          {/* History Section */}
+          <HistorySection
+            actionsComplete={currentHistoryStats.actionsComplete}
+            activeDays={currentHistoryStats.activeDays}
+            actionsOverdue={currentHistoryStats.actionsOverdue}
+            onTimePeriodChange={handleTimePeriodChange}
+            selectedPeriod={selectedTimePeriod}
+          />
         </ScrollView>
 
         <OptionsPopover
@@ -542,10 +643,10 @@ const styles = StyleSheet.create({
   dueDate: {
     fontSize: theme.typography.fontSize.caption1,
     color: theme.colors.grey[600],
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   areasContainer: {
-    flex: 1,
+    marginBottom: theme.spacing.lg,
   },
   modalOverlay: {
     flex: 1,

@@ -243,6 +243,7 @@ export interface DreamWithStats {
   total_areas?: number;
   total_actions?: number;
   completed_today?: number;
+  completed_total?: number;
 }
 
 export interface AreaWithActions {

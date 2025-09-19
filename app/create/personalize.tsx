@@ -1,25 +1,54 @@
-import React, { useState, useRef } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput } from 'react-native'
+import React, { useState, useRef, useEffect } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput, FlatList } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
+import { Ionicons } from '@expo/vector-icons'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
-import { upsertDream } from '../../frontend-services/backend-bridge'
+import { upsertDream, getDefaultImages, uploadDreamImage, type DreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
 
 export default function AreasStep() {
   const navigation = useNavigation<any>()
   const { dreamId, title, start_date, end_date, image_url, setField } = useCreateDream()
-  const [selectedEmoji, setSelectedEmoji] = useState<string>('')
+  const [defaultImages, setDefaultImages] = useState<DreamImage[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(image_url || null)
-  const textInputRef = useRef<TextInput>(null)
 
-  const handleEmojiSelect = (emoji: string) => {
-    setSelectedEmoji(emoji)
-    setSelectedImage(null) // Clear image when emoji is selected
-    setField('image_url', emoji)
+  // Update selectedImage when image_url changes from context
+  useEffect(() => {
+    if (image_url) {
+      setSelectedImage(image_url)
+    }
+  }, [image_url])
+  const [isUploading, setIsUploading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load default images on component mount
+  useEffect(() => {
+    const loadDefaultImages = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session?.access_token) {
+          const response = await getDefaultImages(session.access_token)
+          if (response.success) {
+            setDefaultImages(response.data.images)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading default images:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadDefaultImages()
+  }, [])
+
+  const handleImageSelect = (imageUrl: string) => {
+    setSelectedImage(imageUrl)
+    setField('image_url', imageUrl)
   }
 
   const handleImageUpload = async () => {
@@ -40,11 +69,32 @@ export default function AreasStep() {
         quality: 0.8,
       })
 
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri
-        setSelectedImage(imageUri)
-        setSelectedEmoji('') // Clear emoji when image is selected
-        setField('image_url', imageUri)
+      if (!result.canceled && result.assets[0] && dreamId) {
+        setIsUploading(true)
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession()
+          if (session?.access_token) {
+            // Create a file object for React Native
+            const file = {
+              uri: result.assets[0].uri,
+              name: result.assets[0].fileName || 'image.jpg',
+              type: result.assets[0].type || 'image/jpeg',
+              size: result.assets[0].fileSize || 0,
+            }
+
+            const uploadResponse = await uploadDreamImage(file, dreamId, session.access_token)
+            
+            if (uploadResponse.success) {
+              setSelectedImage(uploadResponse.data.signed_url)
+              setField('image_url', uploadResponse.data.signed_url)
+            }
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error)
+          Alert.alert('Error', 'Failed to upload image. Please try again.')
+        } finally {
+          setIsUploading(false)
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image. Please try again.')
@@ -75,6 +125,56 @@ export default function AreasStep() {
     }
   }
 
+  const renderImageItem = ({ item, index }: { item: DreamImage; index: number }) => {
+    const isSelected = selectedImage === item.signed_url
+    const isFirstItem = index === 0
+    
+    if (isFirstItem) {
+      // First item is the upload button
+      return (
+        <TouchableOpacity
+          onPress={handleImageUpload}
+          disabled={isUploading}
+          style={[
+            styles.imageItem,
+            styles.uploadButton,
+            isUploading && styles.uploadButtonDisabled
+          ]}
+        >
+          {isUploading ? (
+            <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+          ) : (
+            <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+          )}
+          <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
+            {isUploading ? 'Uploading...' : 'Add'}
+          </Text>
+        </TouchableOpacity>
+      )
+    }
+    
+    return (
+      <TouchableOpacity
+        onPress={() => handleImageSelect(item.signed_url)}
+        style={[
+          styles.imageItem,
+          isSelected && styles.selectedImageItem
+        ]}
+      >
+        <Image
+          source={{ uri: item.signed_url }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+        {isSelected && (
+          <View style={styles.selectedOverlay}>
+            <Ionicons name="checkmark-circle" size={20} color="white" />
+          </View>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="personalize" />
@@ -89,89 +189,30 @@ export default function AreasStep() {
           Personalize your dream
         </Text>
 
-        {/* Emoji selection */}
         <Text style={{ 
           fontSize: 14, 
           fontWeight: '600', 
           color: '#000', 
           marginBottom: 16 
         }}>
-          Choose an emoji:
+          Choose an image:
         </Text>
         
-        <TouchableOpacity
-          onPress={() => {
-            // Focus the hidden TextInput to open emoji keyboard
-            if (textInputRef.current) {
-              textInputRef.current.focus()
-            }
-          }}
-          style={{
-            backgroundColor: 'white',
-            height: 44,
-            paddingHorizontal: 16,
-            borderRadius: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 32
-          }}
-        >
-          <Text style={{ fontSize: 16, color: selectedEmoji ? '#000' : '#666' }}>
-            {selectedEmoji ? selectedEmoji : '😀 Choose Emoji'}
-          </Text>
-        </TouchableOpacity>
-        
-        {/* Hidden TextInput for emoji input */}
-        <TextInput
-          ref={textInputRef}
-          value={selectedEmoji}
-          onChangeText={(text) => {
-            // Only allow single emoji
-            const emoji = text.slice(-1)
-            if (emoji && /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(emoji)) {
-              setSelectedEmoji(emoji)
-              setSelectedImage(null)
-              setField('image_url', emoji)
-            }
-          }}
-          style={{
-            position: 'absolute',
-            left: -1000,
-            opacity: 0,
-            height: 0,
-            width: 0
-          }}
-          multiline={false}
-          maxLength={1}
-          keyboardType="default"
-          returnKeyType="done"
-        />
-
-        {/* Image upload option */}
-        <Text style={{ 
-          fontSize: 14, 
-          fontWeight: '600', 
-          color: '#000', 
-          marginBottom: 16 
-        }}>
-          Or upload an image:
-        </Text>
-        
-        <TouchableOpacity
-          onPress={handleImageUpload}
-          style={{
-            backgroundColor: 'white',
-            height: 44,
-            paddingHorizontal: 16,
-            borderRadius: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <Text style={{ fontSize: 16, color: '#666' }}>📷 Upload Image</Text>
-        </TouchableOpacity>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading images...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={[{ id: 'upload', name: 'upload' } as DreamImage, ...defaultImages]}
+            renderItem={renderImageItem}
+            numColumns={4}
+            keyExtractor={(item, index) => item.id || `upload-${index}`}
+            columnWrapperStyle={styles.row}
+            scrollEnabled={false}
+            contentContainerStyle={styles.gridContainer}
+          />
+        )}
       </ScrollView>
       
       {/* Sticky bottom button */}
@@ -191,4 +232,67 @@ export default function AreasStep() {
       </View>
     </View>
   )
+}
+
+const styles = {
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.grey[600],
+  },
+  gridContainer: {
+    paddingBottom: 20,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  imageItem: {
+    width: '22%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'white',
+    position: 'relative',
+  },
+  uploadButton: {
+    backgroundColor: theme.colors.surface[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.grey[200],
+    borderStyle: 'dashed',
+  },
+  uploadButtonDisabled: {
+    opacity: 0.5,
+  },
+  uploadText: {
+    fontSize: 12,
+    color: theme.colors.grey[900],
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  uploadTextDisabled: {
+    color: theme.colors.grey[500],
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  selectedImageItem: {
+    borderWidth: 3,
+    borderColor: theme.colors.primary || '#000',
+  },
+  selectedOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    padding: 4,
+  },
 }

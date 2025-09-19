@@ -419,3 +419,105 @@ export interface AIReviewResponse {
 
 export const generateAIReview = (body: AIReviewRequest, token: string): Promise<AIReviewResponse> => 
   post('/api/action-occurrences/artifacts/review', body, token)
+
+// Dream Image Upload Types
+export interface DreamImage {
+  id: string;
+  name: string;
+  signed_url: string;
+  content_type: string;
+  size: number;
+}
+
+export interface DefaultImagesResponse {
+  images: DreamImage[];
+}
+
+export interface DreamImageUploadResponse {
+  id: string;
+  path: string;
+  signed_url: string;
+  content_type: string;
+  size: number;
+}
+
+// Dream Image Functions
+export const getDefaultImages = (token: string): Promise<{ success: boolean; data: DefaultImagesResponse; message: string }> => {
+  console.log('🌐 [BACKEND-BRIDGE] Getting default images');
+  
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  return fetch(`${API_BASE}/api/dreams/default-images`, {
+    method: 'GET',
+    headers
+  })
+    .then(async (res) => {
+      console.log('📡 [BACKEND-BRIDGE] Get default images response status:', res.status)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.log('❌ [BACKEND-BRIDGE] Get default images Error:', errorText)
+        throw new Error(errorText)
+      }
+      
+      const result = await res.json()
+      console.log('✅ [BACKEND-BRIDGE] Get default images Success:', result)
+      return result
+    })
+    .catch((error) => {
+      console.log('💥 [BACKEND-BRIDGE] Get default images Network/Parse Error:', error)
+      throw error
+    })
+}
+
+export const uploadDreamImage = async (file: any, dreamId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse; message: string }> => {
+  const formData = new FormData()
+  
+  // Handle React Native file upload
+  if (file.uri) {
+    // For React Native, append the file with proper structure
+    formData.append('file', {
+      uri: file.uri,
+      type: file.type,
+      name: file.name,
+    } as any)
+  } else {
+    // For web, use the file directly
+    formData.append('file', file)
+  }
+  
+  formData.append('dreamId', dreamId)
+
+  console.log('🌐 [BACKEND-BRIDGE] Uploading dream image:', {
+    fileName: file.name,
+    fileSize: file.size,
+    dreamId
+  })
+
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  try {
+    const res = await fetch(`${API_BASE}/api/dreams/upload-image`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Upload dream image response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Upload dream image Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Upload dream image Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Upload dream image Network/Parse Error:', error)
+    throw error
+  }
+}

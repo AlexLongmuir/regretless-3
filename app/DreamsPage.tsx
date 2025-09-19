@@ -11,7 +11,7 @@ import type { Dream, DreamWithStats } from '../backend/database/types';
 
 
 const DreamsPage = ({ navigation }: { navigation?: any }) => {
-  const { state, getDreamsSummary, getDreamsWithStats } = useData();
+  const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus } = useData();
   const { user, isAuthenticated, loading: authLoading } = useAuthContext();
   const dreams = state.dreamsSummary?.dreams || [];
   const dreamsWithStats = state.dreamsWithStats?.dreams || [];
@@ -20,9 +20,11 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
   useFocusEffect(
     React.useCallback(() => {
       console.log('DreamsPage: useFocusEffect triggered');
-      getDreamsSummary({ force: true });
-      getDreamsWithStats({ force: true });
-    }, [getDreamsSummary, getDreamsWithStats])
+      onScreenFocus('dreams');
+      // Let the refresh system handle the fetching based on staleness
+      getDreamsSummary();
+      getDreamsWithStats();
+    }, []) // No dependencies - functions are stable from DataContext
   );
 
   const handleDreamPress = (dreamId: string) => {
@@ -44,13 +46,13 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
     }
   };
 
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading state while checking authentication or fetching data
+  if (authLoading || (!state.dreamsSummary && !state.dreamsWithStats)) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Loading...</Text>
         <Text style={styles.emptySubtitle}>
-          Checking authentication status...
+          {authLoading ? 'Checking authentication status...' : 'Loading your dreams...'}
         </Text>
       </View>
     );

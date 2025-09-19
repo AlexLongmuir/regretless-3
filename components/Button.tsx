@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary[600],
   },
   black: {
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.black,
   },
   disabled: {
     backgroundColor: theme.colors.grey[300],

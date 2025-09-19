@@ -1,93 +1,83 @@
-// contexts/DataContext.tsx
+/**
+ * contexts/DataContext.tsx
+ * 
+ * This is the main DataContext provider that orchestrates all data management for the app.
+ * It provides a centralized state management system with intelligent caching, optimistic updates,
+ * and automatic data synchronization.
+ * 
+ * Key features:
+ * - Intelligent caching with TTL-based invalidation
+ * - Optimistic updates for immediate UI feedback
+ * - Automatic background refresh and data synchronization
+ * - Screen focus-based data refresh
+ * - User authentication integration
+ * - Error handling and fallback mechanisms
+ * 
+ * The context is designed to provide a fast, responsive user experience while maintaining
+ * data consistency and handling network failures gracefully.
+ */
+
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabaseClient } from '../lib/supabaseClient';
 import { deleteDream as deleteDreamAPI, archiveDream as archiveDreamAPI, unarchiveDream as unarchiveDreamAPI, deferOccurrence as deferOccurrenceAPI } from '../frontend-services/backend-bridge';
-import type { 
-  Dream, 
-  Area, 
-  Action, 
-  ActionOccurrence, 
-  ActionOccurrenceStatus,
-  TodayAction,
-  DreamWithStats
-} from '../backend/database/types';
+import { useAuthContext } from './AuthContext';
+import { 
+  CACHE_KEYS, 
+  CACHE_TTL, 
+  isStale, 
+  lastSyncedLabel, 
+  loadJSON, 
+  saveJSON, 
+  clearCache,
+  type DreamsSummaryPayload,
+  type DreamsWithStatsPayload,
+  type TodayPayload,
+  type DreamDetailPayload,
+  type ProgressPayload
+} from './dataCache';
+import {
+  fetchDreamsSummary,
+  fetchDreamsWithStats,
+  fetchToday,
+  fetchProgress,
+  fetchDreamDetail
+} from './dataFetchers';
 
-// --- Cache payload types
-type DreamsSummaryPayload = { dreams: Dream[]; fetchedAt: number };
-type DreamsWithStatsPayload = { dreams: DreamWithStats[]; fetchedAt: number };
-type TodayPayload = { occurrences: ActionOccurrenceStatus[]; fetchedAt: number };
-type DreamDetailPayload = { 
-  dream: Dream | null; 
-  areas: Area[]; 
-  actions: Action[]; 
-  occurrences: ActionOccurrence[]; 
-  fetchedAt: number 
-};
-type ProgressPayload = {
-  weeklyProgress: {
-    monday: 'active' | 'current' | 'inactive';
-    tuesday: 'active' | 'current' | 'inactive';
-    wednesday: 'active' | 'current' | 'inactive';
-    thursday: 'active' | 'current' | 'inactive';
-    friday: 'active' | 'current' | 'inactive';
-    saturday: 'active' | 'current' | 'inactive';
-    sunday: 'active' | 'current' | 'inactive';
-  };
-  thisWeekStats: {
-    actionsPlanned: number;
-    actionsDone: number;
-    actionsOverdue: number;
-  };
-  historyStats: {
-    week: {
-      actionsComplete: number;
-      activeDays: number;
-      actionsOverdue: number;
-    };
-    month: {
-      actionsComplete: number;
-      activeDays: number;
-      actionsOverdue: number;
-    };
-    year: {
-      actionsComplete: number;
-      activeDays: number;
-      actionsOverdue: number;
-    };
-    allTime: {
-      actionsComplete: number;
-      activeDays: number;
-      actionsOverdue: number;
-    };
-  };
-  overallStreak: number;
-  progressPhotos: Array<{
-    id: string;
-    uri: string;
-    timestamp?: Date;
-  }>;
-  fetchedAt: number;
-};
+/**
+ * TYPE DEFINITIONS
+ * 
+ * Define the shape of our application state and the context interface.
+ */
 
+// Application state structure
 type State = {
-  dreamsSummary?: DreamsSummaryPayload;
-  dreamsWithStats?: DreamsWithStatsPayload;
-  today?: TodayPayload;
-  progress?: ProgressPayload;
-  dreamDetail: Record<string, DreamDetailPayload | undefined>;
+  dreamsSummary?: DreamsSummaryPayload;     // Basic dreams list
+  dreamsWithStats?: DreamsWithStatsPayload; // Dreams with computed statistics
+  today?: TodayPayload;                     // Current day's action occurrences
+  progress?: ProgressPayload;               // Progress data and photos
+  dreamDetail: Record<string, DreamDetailPayload | undefined>; // Individual dream details
+  // Store today data for different dates (simplified - only current day)
+  todayByDate: Record<string, TodayPayload>;
+  loadingTodayByDate: Record<string, boolean>;
 };
 
+// Context interface - defines what's available to consuming components
 type Ctx = {
   state: State;
-  // getters (trigger background fetch if stale)
+  
+  // Core data management
+  loadSnapshot: () => Promise<void>;        // Load cached data on app start
+  refresh: (force?: boolean) => Promise<void>; // Refresh all data
+  
+  // Screen-specific getters (with automatic cache checking)
   getDreamsSummary: (opts?: { force?: boolean }) => Promise<void>;
   getDreamsWithStats: (opts?: { force?: boolean }) => Promise<void>;
-  getToday: (opts?: { force?: boolean }) => Promise<void>;
+  getToday: (opts?: { force?: boolean; date?: Date }) => Promise<void>;
   getProgress: (opts?: { force?: boolean }) => Promise<void>;
   getDreamDetail: (dreamId: string, opts?: { force?: boolean }) => Promise<void>;
-  // optimistic writes
+  
+  // Optimistic writes with background revalidation
   completeOccurrence: (occurrenceId: string) => Promise<void>;
   deferOccurrence: (occurrenceId: string, newDueDate?: string) => Promise<void>;
   deleteDream: (dreamId: string) => Promise<void>;
@@ -95,494 +85,199 @@ type Ctx = {
   unarchiveDream: (dreamId: string) => Promise<void>;
   updateAction: (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] }) => Promise<void>;
   deleteActionOccurrence: (occurrenceId: string) => Promise<void>;
-  // helpers
+  
+  // Helper utilities
   isStale: (fetchedAt?: number, ttlMs?: number) => boolean;
   lastSyncedLabel: (fetchedAt?: number) => string;
+  clearDreamsWithStatsCache: () => void;
+  
+  // Screen focus tracking for automatic refresh
+  onScreenFocus: (screenName: 'today' | 'dreams' | 'dream-detail', dreamId?: string) => void;
 };
+
+/**
+ * CONTEXT CREATION AND PROVIDER
+ * 
+ * Create the React context and provide the DataProvider component.
+ */
 
 const DataContext = createContext<Ctx | null>(null);
 
-const TODAY_TTL = 60_000;      // 1 min
-const SUMMARY_TTL = 5 * 60_000; // 5 min
-const DETAIL_TTL = 5 * 60_000;  // 5 min
-
-const now = () => Date.now();
-const fmtTime = (ts?: number) => {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-};
-
-const CACHE_KEYS = {
-  summary: 'cache:dreamsSummary',
-  dreamsWithStats: 'cache:dreamsWithStats',
-  today: 'cache:today',
-  progress: 'cache:progress',
-  detail: (id: string) => `cache:dreamDetail:${id}`,
-};
-
+/**
+ * DataProvider Component
+ * 
+ * The main provider component that manages all application state and provides
+ * data management functionality to child components.
+ */
 export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const [state, setState] = useState<State>({ dreamDetail: {} });
+  // Initialize state with empty objects for dynamic keys
+  const [state, setState] = useState<State>({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {} });
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const { isAuthenticated, loading: authLoading } = useAuthContext();
+  
+  // Track refresh state and timing
+  const lastFetchedAt = useRef<number>(0);    // Timestamp of last successful fetch
+  const isRefreshing = useRef<boolean>(false); // Prevent concurrent refreshes
+  const intervalRef = useRef<NodeJS.Timeout | null>(null); // Auto-refresh interval
 
-  const isStale = useCallback((fetchedAt?: number, ttlMs = 60_000) => !fetchedAt || (now() - fetchedAt) > ttlMs, []);
-  const lastSyncedLabel = useCallback((fetchedAt?: number) => (fetchedAt ? `Last synced ${fmtTime(fetchedAt)}` : 'Never synced'), []);
+  /**
+   * CORE DATA MANAGEMENT FUNCTIONS
+   * 
+   * These functions handle the fundamental data operations like clearing data,
+   * refreshing, and loading cached snapshots.
+   */
 
-  // --- Persistence helpers
-  const loadJSON = async <T,>(key: string): Promise<T | undefined> => {
-    try {
-      const raw = await AsyncStorage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : undefined;
-    } catch { return undefined; }
-  };
-  const saveJSON = async (key: string, value: unknown) => {
-    try { await AsyncStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
-  };
-
-  // --- Fetchers (Supabase)
-  const fetchDreamsSummary = useCallback(async (): Promise<DreamsSummaryPayload | undefined> => {
-    const { data, error } = await supabaseClient
-      .from('dreams')
-      .select('*')
-      .is('archived_at', null)
-      .order('created_at', { ascending: true });
-    if (error) {
-      console.error('Error fetching dreams summary:', error);
-      return undefined;
+  // Clear all data when user signs out
+  const clearAllData = useCallback(() => {
+    console.log('Clearing all data due to sign out');
+    setState({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {} });
+    lastFetchedAt.current = 0;
+    isRefreshing.current = false;
+    
+    // Clear auto-refresh interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-    return { dreams: data as Dream[], fetchedAt: now() };
+    
+    // Clear all cached data from AsyncStorage
+    clearCache();
   }, []);
 
-  const fetchDreamsWithStats = useCallback(async (): Promise<DreamsWithStatsPayload | undefined> => {
-    console.log('fetchDreamsWithStats: Starting fetch...');
+  // Simplified refresh function - handles all data refreshing with smart caching
+  const refresh = useCallback(async (force = false) => {
+    if (!isAuthenticated || isRefreshing.current) {
+      console.log(`🔄 Refresh skipped:`, { isAuthenticated, isRefreshing: isRefreshing.current });
+      return;
+    }
+
+    const timeSinceLastFetch = Date.now() - lastFetchedAt.current;
+    const shouldRefresh = force || timeSinceLastFetch > CACHE_TTL.MEDIUM;
+
+    if (!shouldRefresh) {
+      console.log(`🔄 Refresh skipped: data is fresh (${Math.round(timeSinceLastFetch / 1000)}s ago)`);
+      return;
+    }
+
+    console.log(`🔄 Starting refresh:`, { 
+      force,
+      timeSinceLastFetch: Math.round(timeSinceLastFetch / 1000) + 's'
+    });
+    isRefreshing.current = true;
+
     try {
-      // First get all dreams
-      const { data: dreams, error: dreamsError } = await supabaseClient
-        .from('dreams')
-        .select('*')
-        .is('archived_at', null)
-        .order('created_at', { ascending: true });
-
-      if (dreamsError) {
-        console.error('Error fetching dreams:', dreamsError);
-        return undefined;
-      }
-
-      // For each dream, get stats
-      const dreamsWithStats: DreamWithStats[] = await Promise.all(
-        (dreams as Dream[]).map(async (dream) => {
-          // Get overdue count
-          const { data: overdueData } = await supabaseClient
-            .from('v_overdue_counts')
-            .select('overdue_count')
-            .eq('dream_id', dream.id)
-            .single();
-
-          // Get current streak using the function
-          const { data: streakData, error: streakError } = await supabaseClient
-            .rpc('current_streak', { 
-              p_dream: dream.id,
-              p_user: dream.user_id
-            });
-
-          if (streakError) {
-            console.error(`Error getting streak for dream ${dream.id}:`, streakError);
-          } else {
-            console.log(`Dream ${dream.title} streak:`, streakData);
-          }
-
-          // Get area and action counts
-          const { data: areasData } = await supabaseClient
-            .from('areas')
-            .select('id')
-            .eq('dream_id', dream.id)
-            .is('deleted_at', null);
-
-          const { data: actionsData } = await supabaseClient
-            .from('actions')
-            .select('id')
-            .eq('dream_id', dream.id)
-            .is('deleted_at', null)
-            .eq('is_active', true);
-
-          // Get today's completed count
-          const todayStr = new Date().toISOString().slice(0, 10);
-          const { data: todayData } = await supabaseClient
-            .from('action_occurrences')
-            .select('id')
-            .eq('dream_id', dream.id)
-            .eq('completed_at::date', todayStr);
-
-          return {
-            ...dream,
-            overdue_count: overdueData?.overdue_count || 0,
-            current_streak: streakData || 0,
-            total_areas: areasData?.length || 0,
-            total_actions: actionsData?.length || 0,
-            completed_today: todayData?.length || 0,
-          };
-        })
-      );
-
-      return { dreams: dreamsWithStats, fetchedAt: now() };
+        // Global refresh
+        console.log(`🔄 Global refresh starting...`);
+        await Promise.all([
+        getDreamsSummary({ force: true }),
+        getDreamsWithStats({ force: true }),
+        getToday({ force: true }),
+        getProgress({ force: true }),
+      ]);
+      
+      lastFetchedAt.current = Date.now();
+      console.log(`✅ Refresh completed successfully`);
     } catch (error) {
-      console.error('Error fetching dreams with stats:', error);
-      return undefined;
+      console.error(`❌ Refresh failed:`, error);
+    } finally {
+      isRefreshing.current = false;
     }
-  }, []);
+  }, [isAuthenticated]);
 
-  const fetchToday = useCallback(async (): Promise<TodayPayload | undefined> => {
-    const todayStr = new Date().toISOString().slice(0, 10); // UTC date; OK for MVP
-    const { data, error } = await supabaseClient
-      .from('v_action_occurrence_status')
-      .select(`
-        *,
-        actions!inner(
-          title,
-          est_minutes,
-          difficulty,
-          repeat_every_days,
-          slice_count_target,
-          acceptance_criteria,
-          area_id,
-          areas!inner(
-            title,
-            icon,
-            dream_id,
-            dreams!inner(
-              title
-            )
-          )
-        )
-      `)
-      .eq('due_on', todayStr)
-      .order('due_on', { ascending: true })
-      .limit(500);
-    if (error) {
-      console.error('Error fetching today occurrences:', error);
-      return undefined;
-    }
-    return { occurrences: data as ActionOccurrenceStatus[], fetchedAt: now() };
-  }, []);
-
-  const fetchProgress = useCallback(async (): Promise<ProgressPayload | undefined> => {
-    try {
-      console.log('Fetching progress data...');
-      // Get current user
-      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-      if (userError || !user) {
-        console.error('No authenticated user for progress fetch:', userError);
-        return undefined;
-      }
-      console.log('Progress fetch for user:', user.id);
-      
-      const today = new Date();
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
-      
-      const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
-      const endOfWeekStr = endOfWeek.toISOString().slice(0, 10);
-      const todayStr = today.toISOString().slice(0, 10);
-
-      console.log('Date ranges:', { startOfWeekStr, endOfWeekStr, todayStr });
-
-      // Get this week's occurrences
-      const { data: weekOccurrences, error: weekError } = await supabaseClient
-        .from('action_occurrences')
-        .select('*')
-        .gte('due_on', startOfWeekStr)
-        .lte('due_on', endOfWeekStr)
-        .eq('user_id', user.id);
-
-      if (weekError) {
-        console.error('Error fetching week occurrences:', weekError);
-      } else {
-        console.log('Week occurrences:', weekOccurrences?.length || 0);
-      }
-
-      // Get completed occurrences for different time periods
-      const nowDate = new Date();
-      
-      // Calculate date ranges
-      const startOfWeekForHistory = new Date(nowDate);
-      startOfWeekForHistory.setDate(nowDate.getDate() - nowDate.getDay() + 1); // Monday
-      
-      const startOfMonth = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1);
-      const startOfYear = new Date(nowDate.getFullYear(), 0, 1);
-      
-      // Get all completed occurrences
-      const { data: allCompleted, error: completedError } = await supabaseClient
-        .from('action_occurrences')
-        .select('completed_at')
-        .not('completed_at', 'is', null)
-        .eq('user_id', user.id);
-
-      if (completedError) {
-        console.error('Error fetching completed occurrences:', completedError);
-      } else {
-        console.log('All completed occurrences:', allCompleted?.length || 0);
-      }
-      
-      // Get overdue occurrences for different periods
-      const { data: allOverdue, error: overdueError } = await supabaseClient
-        .from('v_overdue_counts')
-        .select('overdue_count');
-
-      if (overdueError) {
-        console.error('Error fetching overdue counts:', overdueError);
-      } else {
-        console.log('Overdue counts:', allOverdue?.length || 0);
-      }
-
-      // Get progress photos (artifacts) - join through action_occurrences to filter by user
-      const { data: artifacts, error: artifactsError } = await supabaseClient
-        .from('action_artifacts')
-        .select(`
-          id, 
-          storage_path, 
-          created_at,
-          action_occurrences!inner(
-            user_id
-          )
-        `)
-        .not('storage_path', 'is', null)
-        .eq('action_occurrences.user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (artifactsError) {
-        console.error('Error fetching artifacts:', artifactsError);
-      } else {
-        console.log('Artifacts found:', artifacts?.length || 0);
-      }
-
-      // Generate signed URLs for artifacts
-      const artifactsWithUrls = await Promise.all(
-        (artifacts || []).map(async (artifact) => {
-          const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
-            .from('artifacts')
-            .createSignedUrl(artifact.storage_path, 3600); // 1 hour expiry
-
-          return {
-            ...artifact,
-            signed_url: signedUrlError ? null : signedUrlData?.signedUrl
-          };
-        })
-      );
-
-      // Calculate weekly progress (simplified - active days this week)
-      const activeDays = new Set<string>();
-      const completedThisWeek = weekOccurrences?.filter(o => o.completed_at) || [];
-      completedThisWeek.forEach(o => {
-        const date = new Date(o.completed_at!);
-        activeDays.add(date.toISOString().slice(0, 10));
-      });
-
-      // Generate weekly progress array
-      const weeklyProgress: {
-        monday: 'active' | 'current' | 'inactive';
-        tuesday: 'active' | 'current' | 'inactive';
-        wednesday: 'active' | 'current' | 'inactive';
-        thursday: 'active' | 'current' | 'inactive';
-        friday: 'active' | 'current' | 'inactive';
-        saturday: 'active' | 'current' | 'inactive';
-        sunday: 'active' | 'current' | 'inactive';
-      } = {
-        monday: 'inactive',
-        tuesday: 'inactive',
-        wednesday: 'inactive',
-        thursday: 'inactive',
-        friday: 'inactive',
-        saturday: 'inactive',
-        sunday: 'inactive',
-      };
-
-      // Mark active days
-      activeDays.forEach(dateStr => {
-        const date = new Date(dateStr);
-        const dayOfWeek = date.getDay();
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayName = dayNames[dayOfWeek] as keyof typeof weeklyProgress;
-        weeklyProgress[dayName] = 'active';
-      });
-
-      // Mark current day
-      const currentDayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][today.getDay()] as keyof typeof weeklyProgress;
-      if (weeklyProgress[currentDayName] === 'inactive') {
-        weeklyProgress[currentDayName] = 'current';
-      }
-
-      // Calculate this week stats
-      const actionsPlanned = weekOccurrences?.length || 0;
-      const actionsDone = completedThisWeek.length;
-      const actionsOverdue = weekOccurrences?.filter(o => 
-        !o.completed_at && new Date(o.due_on) < today
-      ).length || 0;
-
-      // Calculate history stats for different time periods
-      const calculateStatsForPeriod = (startDate: Date, endDate?: Date) => {
-        const filtered = allCompleted?.filter(o => {
-          const completedDate = new Date(o.completed_at!);
-          const isAfterStart = completedDate >= startDate;
-          const isBeforeEnd = !endDate || completedDate <= endDate;
-          return isAfterStart && isBeforeEnd;
-        }) || [];
-        
-        const uniqueActiveDays = new Set<string>();
-        filtered.forEach(o => {
-          const date = new Date(o.completed_at!);
-          uniqueActiveDays.add(date.toISOString().slice(0, 10));
-        });
-        
-        return {
-          actionsComplete: filtered.length,
-          activeDays: uniqueActiveDays.size,
-          actionsOverdue: 0, // Could be calculated from overdue view for specific periods
-        };
-      };
-
-      // Calculate overall streak across all dreams
-      const calculateOverallStreak = () => {
-        if (!allCompleted || allCompleted.length === 0) return 0;
-        
-        // Get all unique completion dates, sorted
-        const completionDates = new Set<string>();
-        allCompleted.forEach(o => {
-          const date = new Date(o.completed_at!);
-          completionDates.add(date.toISOString().slice(0, 10));
-        });
-        
-        const sortedDates = Array.from(completionDates).sort().reverse(); // Most recent first
-        let streak = 0;
-        const today = new Date();
-        let currentDate = new Date(today);
-        
-        // Check consecutive days starting from today
-        for (let i = 0; i < 365; i++) { // Max 1 year streak
-          const dateStr = currentDate.toISOString().slice(0, 10);
-          if (completionDates.has(dateStr)) {
-            streak++;
-            currentDate.setDate(currentDate.getDate() - 1);
-          } else {
-            break;
-          }
-        }
-        
-        console.log('Overall streak calculation:', { streak, totalCompletionDays: sortedDates.length });
-        return streak;
-      };
-
-      const weekStats = calculateStatsForPeriod(startOfWeekForHistory);
-      const monthStats = calculateStatsForPeriod(startOfMonth);
-      const yearStats = calculateStatsForPeriod(startOfYear);
-      const allTimeStats = calculateStatsForPeriod(new Date(0)); // All time
-
-      const overallStreak = calculateOverallStreak();
-
-      const result = {
-        weeklyProgress,
-        thisWeekStats: {
-          actionsPlanned,
-          actionsDone,
-          actionsOverdue,
-        },
-        historyStats: {
-          week: weekStats,
-          month: monthStats,
-          year: yearStats,
-          allTime: allTimeStats,
-        },
-        overallStreak,
-        progressPhotos: artifactsWithUrls
-          .filter(a => a.signed_url) // Only include artifacts with valid URLs
-          .map(a => ({
-            id: a.id,
-            uri: a.signed_url!,
-            timestamp: new Date(a.created_at),
-          })),
-        fetchedAt: now(),
-      };
-
-      console.log('Progress data result:', {
-        actionsPlanned,
-        actionsDone,
-        actionsOverdue,
-        weekStats,
-        monthStats,
-        yearStats,
-        allTimeStats,
-        progressPhotosCount: result.progressPhotos.length,
-      });
-
-      return result;
-    } catch (error) {
-      console.error('Error fetching progress data:', error);
-      // Return a default structure instead of undefined to prevent the page from breaking
-      return {
-        weeklyProgress: {
-          monday: 'inactive' as const,
-          tuesday: 'inactive' as const,
-          wednesday: 'inactive' as const,
-          thursday: 'inactive' as const,
-          friday: 'inactive' as const,
-          saturday: 'inactive' as const,
-          sunday: 'inactive' as const,
-        },
-        thisWeekStats: {
-          actionsPlanned: 0,
-          actionsDone: 0,
-          actionsOverdue: 0,
-        },
-        historyStats: {
-          week: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-          month: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-          year: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-          allTime: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-        },
-        overallStreak: 0,
-        progressPhotos: [],
-        fetchedAt: now(),
-      };
-    }
-  }, []);
-
-  const fetchDreamDetail = useCallback(async (dreamId: string): Promise<DreamDetailPayload | undefined> => {
-    const [dreamRes, areasRes, actionsRes, occRes] = await Promise.all([
-      supabaseClient.from('dreams').select('*').eq('id', dreamId).single(),
-      supabaseClient.from('areas').select('*').eq('dream_id', dreamId).is('deleted_at', null).order('position', { ascending: true }),
-      supabaseClient.from('actions').select('*').eq('dream_id', dreamId).is('deleted_at', null).order('position', { ascending: true }),
-      supabaseClient.from('action_occurrences').select('*').eq('dream_id', dreamId).order('due_on', { ascending: true }).limit(200),
+  // Load snapshot from cache (used when user becomes authenticated)
+  const loadSnapshot = useCallback(async () => {
+    console.log('Loading snapshot from cache...');
+    
+    const [summary, dreamsWithStats, today, progress] = await Promise.all([
+      loadJSON<DreamsSummaryPayload>(CACHE_KEYS.dreams),
+      loadJSON<DreamsWithStatsPayload>(CACHE_KEYS.dreams),
+      loadJSON<TodayPayload>(CACHE_KEYS.today),
+      loadJSON<ProgressPayload>(CACHE_KEYS.progress),
     ]);
     
-    if (dreamRes.error || areasRes.error || actionsRes.error || occRes.error) {
-      console.error('Error fetching dream detail:', { dreamRes: dreamRes.error, areasRes: areasRes.error, actionsRes: actionsRes.error, occRes: occRes.error });
-      return undefined;
+    setState(s => ({ 
+      ...s, 
+      dreamsSummary: summary, 
+      dreamsWithStats: dreamsWithStats,
+      today: today ?? s.today,
+      progress: progress ?? s.progress,
+    }));
+
+    // Set lastFetchedAt to the most recent cache timestamp
+    const timestamps = [
+      summary?.fetchedAt,
+      dreamsWithStats?.fetchedAt,
+      today?.fetchedAt,
+      progress?.fetchedAt,
+    ].filter(Boolean) as number[];
+    
+    if (timestamps.length > 0) {
+      lastFetchedAt.current = Math.max(...timestamps);
     }
     
-    return {
-      dream: dreamRes.data as Dream,
-      areas: (areasRes.data ?? []) as Area[],
-      actions: (actionsRes.data ?? []) as Action[],
-      occurrences: (occRes.data ?? []) as ActionOccurrence[],
-      fetchedAt: now(),
-    };
+    console.log('Snapshot loaded, lastFetchedAt:', lastFetchedAt.current);
   }, []);
 
-  // --- Public getters (with TTL + persistence)
+  // Clear dreams with stats cache to force refresh with new fields
+  const clearDreamsWithStatsCache = useCallback(() => {
+    console.log('Clearing dreams with stats cache to force refresh');
+    setState(s => ({ ...s, dreamsWithStats: undefined }));
+    saveJSON(CACHE_KEYS.dreams, undefined);
+  }, []);
+
+  // Screen focus tracking - triggers refresh if data is stale
+  const onScreenFocus = useCallback((screenName: 'today' | 'dreams' | 'dream-detail', dreamId?: string) => {
+    console.log(`📱 Screen focus: ${screenName}`, { dreamId });
+    // Simple refresh on screen focus if data is stale
+    const timeSinceLastFetch = Date.now() - lastFetchedAt.current;
+    if (timeSinceLastFetch > CACHE_TTL.SHORT) {
+      refresh();
+    }
+  }, [refresh]);
+
+  /**
+   * DATA GETTERS
+   * 
+   * These functions provide access to specific data types with intelligent caching.
+   * Each getter checks if data is stale and fetches fresh data if needed.
+   */
+
+  // Get basic dreams list with caching
   const getDreamsSummary: Ctx['getDreamsSummary'] = useCallback(async ({ force } = {}) => {
-    if (!force && !isStale(state.dreamsSummary?.fetchedAt, SUMMARY_TTL)) return;
+    console.log('getDreamsSummary called:', { isAuthenticated, force, fetchedAt: state.dreamsSummary?.fetchedAt });
+    
+    // Check authentication directly from Supabase instead of relying on closure
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('getDreamsSummary: User not authenticated, skipping fetch');
+      return;
+    }
+    
+    if (!force && !isStale(state.dreamsSummary?.fetchedAt, CACHE_TTL.MEDIUM)) {
+      console.log('getDreamsSummary: Using cached data');
+      return;
+    }
+    console.log('getDreamsSummary: Fetching fresh data');
     const payload = await fetchDreamsSummary();
+    console.log('getDreamsSummary: Fetch result:', payload ? 'success' : 'failed');
     if (payload) {
       setState(s => ({ ...s, dreamsSummary: payload }));
-      saveJSON(CACHE_KEYS.summary, payload);
+      saveJSON(CACHE_KEYS.dreams, payload);
+      lastFetchedAt.current = Math.max(lastFetchedAt.current, payload.fetchedAt);
     }
-  }, [fetchDreamsSummary, isStale, state.dreamsSummary?.fetchedAt]);
+  }, [fetchDreamsSummary, state.dreamsSummary?.fetchedAt]);
 
+  // Get dreams with computed statistics
   const getDreamsWithStats: Ctx['getDreamsWithStats'] = useCallback(async ({ force } = {}) => {
-    console.log('getDreamsWithStats called:', { force, fetchedAt: state.dreamsWithStats?.fetchedAt, isStale: isStale(state.dreamsWithStats?.fetchedAt, SUMMARY_TTL) });
-    if (!force && !isStale(state.dreamsWithStats?.fetchedAt, SUMMARY_TTL)) {
+    // Check authentication directly from Supabase instead of relying on closure
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('getDreamsWithStats: User not authenticated, skipping fetch');
+      return;
+    }
+    
+    console.log('getDreamsWithStats called:', { force, fetchedAt: state.dreamsWithStats?.fetchedAt, isStale: isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM) });
+    if (!force && !isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM)) {
       console.log('getDreamsWithStats: Using cached data');
       return;
     }
@@ -590,41 +285,114 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     const payload = await fetchDreamsWithStats();
     if (payload) {
       setState(s => ({ ...s, dreamsWithStats: payload }));
-      saveJSON(CACHE_KEYS.dreamsWithStats, payload);
+      saveJSON(CACHE_KEYS.dreams, payload);
+      lastFetchedAt.current = Math.max(lastFetchedAt.current, payload.fetchedAt);
     }
-  }, [fetchDreamsWithStats, isStale, state.dreamsWithStats?.fetchedAt]);
+  }, [fetchDreamsWithStats, state.dreamsWithStats?.fetchedAt]);
 
-  const getToday: Ctx['getToday'] = useCallback(async ({ force } = {}) => {
-    if (!force && !isStale(state.today?.fetchedAt, TODAY_TTL)) return;
-    const payload = await fetchToday();
-    if (payload) {
-      setState(s => ({ ...s, today: payload }));
-      saveJSON(CACHE_KEYS.today, payload);
+  // Get today's action occurrences (supports different dates)
+  const getToday: Ctx['getToday'] = useCallback(async ({ force, date } = {}) => {
+    // Check authentication directly from Supabase instead of relying on closure
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('getToday: User not authenticated, skipping fetch');
+      return;
     }
-  }, [fetchToday, isStale, state.today?.fetchedAt]);
+    
+    const targetDate = date || new Date();
+    const dateStr = targetDate.toISOString().slice(0, 10);
+    const isCurrentDate = dateStr === new Date().toISOString().slice(0, 10);
+    
+    // For current date, use the legacy 'today' cache, for other dates use date-specific cache
+    const cacheKey = isCurrentDate ? CACHE_KEYS.today : `cache:today:${dateStr}`;
+    const cachedData = isCurrentDate ? state.today : state.todayByDate[dateStr];
+    
+    if (!force && !isStale(cachedData?.fetchedAt, CACHE_TTL.SHORT)) {
+      console.log(`getToday: Using cached data for ${dateStr}`);
+      return;
+    }
+    
+    // Set loading state for non-current dates
+    if (!isCurrentDate) {
+      setState(s => ({
+        ...s,
+        loadingTodayByDate: { ...s.loadingTodayByDate, [dateStr]: true }
+      }));
+    }
+    
+    console.log(`getToday: Fetching fresh data for ${dateStr}`);
+    try {
+      const payload = await fetchToday(targetDate);
+      if (payload) {
+        setState(s => {
+          const nextState = { ...s };
+          if (isCurrentDate) {
+            nextState.today = payload;
+          } else {
+            nextState.todayByDate = { ...s.todayByDate, [dateStr]: payload };
+            nextState.loadingTodayByDate = { ...s.loadingTodayByDate, [dateStr]: false };
+          }
+          return nextState;
+        });
+        saveJSON(cacheKey, payload);
+        lastFetchedAt.current = Math.max(lastFetchedAt.current, payload.fetchedAt);
+      }
+    } catch (error) {
+      console.error(`Error fetching today data for ${dateStr}:`, error);
+      if (!isCurrentDate) {
+        setState(s => ({
+          ...s,
+          loadingTodayByDate: { ...s.loadingTodayByDate, [dateStr]: false }
+        }));
+      }
+    }
+  }, [fetchToday, state.today, state.todayByDate]);
 
+  // Get progress data including stats and photos
   const getProgress: Ctx['getProgress'] = useCallback(async ({ force } = {}) => {
-    console.log('getProgress called with force:', force, 'isStale:', isStale(state.progress?.fetchedAt, SUMMARY_TTL));
-    if (!force && !isStale(state.progress?.fetchedAt, SUMMARY_TTL)) return;
+    // Check authentication directly from Supabase instead of relying on closure
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('getProgress: User not authenticated, skipping fetch');
+      return;
+    }
+    console.log('getProgress called with force:', force, 'isStale:', isStale(state.progress?.fetchedAt, CACHE_TTL.MEDIUM));
+    if (!force && !isStale(state.progress?.fetchedAt, CACHE_TTL.MEDIUM)) return;
     const payload = await fetchProgress();
     console.log('getProgress payload:', payload ? 'success' : 'failed');
     if (payload) {
       setState(s => ({ ...s, progress: payload }));
       saveJSON(CACHE_KEYS.progress, payload);
+      lastFetchedAt.current = Math.max(lastFetchedAt.current, payload.fetchedAt);
     }
-  }, [fetchProgress, isStale, state.progress?.fetchedAt]);
+  }, [fetchProgress, state.progress?.fetchedAt]);
 
+  // Get detailed dream information including areas, actions, and occurrences
   const getDreamDetail: Ctx['getDreamDetail'] = useCallback(async (dreamId: string, { force } = {}) => {
+    // Check authentication directly from Supabase instead of relying on closure
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('getDreamDetail: User not authenticated, skipping fetch');
+      return;
+    }
     const cached = state.dreamDetail[dreamId];
-    if (!force && !isStale(cached?.fetchedAt, DETAIL_TTL)) return;
+    if (!force && !isStale(cached?.fetchedAt, CACHE_TTL.MEDIUM)) return;
     const payload = await fetchDreamDetail(dreamId);
     if (payload) {
       setState(s => ({ ...s, dreamDetail: { ...s.dreamDetail, [dreamId]: payload } }));
       saveJSON(CACHE_KEYS.detail(dreamId), payload);
     }
-  }, [fetchDreamDetail, isStale, state.dreamDetail]);
+  }, [fetchDreamDetail, state.dreamDetail]);
 
-  // --- Optimistic writes
+  /**
+   * OPTIMISTIC WRITES
+   * 
+   * These functions provide immediate UI updates (optimistic updates) while
+   * performing background API calls. If the API call fails, the data is refreshed
+   * to correct any inconsistencies.
+   */
+
+  // Complete an action occurrence with optimistic update
   const completeOccurrence: Ctx['completeOccurrence'] = useCallback(async (occurrenceId: string) => {
     // Optimistic remove from Today + mark complete in any open dreamDetail
     setState(s => {
@@ -635,19 +403,20 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
           occurrences: s.today.occurrences.filter(o => o.id !== occurrenceId) 
         };
       }
-      for (const k of Object.keys(next.dreamDetail)) {
-        const dd = next.dreamDetail[k]!;
-        next.dreamDetail[k] = { 
-          ...dd, 
-          occurrences: dd.occurrences.map(o => 
-            o.id === occurrenceId 
-              ? { ...o, completed_at: new Date().toISOString() } 
-              : o
-          ) 
-        };
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            occurrences: dd.occurrences.map(o => 
+              o.id === occurrenceId 
+                ? { ...o, completed_at: new Date().toISOString() } 
+                : o
+            ) 
+          };
+        }
       }
-      // persist Today cache
-      if (next.today) AsyncStorage.setItem(CACHE_KEYS.today, JSON.stringify(next.today));
+      if (next.today) saveJSON(CACHE_KEYS.today, next.today);
       return next;
     });
 
@@ -658,28 +427,25 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       
     if (error) {
       console.error('Error completing occurrence:', error);
-      // On failure, force revalidate to correct optimistic state
-      await Promise.all([getToday({ force: true }), getDreamsSummary({ force: true })]);
+      await refresh(true);
     } else {
-      // Light revalidate summaries
-      getDreamsSummary();
+      refresh();
     }
-  }, [getDreamsSummary, getToday]);
+  }, [refresh]);
 
+  // Defer an action occurrence to tomorrow with optimistic update
   const deferOccurrence: Ctx['deferOccurrence'] = useCallback(async (occurrenceId: string, newDueDate?: string) => {
-    // Get auth token
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.access_token) {
       throw new Error('Not authenticated');
     }
 
-    // Calculate new due date (+1 day from current due date or provided date)
     const currentDate = newDueDate ? new Date(newDueDate) : new Date();
     const tomorrow = new Date(currentDate);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const newDateStr = tomorrow.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    const newDateStr = tomorrow.toISOString().split('T')[0];
 
-    // Optimistic: remove from Today (since due_on +1) and update dream detail
+    // Optimistic: remove from Today and update dream detail
     setState(s => {
       const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
       if (s.today) {
@@ -688,42 +454,40 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
           occurrences: s.today.occurrences.filter(o => o.id !== occurrenceId) 
         };
       }
-      // Update occurrence in dream detail caches
-      for (const k of Object.keys(next.dreamDetail)) {
-        const dd = next.dreamDetail[k]!;
-        next.dreamDetail[k] = { 
-          ...dd, 
-          occurrences: dd.occurrences.map(o => 
-            o.id === occurrenceId 
-              ? { ...o, due_on: newDateStr } 
-              : o
-          ) 
-        };
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            occurrences: dd.occurrences.map(o => 
+              o.id === occurrenceId 
+                ? { ...o, due_on: newDateStr } 
+                : o
+            ) 
+          };
+        }
       }
-      if (next.today) AsyncStorage.setItem(CACHE_KEYS.today, JSON.stringify(next.today));
+      if (next.today) saveJSON(CACHE_KEYS.today, next.today);
       return next;
     });
 
-    // Call the API to defer the occurrence
     try {
       await deferOccurrenceAPI(occurrenceId, newDateStr, session.access_token);
-      getDreamsSummary(); // overdue/streak may change
+      refresh();
     } catch (error) {
       console.error('Error deferring occurrence:', error);
-      // On failure, force revalidate to correct optimistic state
-      await Promise.all([getToday({ force: true }), getDreamsSummary({ force: true })]);
+      await refresh(true);
       throw error;
     }
-  }, [getDreamsSummary, getToday]);
+  }, [refresh]);
 
+  // Delete a dream with optimistic removal from all caches
   const deleteDream: Ctx['deleteDream'] = useCallback(async (dreamId: string) => {
-    // Get auth token
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.access_token) {
       throw new Error('Not authenticated');
     }
 
-    // Call the API to delete the dream
     await deleteDreamAPI(dreamId, session.access_token);
 
     // Optimistically remove from all caches
@@ -741,30 +505,29 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         } : undefined
       };
       
-      // Remove from dream detail cache
       delete next.dreamDetail[dreamId];
       
-      // Persist updated caches
       if (next.dreamsSummary) {
-        AsyncStorage.setItem(CACHE_KEYS.summary, JSON.stringify(next.dreamsSummary));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsSummary);
       }
       if (next.dreamsWithStats) {
-        AsyncStorage.setItem(CACHE_KEYS.dreamsWithStats, JSON.stringify(next.dreamsWithStats));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsWithStats);
       }
-      AsyncStorage.removeItem(CACHE_KEYS.detail(dreamId));
+      saveJSON(CACHE_KEYS.detail(dreamId), undefined);
       
       return next;
     });
-  }, []);
 
+    refresh();
+  }, [refresh]);
+
+  // Archive a dream with optimistic update
   const archiveDream: Ctx['archiveDream'] = useCallback(async (dreamId: string) => {
-    // Get auth token
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.access_token) {
       throw new Error('Not authenticated');
     }
 
-    // Call the API to archive the dream
     await archiveDreamAPI(dreamId, session.access_token);
 
     // Optimistically update the dream in caches
@@ -786,7 +549,6 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         } : undefined
       };
       
-      // Update dream detail cache if it exists
       if (next.dreamDetail[dreamId]) {
         next.dreamDetail[dreamId] = {
           ...next.dreamDetail[dreamId]!,
@@ -797,29 +559,29 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         };
       }
       
-      // Persist updated caches
       if (next.dreamsSummary) {
-        AsyncStorage.setItem(CACHE_KEYS.summary, JSON.stringify(next.dreamsSummary));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsSummary);
       }
       if (next.dreamsWithStats) {
-        AsyncStorage.setItem(CACHE_KEYS.dreamsWithStats, JSON.stringify(next.dreamsWithStats));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsWithStats);
       }
       if (next.dreamDetail[dreamId]) {
-        AsyncStorage.setItem(CACHE_KEYS.detail(dreamId), JSON.stringify(next.dreamDetail[dreamId]));
+        saveJSON(CACHE_KEYS.detail(dreamId), next.dreamDetail[dreamId]);
       }
       
       return next;
     });
-  }, []);
 
+    refresh();
+  }, [refresh]);
+
+  // Unarchive a dream with optimistic update
   const unarchiveDream: Ctx['unarchiveDream'] = useCallback(async (dreamId: string) => {
-    // Get auth token
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.access_token) {
       throw new Error('Not authenticated');
     }
 
-    // Call the API to unarchive the dream
     await unarchiveDreamAPI(dreamId, session.access_token);
 
     // Optimistically update the dream in caches
@@ -841,7 +603,6 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         } : undefined
       };
       
-      // Update dream detail cache if it exists
       if (next.dreamDetail[dreamId]) {
         next.dreamDetail[dreamId] = {
           ...next.dreamDetail[dreamId]!,
@@ -852,40 +613,42 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         };
       }
       
-      // Persist updated caches
       if (next.dreamsSummary) {
-        AsyncStorage.setItem(CACHE_KEYS.summary, JSON.stringify(next.dreamsSummary));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsSummary);
       }
       if (next.dreamsWithStats) {
-        AsyncStorage.setItem(CACHE_KEYS.dreamsWithStats, JSON.stringify(next.dreamsWithStats));
+        saveJSON(CACHE_KEYS.dreams, next.dreamsWithStats);
       }
       if (next.dreamDetail[dreamId]) {
-        AsyncStorage.setItem(CACHE_KEYS.detail(dreamId), JSON.stringify(next.dreamDetail[dreamId]));
+        saveJSON(CACHE_KEYS.detail(dreamId), next.dreamDetail[dreamId]);
       }
       
       return next;
     });
-  }, []);
 
+    refresh();
+  }, [refresh]);
+
+  // Update action properties with optimistic update
   const updateAction: Ctx['updateAction'] = useCallback(async (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] }) => {
     // Optimistically update action in all relevant caches
     setState(s => {
       const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
       
-      // Update in dream detail caches
-      for (const k of Object.keys(next.dreamDetail)) {
-        const dd = next.dreamDetail[k]!;
-        next.dreamDetail[k] = { 
-          ...dd, 
-          actions: dd.actions.map(a => 
-            a.id === actionId 
-              ? { ...a, ...updates } as Action
-              : a
-          ) 
-        };
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            actions: dd.actions.map(a => 
+              a.id === actionId 
+                ? { ...a, ...updates } as any
+                : a
+            ) 
+          };
+        }
       }
       
-      // Update in today's occurrences (if the action is referenced there)
       if (next.today) {
         next.today = {
           ...next.today,
@@ -904,18 +667,20 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         };
       }
       
-      // Persist updated caches
       if (next.today) {
-        AsyncStorage.setItem(CACHE_KEYS.today, JSON.stringify(next.today));
+        saveJSON(CACHE_KEYS.today, next.today);
       }
-      for (const k of Object.keys(next.dreamDetail)) {
-        AsyncStorage.setItem(CACHE_KEYS.detail(k), JSON.stringify(next.dreamDetail[k]));
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          saveJSON(CACHE_KEYS.detail(k), next.dreamDetail[k]);
+        }
       }
       
       return next;
     });
   }, []);
 
+  // Delete an action occurrence with optimistic removal
   const deleteActionOccurrence: Ctx['deleteActionOccurrence'] = useCallback(async (occurrenceId: string) => {
     // Optimistically remove from Today and any open dreamDetail
     setState(s => {
@@ -926,63 +691,117 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
           occurrences: s.today.occurrences.filter(o => o.id !== occurrenceId) 
         };
       }
-      for (const k of Object.keys(next.dreamDetail)) {
-        const dd = next.dreamDetail[k]!;
-        next.dreamDetail[k] = { 
-          ...dd, 
-          occurrences: dd.occurrences.filter(o => o.id !== occurrenceId) 
-        };
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            occurrences: dd.occurrences.filter(o => o.id !== occurrenceId) 
+          };
+        }
       }
-      // persist Today cache
-      if (next.today) AsyncStorage.setItem(CACHE_KEYS.today, JSON.stringify(next.today));
+      if (next.today) saveJSON(CACHE_KEYS.today, next.today);
       return next;
     });
   }, []);
 
-  // --- Hydrate on mount
+  /**
+   * EFFECTS AND LIFECYCLE MANAGEMENT
+   * 
+   * These useEffect hooks handle app lifecycle events, authentication changes,
+   * and automatic data synchronization.
+   */
+
+  // Hydrate on mount (only load cached data, don't fetch)
   useEffect(() => {
     (async () => {
       const [summary, dreamsWithStats, today, progress] = await Promise.all([
-        loadJSON<DreamsSummaryPayload>(CACHE_KEYS.summary),
-        loadJSON<DreamsWithStatsPayload>(CACHE_KEYS.dreamsWithStats),
+        loadJSON<DreamsSummaryPayload>(CACHE_KEYS.dreams),
+        loadJSON<DreamsWithStatsPayload>(CACHE_KEYS.dreams),
         loadJSON<TodayPayload>(CACHE_KEYS.today),
         loadJSON<ProgressPayload>(CACHE_KEYS.progress),
       ]);
+      
       setState(s => ({ 
         ...s, 
         dreamsSummary: summary, 
         dreamsWithStats: dreamsWithStats,
         today: today ?? s.today,
-        progress: progress ?? s.progress
+        progress: progress ?? s.progress,
       }));
-      // kick background refresh
-      getDreamsSummary();
-      getDreamsWithStats();
-      getToday();
-      getProgress();
+
+      const timestamps = [
+        summary?.fetchedAt,
+        dreamsWithStats?.fetchedAt,
+        today?.fetchedAt,
+        progress?.fetchedAt,
+      ].filter(Boolean) as number[];
+      
+      if (timestamps.length > 0) {
+        lastFetchedAt.current = Math.max(...timestamps);
+      }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Revalidate on app foreground
+  // Load snapshot when user becomes authenticated
+  useEffect(() => {
+    console.log('DataContext auth effect triggered:', { isAuthenticated, authLoading });
+    
+    if (isAuthenticated && !authLoading) {
+      console.log('User authenticated, loading snapshot');
+      loadSnapshot().then(() => {
+        // After loading cached data, check if we need fresh data
+        console.log('Snapshot loaded, checking if refresh is needed');
+        // Add a small delay to ensure auth state is fully propagated
+        setTimeout(() => {
+          refresh();
+        }, 100);
+      });
+    } else if (!isAuthenticated && !authLoading) {
+      console.log('User not authenticated, clearing data');
+      clearAllData();
+    }
+  }, [isAuthenticated, authLoading, loadSnapshot, clearAllData, refresh]);
+
+  // Auto-refresh every 5 minutes when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    intervalRef.current = setInterval(() => {
+      refresh();
+    }, 5 * 60_000); // 5 minutes
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isAuthenticated, refresh]);
+
+  // Revalidate on app foreground (when app becomes active)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       const prev = appState.current;
       appState.current = next;
-      if (prev.match(/inactive|background/) && next === 'active') {
-        getToday();
-        getDreamsSummary();
-        getDreamsWithStats();
-        getProgress();
-        // Revalidate the currently open dream detail if any:
-        // (optional) detect current route and if it's DreamDetail, call getDreamDetail(id)
+      if (prev.match(/inactive|background/) && next === 'active' && isAuthenticated) {
+        console.log('App became active, revalidating data');
+        refresh();
       }
     });
     return () => sub.remove();
-  }, [getToday, getDreamsSummary, getDreamsWithStats, getProgress]);
+  }, [isAuthenticated, refresh]);
+
+  /**
+   * CONTEXT VALUE AND PROVIDER
+   * 
+   * Create the context value and provide it to child components.
+   */
 
   const value: Ctx = useMemo(() => ({
     state,
+    loadSnapshot,
+    refresh,
     getDreamsSummary,
     getDreamsWithStats,
     getToday,
@@ -997,11 +816,19 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     deleteActionOccurrence,
     isStale,
     lastSyncedLabel,
-  }), [state, getDreamsSummary, getDreamsWithStats, getToday, getProgress, getDreamDetail, completeOccurrence, deferOccurrence, deleteDream, archiveDream, unarchiveDream, updateAction, deleteActionOccurrence, isStale, lastSyncedLabel]);
+    clearDreamsWithStatsCache,
+    onScreenFocus,
+  }), [state]); // Only depend on state - all functions are already memoized with useCallback
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
+/**
+ * CUSTOM HOOK
+ * 
+ * Hook for consuming the DataContext. Provides type safety and ensures
+ * the context is used within the DataProvider.
+ */
 export const useData = () => {
   const ctx = useContext(DataContext);
   if (!ctx) throw new Error('useData must be used within DataProvider');

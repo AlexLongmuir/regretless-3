@@ -89,7 +89,7 @@ export function AreaChip({
           backgroundColor: getBackgroundColor(),
           borderRadius: 12,
           padding: 16,
-          marginBottom: 16,
+          marginBottom: 8,
           justifyContent: 'center',
           alignItems: 'center',
           position: 'relative',
@@ -277,7 +277,7 @@ export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
         width: '48%',
         aspectRatio: 1,
         borderRadius: 12,
-        marginBottom: 16,
+        marginBottom: 8,
         justifyContent: 'flex-start',
         alignItems: 'flex-start',
         position: 'relative',
@@ -309,9 +309,13 @@ interface AreaGridProps {
   clickable?: boolean
   showProgress?: boolean
   style?: any
+  title?: string
+  showAddButton?: boolean
+  showEditButtons?: boolean
+  showRemoveButtons?: boolean
 }
 
-export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, clickable = false, showProgress = false, style }: AreaGridProps) {
+export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, clickable = false, showProgress = false, style, title = "Areas", showAddButton = true, showEditButtons = true, showRemoveButtons = true }: AreaGridProps) {
   const handleMoveUp = (index: number) => {
     if (index > 0 && onReorder) {
       const newAreas = [...areas]
@@ -331,38 +335,72 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
   }
 
   return (
-    <View style={[
-      {
+    <View style={style}>
+      {/* Header with title and add button */}
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+      }}>
+        <Text style={{
+          fontSize: 18,
+          fontWeight: 'bold',
+          color: '#111827', // grey[900]
+        }}>
+          {title}
+        </Text>
+        {showAddButton && (
+          <TouchableOpacity
+            onPress={onAdd}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#6b7280', // grey[500]
+            }}>
+              +
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {/* Areas Grid */}
+      <View style={{
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        marginBottom: 32,
-        gap: 0
-      },
-      style
-    ]}>
-      {areas.map((area, index) => (
-        <AreaChip
-          key={area.id}
-          id={area.id}
-          title={area.title}
-          emoji={area.emoji}
-          onEdit={onEdit}
-          onRemove={onRemove}
-          onMoveUp={onReorder ? () => handleMoveUp(index) : undefined}
-          onMoveDown={onReorder ? () => handleMoveDown(index) : undefined}
-          canMoveUp={index > 0}
-          canMoveDown={index < areas.length - 1}
-          onPress={onPress}
-          clickable={clickable}
-          showProgress={showProgress}
-          completedActions={area.completedActions}
-          totalActions={area.totalActions}
-        />
-      ))}
-      
-      {/* Add Area Button - always in final grid position */}
-      <AddAreaChipInGrid onPress={onAdd} />
+        justifyContent: 'space-between'
+      }}>
+        {areas.map((area, index) => (
+          <AreaChip
+            key={area.id}
+            id={area.id}
+            title={area.title}
+            emoji={area.emoji}
+            onEdit={onEdit}
+            onRemove={onRemove}
+            onMoveUp={onReorder ? () => handleMoveUp(index) : undefined}
+            onMoveDown={onReorder ? () => handleMoveDown(index) : undefined}
+            canMoveUp={index > 0}
+            canMoveDown={index < areas.length - 1}
+            onPress={onPress}
+            clickable={clickable}
+            showProgress={showProgress}
+            completedActions={area.completedActions}
+            totalActions={area.totalActions}
+            showEditButton={showEditButtons}
+            showRemoveButton={showRemoveButtons}
+          />
+        ))}
+      </View>
     </View>
   )
 }

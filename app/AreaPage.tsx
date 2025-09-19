@@ -38,7 +38,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
     if (dreamId) {
       getDreamDetail(dreamId, { force: true });
     }
-  }, [dreamId, getDreamDetail]);
+  }, [dreamId]); // Only depend on dreamId - functions are stable from DataContext
 
   // Re-fetch data when user navigates back to this screen
   useFocusEffect(
@@ -46,7 +46,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
       if (dreamId) {
         getDreamDetail(dreamId, { force: true });
       }
-    }, [dreamId, getDreamDetail])
+    }, [dreamId]) // Only depend on dreamId - functions are stable from DataContext
   );
 
   useEffect(() => {

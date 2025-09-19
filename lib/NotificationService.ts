@@ -97,17 +97,47 @@ export class NotificationService {
   ): Promise<boolean> {
     try {
       console.log('Updating notification preferences for user:', userId, 'with:', preferences);
-      const { error } = await supabaseClient
+      
+      // First, check if preferences exist
+      const { data: existing } = await supabaseClient
         .from('notification_preferences')
-        .upsert({
-          user_id: userId,
-          ...preferences,
-          updated_at: new Date().toISOString(),
-        });
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error updating notification preferences:', error);
-        return false;
+      if (existing) {
+        // Update existing record
+        const { error } = await supabaseClient
+          .from('notification_preferences')
+          .update({
+            ...preferences,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (error) {
+          console.error('Error updating notification preferences:', error);
+          return false;
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabaseClient
+          .from('notification_preferences')
+          .insert({
+            user_id: userId,
+            push_enabled: true,
+            daily_reminders: true,
+            reminder_time: '09:00:00',
+            overdue_alerts: true,
+            achievement_notifications: true,
+            ...preferences,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (error) {
+          console.error('Error inserting notification preferences:', error);
+          return false;
+        }
       }
 
       console.log('Notification preferences updated successfully');

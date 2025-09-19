@@ -126,10 +126,22 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/create/schedule-actions">
 }
 
+// Validate ../../app/api/dreams/default-images/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/default-images/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/default-images">
+}
+
 // Validate ../../app/api/dreams/route.ts
 {
   const handler = {} as typeof import("../../app/api/dreams/route.js")
   handler satisfies RouteHandlerConfig<"/api/dreams">
+}
+
+// Validate ../../app/api/dreams/upload-image/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/upload-image/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/upload-image">
 }
 
 

@@ -44,11 +44,22 @@ import ContactUsPage from '../app/ContactUsPage';
 import TermsOfServicePage from '../app/TermsOfServicePage';
 import PrivacyPolicyPage from '../app/PrivacyPolicyPage';
 import CreateNavigator from './CreateNavigator';
+import OnboardingNavigator from './OnboardingNavigator';
+import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
+
+// Wrapper component to provide OnboardingContext to the navigator
+const OnboardingNavigatorWithProvider = () => (
+  <OnboardingProvider>
+    <OnboardingNavigator />
+  </OnboardingProvider>
+);
 
 // Import components and hooks
 import { BottomNavigation } from '../components/BottomNavigation';
 import { StickyActionSuggestions } from '../components/StickyActionSuggestions';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useEntitlementsContext } from '../contexts/EntitlementsContext';
+import { OnboardingProvider } from '../contexts/OnboardingContext';
 
 // Create stack navigators
 const AuthStack = createNativeStackNavigator();
@@ -58,14 +69,11 @@ const MainStack = createNativeStackNavigator();
  * AuthNavigator - Navigation for unauthenticated users
  * 
  * This navigator handles screens that users see when not logged in.
- * Currently just has login, but you could add:
- * - Onboarding screens
- * - Terms of service
- * - Password reset screens
- * - etc.
+ * Includes onboarding flow and login screens.
  */
 const AuthNavigator = () => (
   <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Screen name="Onboarding" component={OnboardingNavigatorWithProvider} />
     <AuthStack.Screen name="Login" component={LoginPage} />
   </AuthStack.Navigator>
 );
@@ -213,6 +221,7 @@ const MainNavigator = () => (
 const AppNavigator = () => {
   // Get authentication state from context
   const { isAuthenticated, loading, handleAuthRedirect } = useAuthContext();
+  const { hasProAccess, loading: entitlementsLoading } = useEntitlementsContext();
 
   /**
    * Handle deep linking for authentication
@@ -274,19 +283,22 @@ const AppNavigator = () => {
     };
   }, [handleAuthRedirect]);
 
-  // Show loading screen while checking authentication status
-  if (loading) {
+  // Show loading screen while checking authentication status or entitlements
+  if (loading || entitlementsLoading) {
     return <AuthLoadingPage />;
   }
 
-  // Show appropriate navigation stack based on authentication status
+  // Show appropriate navigation stack based on authentication status and entitlements
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
         // User is logged in - show main app
         <MainStack.Screen name="Main" component={MainNavigator} />
+      ) : hasProAccess ? (
+        // User has pro access but no auth - show PostPurchaseSignIn
+        <MainStack.Screen name="PostPurchaseSignIn" component={PostPurchaseSignInStep} />
       ) : (
-        // User is not logged in - show authentication screens
+        // User is not logged in and no pro access - show authentication screens
         <MainStack.Screen name="Auth" component={AuthNavigator} />
       )}
     </MainStack.Navigator>

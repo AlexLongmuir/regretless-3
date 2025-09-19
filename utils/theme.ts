@@ -130,6 +130,8 @@ export const theme = {
       800: '#1F2937',
       900: '#111827',
     },
+    black: '#000000',
+    gold: '#D8961E', // Gold color for highlighted text
     // Standardized page background color - slightly darker grey for better visual hierarchy
     pageBackground: '#E5E7EB', // grey[200] - the preferred darker grey from DreamPage
     // Default grey for secondary buttons - iOS-style grey that stands out on white
@@ -305,10 +307,14 @@ export const theme = {
     person: {
       library: 'MaterialIcons' as const,
       name: 'person'
+    },
+    arrow_left: {
+      library: 'MaterialIcons' as const,
+      name: 'keyboard-arrow-left'
     }
   },
   radius: { sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32 },
-  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48 },
+  spacing: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48, '3xl': 64, '4xl': 80 },
   typography: {
     fontFamily: {
       system: 'SF Pro Display',

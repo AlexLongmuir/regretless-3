@@ -1,18 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { theme } from '../../utils/theme';
 
 interface GoalProgressCardProps {
   dreamId: string;
   title: string;
-  targetDate: string;
+  targetDate?: string;
   currentDay: number;
   totalDays: number;
   streakCount: number;
   actionsCompleted: number;
   totalActions: number;
   imageUri?: string;
-  onPress?: (dreamId: string) => void;
 }
 
 const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
@@ -25,13 +24,40 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
   actionsCompleted,
   totalActions,
   imageUri,
-  onPress,
 }) => {
-  const daysProgress = (currentDay / totalDays) * 100;
-  const actionsProgress = (actionsCompleted / totalActions) * 100;
+  // Debug logging
+  console.log(`GoalProgressCard for ${title}:`, {
+    actionsCompleted,
+    totalActions,
+    actionsCompletedType: typeof actionsCompleted,
+    totalActionsType: typeof totalActions
+  });
 
-  const formatDate = (dateString: string) => {
+  // Handle expired dreams and edge cases
+  const isExpired = targetDate ? new Date(targetDate) < new Date() : false;
+  const isOngoing = !targetDate;
+  
+  // Cap progress at 100% for expired dreams
+  const daysProgress = totalDays > 0 ? Math.min((currentDay / totalDays) * 100, 100) : 0;
+  const actionsProgress = totalActions > 0 ? (actionsCompleted / totalActions) * 100 : 0;
+  
+  // Format day display for expired dreams
+  const getDayDisplay = () => {
+    if (isExpired) {
+      return `Completed (${totalDays} days)`;
+    } else if (isOngoing) {
+      return `Day ${currentDay}`;
+    } else {
+      return `Day ${currentDay} of ${totalDays}`;
+    }
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Ongoing';
+    
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    
     const day = date.getDate();
     const month = date.toLocaleDateString('en-US', { month: 'long' });
     const year = date.getFullYear();
@@ -55,29 +81,32 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
     label: string;
     current: number;
     total: number;
-  }) => (
-    <View style={styles.progressItem}>
-      <View style={styles.progressHeader}>
-        <View style={styles.progressLabelContainer}>
-          <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
-          <Text style={styles.progressLabel}>{label}</Text>
+  }) => {
+    // Handle NaN and invalid progress values
+    const safeProgress = isNaN(progress) ? 0 : Math.max(0, Math.min(100, progress));
+    const safeCurrent = isNaN(current) ? 0 : current;
+    const safeTotal = isNaN(total) ? 0 : total;
+    
+    return (
+      <View style={styles.progressItem}>
+        <View style={styles.progressHeader}>
+          <View style={styles.progressLabelContainer}>
+            <Text style={styles.progressPercentage}>{Math.round(safeProgress)}%</Text>
+            <Text style={styles.progressLabel}>{label}</Text>
+          </View>
+          <Text style={styles.progressText}>{safeCurrent}/{safeTotal}</Text>
         </View>
-        <Text style={styles.progressText}>{current}/{total}</Text>
-      </View>
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        <View style={styles.progressBarContainer}>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${safeProgress}%` }]} />
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={() => onPress?.(dreamId)}
-      activeOpacity={0.7}
-    >
+    <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.imageContainer}>
           {imageUri ? (
@@ -92,7 +121,7 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
         <View style={styles.details}>
           <View style={styles.progressRow}>
             <Text style={styles.dayProgress}>
-              Day {currentDay} of {totalDays}
+              {getDayDisplay()}
             </Text>
             <Text style={styles.streakText}>🔥 {streakCount}</Text>
           </View>
@@ -101,8 +130,8 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
             {title}
           </Text>
           
-          <Text style={styles.endDate}>
-            {formatDate(targetDate)}
+          <Text style={[styles.endDate, isExpired && styles.expiredText]}>
+            {isExpired ? 'Completed' : formatDate(targetDate)}
           </Text>
         </View>
       </View>
@@ -110,8 +139,8 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
       <View style={styles.progressContainer}>
         <ProgressBar
           progress={daysProgress}
-          label="days gone"
-          current={currentDay}
+          label={isExpired ? "days completed" : "days gone"}
+          current={isExpired ? totalDays : currentDay}
           total={totalDays}
         />
         
@@ -122,7 +151,7 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
           total={totalActions}
         />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -192,6 +221,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.caption1,
     color: theme.colors.grey[600],
   },
+  expiredText: {
+    color: theme.colors.success[600],
+    fontWeight: '600',
+  },
   progressContainer: {
     gap: theme.spacing.md,
   },
@@ -201,28 +234,34 @@ const styles = StyleSheet.create({
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginBottom: theme.spacing.sm,
   },
   progressLabelContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
+    flex: 1,
   },
   progressPercentage: {
     fontSize: 28,
     fontWeight: 'bold',
     color: theme.colors.grey[900],
     marginRight: theme.spacing.xs,
+    lineHeight: 28,
   },
   progressLabel: {
     fontSize: 14,
     color: theme.colors.grey[600],
     fontWeight: '400',
+    lineHeight: 14,
   },
   progressText: {
     fontSize: 12,
     color: theme.colors.grey[600],
     fontWeight: '400',
+    textAlign: 'right',
+    minWidth: 40,
+    lineHeight: 12,
   },
   progressBarContainer: {
     height: 11,

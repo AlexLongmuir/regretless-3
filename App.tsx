@@ -31,30 +31,39 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
+import { EntitlementsProvider } from './contexts/EntitlementsContext';
 import { ToastProvider } from './components/toast/ToastProvider';
 import { CreateDreamProvider } from './contexts/CreateDreamContext';
 import { DataProvider } from './contexts/DataContext';
 import { notificationService } from './lib/NotificationService';
+import { initializeRevenueCat } from './lib/revenueCat';
 
 export default function App() {
-  // Initialize notification service when app starts
+  // Initialize services when app starts
   useEffect(() => {
-    const initializeNotifications = async () => {
+    const initializeServices = async () => {
+      // Initialize notifications
       await notificationService.initialize();
+      
+      // Initialize RevenueCat (will use mock if no API key provided)
+      // Replace with your actual RevenueCat public API key when ready
+      await initializeRevenueCat(process.env.EXPO_PUBLIC_REVENUECAT_API_KEY);
     };
-    initializeNotifications();
+    initializeServices();
   }, []);
 
   return (
     <AuthProvider>
-      <DataProvider>
-        <ToastProvider>
-          <CreateDreamProvider>
-            <Navigation />
-          </CreateDreamProvider>
-          <StatusBar style="auto" />
-        </ToastProvider>
-      </DataProvider>
+      <EntitlementsProvider>
+        <DataProvider>
+          <ToastProvider>
+            <CreateDreamProvider>
+              <Navigation />
+            </CreateDreamProvider>
+            <StatusBar style="auto" />
+          </ToastProvider>
+        </DataProvider>
+      </EntitlementsProvider>
     </AuthProvider>
   );
 }

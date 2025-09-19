@@ -24,7 +24,7 @@ User's goal container with title, start_date, optional end_date, and archive cap
 | user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) |
 | title | text | Dream title | NOT NULL |
 | description | text | Dream description | |
-| start_date | date | When dream starts | NOT NULL |
+| start_date | date | When dream starts | |
 | end_date | date | Optional target end date | |
 | activated_at | timestamptz | When dream was activated (moved from draft) | |
 | image_url | text | URL to dream cover image | |
@@ -42,9 +42,11 @@ Categories inside a dream with soft-delete capability.
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
 | dream_id | uuid | Reference to dreams table | NOT NULL, FOREIGN KEY |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
 | title | text | Area title | NOT NULL |
 | icon | text | Icon identifier for UI | |
 | color | text | Hex color code for UI | |
+| position | integer | Position within dream | NOT NULL |
 | approved_at | timestamptz | When area was approved (locked) | |
 | deleted_at | timestamptz | When area was soft-deleted | |
 | created_at | timestamptz | When area was created | NOT NULL, DEFAULT now() |
@@ -57,13 +59,17 @@ Planned work inside an area (templates for recurring work).
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
 | area_id | uuid | Reference to areas table | NOT NULL, FOREIGN KEY |
+| dream_id | uuid | Reference to dreams table | NOT NULL, FOREIGN KEY |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
 | title | text | Action title | NOT NULL |
 | description | text | Action description | |
 | est_minutes | integer | Estimated time to complete | |
-| difficulty | text | Difficulty level | NOT NULL, CHECK (difficulty IN ('easy', 'medium', 'hard')) |
+| difficulty | difficulty | Difficulty level | NOT NULL, CHECK (difficulty IN ('easy', 'medium', 'hard')) |
 | repeat_every_days | integer | How often to repeat (1/2/3) | CHECK (repeat_every_days IN (1, 2, 3)) |
+| slice_count_target | integer | Target number of slices for finite actions | |
 | acceptance_criteria | jsonb | ≤3 bullets of criteria | CHECK (jsonb_array_length(acceptance_criteria) <= 3) |
 | is_active | boolean | Whether action is active | NOT NULL, DEFAULT true |
+| position | integer | Position within area | NOT NULL |
 | deleted_at | timestamptz | When action was soft-deleted | |
 | created_at | timestamptz | When action was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When action was last modified | NOT NULL, DEFAULT now() |
@@ -75,9 +81,12 @@ Each scheduled/finished unit of work (instances of actions).
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
 | action_id | uuid | Reference to actions table | NOT NULL, FOREIGN KEY |
+| dream_id | uuid | Reference to dreams table | NOT NULL, FOREIGN KEY |
+| area_id | uuid | Reference to areas table | NOT NULL, FOREIGN KEY |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
 | occurrence_no | integer | Sequence number within action | NOT NULL, CHECK (occurrence_no > 0) |
-| planned_due_on | date | Original planned due date | NOT NULL |
-| due_on | date | Mutable due date (for defers) | NOT NULL |
+| planned_due_on | date | Original planned due date | |
+| due_on | date | Mutable due date (for defers) | |
 | defer_count | integer | Number of times deferred | NOT NULL, DEFAULT 0 |
 | note | text | User's note on this occurrence | |
 | completed_at | timestamptz | When occurrence was completed | |
@@ -93,11 +102,13 @@ Many photos/files per occurrence with storage path and metadata.
 |--------|------|-------------|-------------|
 | id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
 | occurrence_id | uuid | Reference to action_occurrences table | NOT NULL, FOREIGN KEY |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
+| kind | artifact_type | Type of artifact (e.g., 'photo', 'document') | NOT NULL |
 | storage_path | text | Path in storage bucket | NOT NULL |
 | file_name | text | Original file name | NOT NULL |
-| file_size | bigint | File size in bytes | |
+| file_size_bytes | integer | File size in bytes | |
+| file_size | bigint | File size in bytes (alternative) | |
 | mime_type | text | File MIME type | |
-| kind | text | Type of artifact (e.g., 'photo', 'document') | NOT NULL |
 | metadata | jsonb | Additional file metadata | |
 | created_at | timestamptz | When artifact was uploaded | NOT NULL, DEFAULT now() |
 
@@ -130,6 +141,26 @@ User notification settings and preferences.
 | achievement_notifications | boolean | Whether achievement notifications are enabled | NOT NULL, DEFAULT true |
 | created_at | timestamptz | When preferences were created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When preferences were last modified | NOT NULL, DEFAULT now() |
+
+### user_subscriptions
+RevenueCat subscription data for user access control and billing management.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY, FOREIGN KEY REFERENCES auth.users(id) ON DELETE CASCADE |
+| rc_app_user_id | text | RevenueCat app user ID | NOT NULL, UNIQUE |
+| rc_original_app_user_id | text | Original RevenueCat app user ID | |
+| entitlement | text | User's entitlement level | NOT NULL, DEFAULT 'pro' |
+| product_id | text | Product identifier | NOT NULL |
+| store | text | Store where subscription was purchased | NOT NULL, DEFAULT 'app_store', CHECK (store IN ('app_store','play_store','stripe')) |
+| is_active | boolean | Whether subscription is currently active | NOT NULL |
+| is_trial | boolean | Whether subscription is in trial period | NOT NULL |
+| will_renew | boolean | Whether subscription will auto-renew | NOT NULL |
+| current_period_end | timestamptz | When current period ends | NOT NULL |
+| original_purchase_at | timestamptz | When subscription was originally purchased | |
+| rc_snapshot | jsonb | Full RevenueCat subscription snapshot | NOT NULL |
+| created_at | timestamptz | When subscription record was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When subscription record was last modified | NOT NULL, DEFAULT now() |
 
 **SQL Setup:**
 ```sql
@@ -164,6 +195,58 @@ CREATE TRIGGER trigger_notification_preferences_updated_at
 
 -- Grant permissions to authenticated role
 GRANT SELECT, INSERT, UPDATE, DELETE ON notification_preferences TO authenticated;
+```
+
+**SQL Setup:**
+```sql
+CREATE TABLE IF NOT EXISTS public.user_subscriptions (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  rc_app_user_id text UNIQUE NOT NULL,
+  rc_original_app_user_id text,
+  entitlement text NOT NULL DEFAULT 'pro',
+  product_id text NOT NULL,
+  store text NOT NULL DEFAULT 'app_store' CHECK (store IN ('app_store','play_store','stripe')),
+  is_active boolean NOT NULL,
+  is_trial boolean NOT NULL,
+  will_renew boolean NOT NULL,
+  current_period_end timestamptz NOT NULL,
+  original_purchase_at timestamptz,
+  rc_snapshot jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Create trigger for updated_at
+DROP TRIGGER IF EXISTS trg_user_subscriptions_updated_at ON public.user_subscriptions;
+CREATE TRIGGER trg_user_subscriptions_updated_at
+BEFORE UPDATE ON public.user_subscriptions
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- Set permissions
+REVOKE ALL ON TABLE public.user_subscriptions FROM PUBLIC;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.user_subscriptions TO authenticated;
+GRANT ALL ON TABLE public.user_subscriptions TO service_role;
+
+-- Enable RLS
+ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_subscriptions FORCE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY "Read own user_subscriptions"
+  ON public.user_subscriptions
+  FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Insert own user_subscriptions"
+  ON public.user_subscriptions
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Update own user_subscriptions"
+  ON public.user_subscriptions
+  FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 ```
 
 ## Helper Views & Functions
@@ -235,6 +318,8 @@ JOIN action_occurrences ao ON ao.action_id = act.id AND ao.completed_at IS NOT N
 GROUP BY d.user_id, d.id, ao.completed_at::date;
 ```
 
+**Note:** This view may not exist in the current database. The `current_streak` function now queries the tables directly instead of using this view.
+
 ### v_overdue_counts
 Per user/dream overdue tally.
 
@@ -253,7 +338,7 @@ GROUP BY d.user_id, d.id;
 ```
 
 ### current_streak(user_id, dream_id) → int
-Rolling streak length for a specific dream.
+Rolling streak length for a specific dream. The streak is maintained from the most recent completion date until it's actually broken by missing a day.
 
 ```sql
 CREATE OR REPLACE FUNCTION current_streak(p_user_id uuid, p_dream_id uuid)
@@ -263,14 +348,45 @@ SECURITY DEFINER
 AS $$
 DECLARE
   streak_count integer := 0;
-  current_date_check date := CURRENT_DATE;
+  current_date_check date;
+  most_recent_completion date;
 BEGIN
+  -- Find the most recent completion date for this dream
+  SELECT MAX(completed_at::date) INTO most_recent_completion
+  FROM action_occurrences ao
+  JOIN actions act ON act.id = ao.action_id
+  JOIN areas a ON a.id = act.area_id
+  JOIN dreams d ON d.id = a.dream_id
+  WHERE d.user_id = p_user_id 
+    AND d.id = p_dream_id
+    AND ao.completed_at IS NOT NULL
+    AND a.deleted_at IS NULL
+    AND act.deleted_at IS NULL
+    AND act.is_active = true
+    AND d.archived_at IS NULL;
+  
+  -- If no completions found, return 0
+  IF most_recent_completion IS NULL THEN
+    RETURN 0;
+  END IF;
+  
+  -- Start counting from the most recent completion date
+  current_date_check := most_recent_completion;
+  
+  -- Count consecutive days backwards from the most recent completion
   LOOP
     IF EXISTS (
-      SELECT 1 FROM v_dream_daily_summary 
-      WHERE user_id = p_user_id 
-        AND dream_id = p_dream_id 
-        AND completion_date = current_date_check
+      SELECT 1 FROM action_occurrences ao
+      JOIN actions act ON act.id = ao.action_id
+      JOIN areas a ON a.id = act.area_id
+      JOIN dreams d ON d.id = a.dream_id
+      WHERE d.user_id = p_user_id 
+        AND d.id = p_dream_id
+        AND ao.completed_at::date = current_date_check
+        AND a.deleted_at IS NULL
+        AND act.deleted_at IS NULL
+        AND act.is_active = true
+        AND d.archived_at IS NULL
     ) THEN
       streak_count := streak_count + 1;
       current_date_check := current_date_check - INTERVAL '1 day';
@@ -356,6 +472,11 @@ CREATE INDEX idx_ai_events_kind ON ai_events(kind);
 
 -- Notification preferences
 CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(user_id);
+
+-- User subscriptions
+CREATE INDEX idx_user_subscriptions_user_id ON user_subscriptions(user_id);
+CREATE INDEX idx_user_subscriptions_rc_app_user_id ON user_subscriptions(rc_app_user_id);
+CREATE INDEX idx_user_subscriptions_is_active ON user_subscriptions(is_active) WHERE is_active = true;
 
 -- Unique constraints for ordering (ignores soft-deleted rows)
 CREATE UNIQUE INDEX ux_areas_position_live ON areas(user_id, dream_id, position)
@@ -447,6 +568,7 @@ CREATE TRIGGER trigger_areas_updated_at BEFORE UPDATE ON areas FOR EACH ROW EXEC
 CREATE TRIGGER trigger_actions_updated_at BEFORE UPDATE ON actions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trigger_action_occurrences_updated_at BEFORE UPDATE ON action_occurrences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trigger_notification_preferences_updated_at BEFORE UPDATE ON notification_preferences FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_user_subscriptions_updated_at BEFORE UPDATE ON user_subscriptions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 ```
 
 ## Utility Functions
@@ -543,6 +665,7 @@ The following permissions are configured for the `authenticated` role:
 - `profiles`
 - `ai_events`
 - `notification_preferences`
+- `user_subscriptions`
 
 **Functions (EXECUTE):**
 - `defer_occurrence(uuid)`
@@ -577,6 +700,7 @@ ALTER TABLE action_occurrences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_artifacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS (prevents bypassing policies)
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
@@ -587,6 +711,7 @@ ALTER TABLE action_occurrences FORCE ROW LEVEL SECURITY;
 ALTER TABLE action_artifacts FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;
+ALTER TABLE user_subscriptions FORCE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can access own profile" ON profiles
@@ -652,6 +777,16 @@ CREATE POLICY "Users can insert own ai_events" ON ai_events
 -- Notification preferences policies
 CREATE POLICY "Users can access own notification preferences" ON notification_preferences
   FOR ALL USING (auth.uid() = user_id);
+
+-- User subscriptions policies
+CREATE POLICY "Read own user_subscriptions" ON user_subscriptions
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Insert own user_subscriptions" ON user_subscriptions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Update own user_subscriptions" ON user_subscriptions
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 ```
 
 ## Storage Policies
@@ -710,9 +845,11 @@ An occurrence is overdue when:
 
 ### Streak Calculation
 Current streak for a dream:
-1. Start from today and count backwards
-2. For each day, check if there's ≥1 completed occurrence
-3. Stop counting when a day has no completions
+1. Find the most recent completion date for the dream
+2. Start counting from that date and count backwards
+3. For each day, check if there's ≥1 completed occurrence
+4. Stop counting when a day has no completions
+5. The streak is maintained until it's actually broken by missing a day
 
 ## JSON Schema Examples
 
@@ -739,6 +876,32 @@ Current streak for a dream:
     "accuracy": 10
   },
   "tags": ["progress", "milestone", "before"]
+}
+```
+
+### rc_snapshot (in user_subscriptions table)
+```json
+{
+  "app_user_id": "user_12345",
+  "original_app_user_id": "user_12345",
+  "entitlements": {
+    "pro": {
+      "expires_date": "2024-12-31T23:59:59Z",
+      "product_identifier": "monthly_pro",
+      "purchase_date": "2024-01-01T00:00:00Z"
+    }
+  },
+  "subscriptions": {
+    "monthly_pro": {
+      "expires_date": "2024-12-31T23:59:59Z",
+      "original_purchase_date": "2024-01-01T00:00:00Z",
+      "is_sandbox": false,
+      "period_type": "NORMAL",
+      "store": "APP_STORE",
+      "unsubscribe_detected_at": null,
+      "billing_issues_detected_at": null
+    }
+  }
 }
 ```
 
@@ -777,4 +940,18 @@ GROUP BY d.id, d.title;
 ### Current Streak for Dream
 ```sql
 SELECT current_streak(auth.uid(), 'dream-uuid-here');
+```
+
+### User Subscription Status
+```sql
+SELECT 
+  us.entitlement,
+  us.is_active,
+  us.is_trial,
+  us.will_renew,
+  us.current_period_end,
+  us.store,
+  us.product_id
+FROM user_subscriptions us
+WHERE us.user_id = auth.uid();
 ```

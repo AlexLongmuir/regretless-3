@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface[50], // White background
   },
   ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'white',
   },
   disabled: {
     backgroundColor: theme.colors.grey[300],

@@ -652,9 +652,24 @@ const ActionOccurrencePage = () => {
       
       return actions;
     }
+    
+    // If not found in today's data, search in dream detail caches
+    if (occurrenceData?.action_id) {
+      for (const dreamId in state.dreamDetail) {
+        const dreamDetail = state.dreamDetail[dreamId];
+        if (dreamDetail) {
+          const action = dreamDetail.actions.find(a => a.id === occurrenceData.action_id);
+          if (action) {
+            console.log('🔍 Found action in dreamDetail:', action);
+            return action;
+          }
+        }
+      }
+    }
+    
     console.log('🔍 No actionData found');
     return null;
-  }, [occurrenceData]);
+  }, [occurrenceData, state.dreamDetail]);
 
   // Get dream and area data from the occurrence
   const dreamAreaData = useMemo(() => {
@@ -665,8 +680,21 @@ const ActionOccurrencePage = () => {
         areaEmoji: actionData.areas.icon
       };
     }
+    
+    // Fallback: try to get dream and area data from the occurrence directly
+    if (occurrenceData && 'actions' in occurrenceData) {
+      const actions = (occurrenceData as any).actions;
+      if (actions && actions.areas) {
+        return {
+          dreamTitle: actions.areas.dreams?.title,
+          areaName: actions.areas.title,
+          areaEmoji: actions.areas.icon
+        };
+      }
+    }
+    
     return null;
-  }, [actionData]);
+  }, [actionData, occurrenceData]);
 
   const generateAIDiscussionPrompt = () => {
     const dreamTitle = dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream';
@@ -1099,7 +1127,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                   ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
                   : (isCompleted ? "Re-submit" : "Mark as Done")
               }
-              variant="black"
+              variant="primary"
               onPress={handleComplete}
               style={styles.completeButton}
               disabled={isSubmitting}

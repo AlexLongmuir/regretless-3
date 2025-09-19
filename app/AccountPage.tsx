@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
@@ -183,31 +182,37 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Profile Picture */}
-        <View style={styles.profilePictureContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Account</Text>
+        </View>
+
+        {/* Profile Section */}
+        <View style={styles.profileSection}>
+          {/* Profile Picture */}
           <View style={styles.profilePicture}>
             <Text style={styles.profilePictureText}>
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </View>
+
+          {/* User Info */}
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>
+              {user?.email?.split('@')[0] || 'User'}
+            </Text>
+            
+            <Text style={styles.joinDate}>
+              Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '01/01/2020'}
+            </Text>
+
+            <Text style={styles.stats}>
+              {dreamStats.created} Dreams Created • {dreamStats.completed} Completed
+            </Text>
+          </View>
         </View>
-
-        {/* User Name */}
-        <Text style={styles.userName}>
-          {user?.email?.split('@')[0] || 'User'}
-        </Text>
-
-        {/* Join Date */}
-        <Text style={styles.joinDate}>
-          Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '01/01/2020'}
-        </Text>
-
-        {/* Stats */}
-        <Text style={styles.stats}>
-          {dreamStats.created} Dreams Created • {dreamStats.completed} Completed
-        </Text>
 
         {/* Settings List */}
         <View style={styles.listContainer}>
@@ -249,7 +254,7 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -259,29 +264,40 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.pageBackground,
   },
   content: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 0,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 60,
     paddingBottom: 100, // Extra padding for bottom navigation
   },
-  profilePictureContainer: {
-    marginTop: theme.spacing.xl,
+  header: {
     marginBottom: theme.spacing.lg,
-    width: '100%',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.grey[900],
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
   },
   profilePicture: {
-    width: 150,
-    height: 150,
+    width: 80,
+    height: 80,
     borderRadius: 10,
     backgroundColor: theme.colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
+    marginRight: theme.spacing.md,
   },
   profilePictureText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 80,
+    fontSize: 40,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.surface[50],
+  },
+  userInfo: {
+    flex: 1,
   },
   userName: {
     fontFamily: theme.typography.fontFamily.system,
@@ -307,7 +323,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
     color: theme.colors.grey[600],
-    marginBottom: theme.spacing.lg,
     textAlign: 'left',
   },
   listContainer: {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
 import {
   DayStreakCard,
@@ -13,14 +14,26 @@ import { useData } from '../contexts/DataContext';
 const ProgressPage = ({ navigation }: { navigation?: any }) => {
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
-  const { state, getDreamsWithStats, getProgress } = useData();
+  const { state, getDreamsWithStats, getProgress, onScreenFocus } = useData();
 
   // Load data on mount
   useEffect(() => {
     console.log('ProgressPage: Loading data...');
-    getDreamsWithStats();
-    getProgress();
-  }, [getDreamsWithStats, getProgress]);
+    // Initial load - force fetch to ensure we have data
+    getDreamsWithStats({ force: true });
+    getProgress({ force: true });
+  }, []); // No dependencies - functions are stable from DataContext
+
+  // Re-fetch data when user navigates back to this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('ProgressPage: useFocusEffect triggered');
+      onScreenFocus('dreams'); // Progress page shows dreams data
+      // Let the refresh system handle the fetching based on staleness
+      getDreamsWithStats();
+      getProgress();
+    }, []) // No dependencies - functions are stable from DataContext
+  );
 
   // Get data from context
   const dreams = state.dreamsWithStats?.dreams || [];
@@ -81,10 +94,6 @@ const ProgressPage = ({ navigation }: { navigation?: any }) => {
     console.log('Photo pressed:', photo.id);
   };
 
-  const handleDreamPress = (dreamId: string) => {
-    // Navigate to dream details
-    navigation?.navigate('Dream', { dreamId });
-  };
 
   const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
     setSelectedTimePeriod(period);
@@ -135,19 +144,25 @@ const ProgressPage = ({ navigation }: { navigation?: any }) => {
             currentDay = Math.max(1, currentDay);
           }
 
+          // Debug logging
+          console.log(`Dream ${dream.title}:`, {
+            completed_total: dream.completed_total,
+            total_actions: dream.total_actions,
+            completed_today: dream.completed_today
+          });
+
           return (
             <GoalProgressCard
               key={dream.id}
               dreamId={dream.id}
               title={dream.title}
-              targetDate={dream.end_date || ''}
+              targetDate={dream.end_date}
               currentDay={currentDay}
               totalDays={totalDays}
               streakCount={dream.current_streak || 0}
-              actionsCompleted={dream.completed_today || 0}
+              actionsCompleted={dream.completed_total || 0}
               totalActions={dream.total_actions || 0}
               imageUri={dream.image_url}
-              onPress={handleDreamPress}
             />
           );
         })}

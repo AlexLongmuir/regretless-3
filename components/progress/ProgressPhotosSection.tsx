@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
 import { theme } from '../../utils/theme';
 import { Icon } from '../Icon';
 
@@ -17,6 +17,46 @@ interface ProgressPhotosSectionProps {
   columns?: number;
 }
 
+// Skeleton loading component for individual photos
+const PhotoSkeleton: React.FC = () => {
+  const animatedValue = useMemo(() => new Animated.Value(0), []);
+  
+  React.useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [animatedValue]);
+
+  const opacity = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.photoSkeleton,
+        {
+          opacity,
+        },
+      ]}
+    />
+  );
+};
+
 const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
   photos,
   onPhotoPress,
@@ -27,16 +67,58 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState(columns);
   const [sectionExpanded, setSectionExpanded] = useState(true);
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
 
-  const renderPhoto = ({ item }: { item: ProgressPhoto }) => (
-    <TouchableOpacity
-      style={styles.photoContainer}
-      onPress={() => onPhotoPress?.(item)}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.uri }} style={styles.photo} />
-    </TouchableOpacity>
-  );
+  const handleImageLoadStart = useCallback((photoId: string) => {
+    setLoadingStates(prev => ({ ...prev, [photoId]: true }));
+    setErrorStates(prev => ({ ...prev, [photoId]: false }));
+  }, []);
+
+  const handleImageLoadEnd = useCallback((photoId: string) => {
+    setLoadingStates(prev => ({ ...prev, [photoId]: false }));
+  }, []);
+
+  const handleImageError = useCallback((photoId: string) => {
+    setLoadingStates(prev => ({ ...prev, [photoId]: false }));
+    setErrorStates(prev => ({ ...prev, [photoId]: true }));
+  }, []);
+
+  const renderPhoto = useCallback(({ item }: { item: ProgressPhoto }) => {
+    const isLoading = loadingStates[item.id] ?? true;
+    const hasError = errorStates[item.id] ?? false;
+
+    // Don't render anything if the image failed to load
+    if (hasError) {
+      return null;
+    }
+
+    return (
+      <TouchableOpacity
+        style={styles.photoContainer}
+        onPress={() => onPhotoPress?.(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.photoWrapper}>
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <PhotoSkeleton />
+            </View>
+          )}
+          
+          <Image
+            source={{ uri: item.uri }}
+            style={styles.photo}
+            onLoadStart={() => handleImageLoadStart(item.id)}
+            onLoadEnd={() => handleImageLoadEnd(item.id)}
+            onError={() => handleImageError(item.id)}
+            resizeMode="cover"
+            progressiveRenderingEnabled={true}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  }, [loadingStates, errorStates, onPhotoPress, handleImageLoadStart, handleImageLoadEnd, handleImageError]);
 
   const displayPhotos = sectionExpanded ? photos : photos.slice(0, 18);
 
@@ -44,6 +126,17 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     setSelectedColumns(newColumns);
     setShowColumnSelector(false);
   };
+
+  // Create a grid layout by organizing photos into rows
+  const createGridRows = (photos: ProgressPhoto[], columns: number) => {
+    const rows: ProgressPhoto[][] = [];
+    for (let i = 0; i < photos.length; i += columns) {
+      rows.push(photos.slice(i, i + columns));
+    }
+    return rows;
+  };
+
+  const gridRows = createGridRows(displayPhotos, selectedColumns);
 
   return (
     <View style={styles.container}>
@@ -101,15 +194,23 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
                   {sectionExpanded && (
                     <>
                       {displayPhotos.length > 0 ? (
-                        <FlatList
-                          data={displayPhotos}
-                          renderItem={renderPhoto}
-                          keyExtractor={(item) => item.id}
-                          numColumns={selectedColumns}
-                          key={selectedColumns} // This fixes the FlatList error
-                          scrollEnabled={false}
-                          contentContainerStyle={styles.gridContent}
-                        />
+                        <View style={styles.gridContainer}>
+                          {gridRows.map((row, rowIndex) => (
+                            <View key={rowIndex} style={styles.gridRow}>
+                              {row.map((photo) => (
+                                <View key={photo.id} style={styles.gridItem}>
+                                  {renderPhoto({ item: photo })}
+                                </View>
+                              ))}
+                              {/* Fill remaining space in the row if it's not full */}
+                              {row.length < selectedColumns && (
+                                Array.from({ length: selectedColumns - row.length }).map((_, emptyIndex) => (
+                                  <View key={`empty-${rowIndex}-${emptyIndex}`} style={styles.gridItem} />
+                                ))
+                              )}
+                            </View>
+                          ))}
+                        </View>
                       ) : (
                         <View style={styles.emptyState}>
                           <Text style={styles.emptyStateText}>No progress photos yet</Text>
@@ -152,17 +253,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.grey[500],
   },
-  gridContent: {
+  gridContainer: {
     paddingVertical: theme.spacing.sm,
   },
-  photoContainer: {
-    flex: 1,
-    margin: 2,
+  gridRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
   },
-  photo: {
+  gridItem: {
+    flex: 1,
+    marginHorizontal: 2,
+  },
+  photoContainer: {
+    width: '100%',
+  },
+  photoWrapper: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.grey[200],
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  photoSkeleton: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.colors.grey[300],
+    borderRadius: theme.radius.sm,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: theme.colors.grey[200],
   },
   columnSelector: {
