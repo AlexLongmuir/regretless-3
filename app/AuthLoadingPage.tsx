@@ -25,7 +25,7 @@ export const AuthLoadingPage: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.content}>
         {/* Minimal app branding */}
-        <Text style={styles.appName}>Regretless</Text>
+        <Text style={styles.appName}>Dreamer</Text>
         
         {/* Subtle loading indicator */}
         <ActivityIndicator 

@@ -14,7 +14,7 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 
 // Import RevenueCat with fallback to mock
-import Purchases from '../../lib/revenueCat';
+import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
 
 // Try to get types from RevenueCat, fall back to mock types
 let CustomerInfo: any;
@@ -54,6 +54,12 @@ const PaywallStep: React.FC = () => {
 
   const fetchOfferings = async () => {
     try {
+      // Check if RevenueCat is properly configured
+      if (!isRevenueCatConfigured()) {
+        console.log('RevenueCat not configured, skipping fetch offerings');
+        return;
+      }
+      
       const offerings = await Purchases.getOfferings();
       if (offerings.current) {
         setOffering(offerings.current);
@@ -64,6 +70,12 @@ const PaywallStep: React.FC = () => {
   };
 
   const handlePurchase = async () => {
+    // Check if RevenueCat is properly configured
+    if (!isRevenueCatConfigured()) {
+      Alert.alert('Error', 'Subscription service not available. Please try again later.');
+      return;
+    }
+
     if (!offering) return;
 
     setLoading(true);

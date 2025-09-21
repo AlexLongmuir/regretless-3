@@ -91,7 +91,7 @@ const IntroStep: React.FC = () => {
         <View style={styles.appHeader}>
           <View style={styles.headerLeft}>
             <MaterialIcons name="auto-awesome" size={24} color={theme.colors.grey[900]} />
-            <Text style={styles.appTitle}>Regretless</Text>
+            <Text style={styles.appTitle}>Dreamer</Text>
           </View>
           <MaterialIcons name="add" size={24} color={theme.colors.grey[900]} />
         </View>
@@ -119,6 +119,15 @@ const IntroStep: React.FC = () => {
             variant="black"
             style={styles.button}
           />
+          
+          {/* Temporary test button - remove in production */}
+          <Button
+            title="🧪 Test Purchase Flow"
+            onPress={() => navigation.navigate('TrialContinuation' as never)}
+            variant="outline"
+            style={[styles.button, styles.testButton]}
+          />
+          
           <Text style={styles.signInText}>
             Already purchases? <Text style={styles.signInLink} onPress={() => navigation.navigate('PostPurchaseSignIn' as never)}>Sign in</Text>
           </Text>
@@ -284,6 +293,11 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     marginBottom: theme.spacing.lg,
+  },
+  testButton: {
+    marginBottom: theme.spacing.md,
+    borderColor: theme.colors.primary[500],
+    borderWidth: 2,
   },
   signInText: {
     fontFamily: theme.typography.fontFamily.system,

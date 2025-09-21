@@ -107,7 +107,7 @@ const PrivacyPolicyPage = ({ navigation }: { navigation?: any }) => {
 
           <Text style={styles.sectionTitle}>12. Contact Us</Text>
           <Text style={styles.sectionText}>
-            If you have any questions about this Privacy Policy, please contact us at support@regretless.app.
+            If you have any questions about this Privacy Policy, please contact us at support@dreamer.app.
           </Text>
         </View>
       </ScrollView>

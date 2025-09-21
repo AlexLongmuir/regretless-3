@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { theme } from '../utils/theme';
@@ -222,6 +222,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   };
 
   const handleSaveEdit = async () => {
+    Keyboard.dismiss(); // Close keyboard when saving
     if (!dreamId || !editTitle.trim()) {
       Alert.alert('Error', 'Please enter a title for your dream.');
       return;
@@ -491,21 +492,36 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           visible={showEditModal}
           transparent={true}
           animationType="slide"
-          onRequestClose={() => setShowEditModal(false)}
+          onRequestClose={() => {
+            Keyboard.dismiss();
+            setShowEditModal(false);
+          }}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Edit Dream</Text>
                 <IconButton
                   icon="close"
-                  onPress={() => setShowEditModal(false)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowEditModal(false);
+                  }}
                   variant="secondary"
                   size="sm"
                 />
               </View>
 
-              <ScrollView style={styles.modalBody}>
+              <ScrollView 
+                style={styles.modalBody}
+                contentContainerStyle={styles.modalBodyContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
                 {dreamData?.activated_at && (
                   <View style={styles.infoBox}>
                     <Text style={styles.infoText}>
@@ -551,7 +567,10 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
               <View style={styles.modalFooter}>
                 <Button
                   title="Cancel"
-                  onPress={() => setShowEditModal(false)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowEditModal(false);
+                  }}
                   variant="secondary"
                   style={styles.modalButton}
                 />
@@ -564,7 +583,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                 />
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
     </>
@@ -676,8 +695,12 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[900],
   },
   modalBody: {
-    padding: theme.spacing.lg,
+    flex: 1,
     maxHeight: 400,
+  },
+  modalBodyContent: {
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl, // Extra padding for keyboard
   },
   inputGroup: {
     marginBottom: theme.spacing.lg,

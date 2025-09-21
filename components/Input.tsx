@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform, TouchableOpacity } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../utils/theme';
@@ -25,7 +25,7 @@ interface InputProps {
   minimumDate?: Date;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const Input = forwardRef<TextInput, InputProps>(({
   value,
   onChangeText,
   placeholder,
@@ -44,7 +44,7 @@ export const Input: React.FC<InputProps> = ({
   keyboardType = 'default',
   autoCapitalize = 'sentences',
   minimumDate,
-}) => {
+}, ref) => {
   const [internalDate, setInternalDate] = useState<Date>(new Date());
   
   // Update internal date when value changes
@@ -83,6 +83,7 @@ export const Input: React.FC<InputProps> = ({
           activeOpacity={0.7}
         >
           <TextInput
+            ref={ref}
             style={[
               styles.input,
               size === 'small' && styles.smallInput,
@@ -116,6 +117,7 @@ export const Input: React.FC<InputProps> = ({
           disabled && styles.inputContainerDisabled,
         ]}>
           <TextInput
+            ref={ref}
             style={[
               styles.input,
               size === 'small' && styles.smallInput,
@@ -155,7 +157,9 @@ export const Input: React.FC<InputProps> = ({
       )}
     </View>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   container: {

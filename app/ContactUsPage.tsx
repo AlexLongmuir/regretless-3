@@ -7,7 +7,7 @@ import { IconButton } from '../components/IconButton';
 
 const ContactUsPage = ({ navigation }: { navigation?: any }) => {
   const handleEmailPress = () => {
-    const email = 'support@regretless.app';
+    const email = 'support@dreamer.app';
     const subject = 'Support Request';
     const body = 'Hi there,\n\nI need help with...';
     const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -22,7 +22,7 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
   };
 
   const handleWebsitePress = () => {
-    const url = 'https://regretless.app';
+    const url = 'https://dreamer.app';
     Linking.canOpenURL(url).then(supported => {
       if (supported) {
         Linking.openURL(url);
@@ -56,14 +56,14 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
         <View style={styles.listContainer}>
           <ListRow
             title="Email Support"
-            subtitle="support@regretless.app"
+            subtitle="support@dreamer.app"
             leftIcon="email"
             onPress={handleEmailPress}
             isFirst={true}
           />
           <ListRow
             title="Visit Our Website"
-            subtitle="regretless.app"
+            subtitle="dreamer.app"
             leftIcon="language"
             onPress={handleWebsitePress}
           />
@@ -71,7 +71,7 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
             title="Report a Bug"
             subtitle="Help us improve the app"
             leftIcon="bug_report"
-            onPress={() => Alert.alert('Bug Report', 'Please email us at support@regretless.app with details about the issue you encountered.')}
+            onPress={() => Alert.alert('Bug Report', 'Please email us at support@dreamer.app with details about the issue you encountered.')}
             isLast={true}
           />
         </View>

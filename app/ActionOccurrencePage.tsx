@@ -8,7 +8,10 @@ import {
   Image, 
   Alert,
   TextInput,
-  Modal
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -54,6 +57,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
   }, [action]);
 
   const handleSave = () => {
+    Keyboard.dismiss(); // Close keyboard when saving
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a title for the action');
       return;
@@ -89,7 +93,11 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         {/* Header */}
         <View style={{ 
           flexDirection: 'row', 
@@ -100,7 +108,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
           borderBottomWidth: 1,
           borderBottomColor: '#E5E7EB'
         }}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}>
             <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
           </TouchableOpacity>
           <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Action</Text>
@@ -109,7 +120,12 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
@@ -255,7 +271,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
             ))}
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -936,7 +952,11 @@ Focus on practical, immediately actionable advice that moves me closer to comple
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: getPageBackgroundColor() }]}>
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: getPageBackgroundColor() }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       {/* Header */}
       <View style={styles.header}>
         <IconButton
@@ -1151,7 +1171,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         onSave={handleSaveEdit}
       />
 
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

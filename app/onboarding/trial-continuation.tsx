@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 
 // Import RevenueCat with fallback to mock
-import Purchases from '../../lib/revenueCat';
+import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
 
 // Try to get types from RevenueCat, fall back to mock types
 let PurchasesOffering: any;
@@ -31,10 +31,12 @@ try {
 const TrialContinuationStep: React.FC = () => {
   const navigation = useNavigation();
   const { hasProAccess, restorePurchases } = useEntitlementsContext();
-  const [selectedPlan, setSelectedPlan] = useState('yearly');
+  const [selectedPlan, setSelectedPlan] = useState('$rc_annual');
   const [showOneTimeOffer, setShowOneTimeOffer] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+  const [offering, setOffering] = useState<any | null>(null);
+  const [offeringsLoading, setOfferingsLoading] = useState(true);
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
 
@@ -42,47 +44,162 @@ const TrialContinuationStep: React.FC = () => {
     fetchOfferings();
   }, []);
 
-  const fetchOfferings = async () => {
+  const fetchOfferings = async (retryCount = 0) => {
     try {
+      setOfferingsLoading(true);
+      
+      // Check if RevenueCat is properly configured
+      if (!isRevenueCatConfigured()) {
+        console.log('RevenueCat not configured, using mock offerings');
+        // Set mock offering for development
+        setOffering({
+          identifier: 'mock-offering',
+          availablePackages: [
+            {
+              identifier: '$rc_annual',
+              product: { identifier: 'annual_dreamer', priceString: '£39.99' }
+            },
+            {
+              identifier: '$rc_monthly', 
+              product: { identifier: 'monthly_dreamer', priceString: '£14.99' }
+            }
+          ]
+        });
+        setOfferingsLoading(false);
+        return;
+      }
+      
+      console.log('Fetching RevenueCat offerings... (attempt', retryCount + 1, ')');
       const offerings = await Purchases.getOfferings();
+      console.log('Offerings response:', offerings);
+      
       if (offerings.current) {
+        console.log('Current offering found:', offerings.current);
         setOffering(offerings.current);
+      } else {
+        console.log('No current offering available');
+        console.log('Available offerings:', Object.keys(offerings.all));
+        
+        // Use the first available offering if current is null
+        const availableOfferings = Object.values(offerings.all);
+        if (availableOfferings.length > 0) {
+          console.log('Using first available offering:', availableOfferings[0]);
+          setOffering(availableOfferings[0] as any);
+        } else {
+          // Retry once if no offerings found
+          if (retryCount === 0) {
+            console.log('Retrying fetch offerings...');
+            setTimeout(() => fetchOfferings(1), 1000);
+            return;
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching offerings:', error);
+      
+      // Retry once on error
+      if (retryCount === 0) {
+        console.log('Retrying fetch offerings after error...');
+        setTimeout(() => fetchOfferings(1), 1000);
+        return;
+      }
+    } finally {
+      setOfferingsLoading(false);
     }
   };
 
   const handleStartTrial = async () => {
-    if (!offering) {
-      Alert.alert('Error', 'Subscription options not available. Please try again.');
+    // Check if RevenueCat is properly configured
+    if (!isRevenueCatConfigured()) {
+      console.log('RevenueCat not configured, simulating mock purchase');
+      setLoading(true);
+      
+      // Simulate purchase delay
+      setTimeout(() => {
+        console.log('Mock purchase completed successfully');
+        setLoading(false);
+        // Navigate to PostPurchaseSignIn
+        navigation.navigate('PostPurchaseSignIn' as never);
+      }, 1000);
       return;
     }
+
+    if (!offering) {
+      Alert.alert('Error', 'Subscription options are still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    console.log('Starting trial with offering:', offering);
+      console.log('Available packages:', offering.availablePackages?.map((pkg: any) => ({
+        identifier: pkg.identifier,
+        product: pkg.product?.identifier
+      })));
 
     setLoading(true);
     try {
       // Find the selected package
       const packageToPurchase = offering.availablePackages.find(
-        pkg => pkg.identifier === selectedPlan
+        (pkg: any) => pkg.identifier === selectedPlan
       );
 
       if (!packageToPurchase) {
-        throw new Error('Package not found');
+        console.log('Package not found for selectedPlan:', selectedPlan);
+        console.log('Available package identifiers:', offering.availablePackages?.map((pkg: any) => pkg.identifier));
+        Alert.alert('Error', 'Selected subscription plan not available. Please try a different plan.');
+        return;
       }
+
+      console.log('Purchasing package:', packageToPurchase.identifier);
 
       // Make the purchase
       const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
 
+      console.log('Purchase completed, customer info:', {
+        hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
+        userId: customerInfo.originalAppUserId,
+      });
+
+      // Wait a moment for RevenueCat to fully process the purchase
+      // Sometimes there's a delay between purchase completion and entitlement activation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Refresh customer info to get the latest entitlement status
+      const refreshedCustomerInfo = await Purchases.getCustomerInfo();
+      
+      console.log('Refreshed customer info after purchase:', {
+        hasProAccess: refreshedCustomerInfo.entitlements?.active?.['pro'] || false,
+        userId: refreshedCustomerInfo.originalAppUserId,
+      });
+
       // Check if user has active entitlement
-      if (customerInfo.entitlements.active['pro']) {
-        // Navigate to PostPurchaseSignIn
-        navigation.navigate('PostPurchaseSignIn' as never);
+      if (refreshedCustomerInfo.entitlements?.active?.['pro']) {
+        // Show success state briefly before navigating
+        setPurchaseSuccess(true);
+        setTimeout(() => {
+          navigation.navigate('PostPurchaseSignIn' as never);
+        }, 1500);
       } else {
-        Alert.alert('Purchase Failed', 'Please try again or contact support.');
+        // Check if this is a trial subscription that hasn't activated yet
+        const activeSubscriptions = refreshedCustomerInfo.activeSubscriptions;
+        const hasActiveSubscription = activeSubscriptions && Object.keys(activeSubscriptions).length > 0;
+        
+        if (hasActiveSubscription) {
+          // User has an active subscription but entitlement might not be active yet
+          // This can happen with trial subscriptions
+          console.log('Active subscription found but entitlement not yet active, proceeding anyway');
+          setPurchaseSuccess(true);
+          setTimeout(() => {
+            navigation.navigate('PostPurchaseSignIn' as never);
+          }, 1500);
+        } else {
+          Alert.alert('Purchase Failed', 'Please try again or contact support.');
+        }
       }
     } catch (error: any) {
+      console.error('Purchase error:', error);
       if (error.userCancelled) {
         // User cancelled, no action needed
+        console.log('User cancelled purchase');
       } else {
         Alert.alert('Purchase Error', error.message || 'Something went wrong');
       }
@@ -159,17 +276,17 @@ const TrialContinuationStep: React.FC = () => {
 
   const pricingPlans = [
     {
-      id: 'monthly',
+      id: '$rc_monthly',
       title: 'Monthly',
       price: '£14.99/mo',
-      selected: selectedPlan === 'monthly',
+      selected: selectedPlan === '$rc_monthly',
     },
     {
-      id: 'yearly',
+      id: '$rc_annual',
       title: 'Yearly',
       price: '£3.33/mo',
       badge: '3 DAYS FREE',
-      selected: selectedPlan === 'yearly',
+      selected: selectedPlan === '$rc_annual',
     },
   ];
 
@@ -259,16 +376,26 @@ const TrialContinuationStep: React.FC = () => {
         <View style={styles.offerSection}>
           <Text style={styles.noPaymentText}>✓ No Payment Due Now</Text>
           <Button
-            title={loading ? "Processing..." : (selectedPlan === 'monthly' ? "Start Monthly Subscription" : "Start my 3-Day Free Trial")}
+            title={
+              purchaseSuccess
+                ? "✓ Purchase Successful!"
+                : loading 
+                  ? "Processing..." 
+                  : offeringsLoading 
+                    ? "Loading subscription options..." 
+                    : (selectedPlan === '$rc_monthly' ? "Start Monthly Subscription" : "Start my 3-Day Free Trial")
+            }
             onPress={handleStartTrial}
-            variant="black"
-            disabled={loading}
+            variant={purchaseSuccess ? "success" : "black"}
+            disabled={loading || offeringsLoading || purchaseSuccess}
             style={styles.trialButton}
           />
           <Text style={styles.pricingText}>
-            {selectedPlan === 'monthly' 
-              ? "£14.99 per month" 
-              : "3 days free, then £39.99 per year (£3.33 / month)"
+            {purchaseSuccess 
+              ? "Redirecting to sign in..." 
+              : selectedPlan === '$rc_monthly' 
+                ? "£14.99 per month" 
+                : "3 days free, then £39.99 per year (£3.33 / month)"
             }
           </Text>
         </View>
@@ -404,7 +531,7 @@ const styles = StyleSheet.create({
   },
   timelineDescription: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
     color: theme.colors.grey[600],
     lineHeight: 18,
@@ -460,7 +587,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.caption1,
+    fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: '#fff',
   },
@@ -503,7 +630,7 @@ const styles = StyleSheet.create({
   },
   pricingText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.caption1,
+    fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
     color: theme.colors.grey[600],
     textAlign: 'center',

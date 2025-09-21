@@ -103,7 +103,7 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
             <View style={styles.headerText}>
               <View style={styles.titleContainer}>
                 <Image source={require('../assets/star.png')} style={styles.appIcon} />
-                <Text style={styles.title}>Regretless</Text>
+                <Text style={styles.title}>Dreamer</Text>
               </View>
               <Text style={styles.subtitle}>
                 Keep pushing forward. Every step counts.

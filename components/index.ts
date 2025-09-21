@@ -29,6 +29,7 @@ export { StickyActionSuggestions } from './StickyActionSuggestions'
 export { BottomNavigation } from './BottomNavigation'
 export { default as AIRatingRing } from './AIRatingRing'
 export { default as SkeletonLoader, ActionChipSkeleton } from './SkeletonLoader'
+export { RevenueCatDebugger } from './RevenueCatDebugger'
 
 // Progress components
 export * from './progress'

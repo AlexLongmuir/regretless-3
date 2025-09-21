@@ -125,4 +125,4 @@ This prevents users from getting stuck and ensures a smooth experience.
 - **Consistent UX** - Follows your existing design patterns
 - **Scalable** - Clean architecture for future enhancements
 
-Your onboarding flow is now complete and ready to guide new users through their journey with Regretless! 🎉
+Your onboarding flow is now complete and ready to guide new users through their journey with Dreamer! 🎉

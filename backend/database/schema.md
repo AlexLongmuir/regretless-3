@@ -1,7 +1,7 @@
 # Dreams Database Schema Documentation
 
 ## Overview
-This document describes the Supabase database schema for the Regretless Dreams app (MVP v1). The schema enables users to set up dreams, break them into areas → actions, complete occurrences with photo evidence/notes, and track today, overdue, and streaks—all with strong tenant isolation.
+This document describes the Supabase database schema for the Dreamer Dreams app (MVP v1). The schema enables users to set up dreams, break them into areas → actions, complete occurrences with photo evidence/notes, and track today, overdue, and streaks—all with strong tenant isolation.
 
 ## Core Tables
 

@@ -235,8 +235,8 @@ const AppNavigator = () => {
    * 3. If URL matches auth callback pattern, process it
    * 
    * Example URLs this handles:
-   * - regretless://auth/callback?access_token=...  (magic link)
-   * - regretless://auth/callback#access_token=...  (OAuth)
+   * - dreamer://auth/callback?access_token=...  (magic link)
+   * - dreamer://auth/callback#access_token=...  (OAuth)
    */
   useEffect(() => {
     /**

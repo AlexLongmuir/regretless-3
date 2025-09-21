@@ -33,12 +33,12 @@ const TermsOfServicePage = ({ navigation }: { navigation?: any }) => {
         <View style={styles.contentSection}>
           <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
           <Text style={styles.sectionText}>
-            By accessing and using the Regretless app, you accept and agree to be bound by the terms and provision of this agreement.
+            By accessing and using the Dreamer app, you accept and agree to be bound by the terms and provision of this agreement.
           </Text>
 
           <Text style={styles.sectionTitle}>2. Use License</Text>
           <Text style={styles.sectionText}>
-            Permission is granted to temporarily download one copy of Regretless for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
+            Permission is granted to temporarily download one copy of Dreamer for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
           </Text>
           <Text style={styles.bulletPoint}>• modify or copy the materials</Text>
           <Text style={styles.bulletPoint}>• use the materials for any commercial purpose or for any public display</Text>
@@ -91,7 +91,7 @@ const TermsOfServicePage = ({ navigation }: { navigation?: any }) => {
 
           <Text style={styles.sectionTitle}>11. Contact Information</Text>
           <Text style={styles.sectionText}>
-            If you have any questions about these Terms of Service, please contact us at support@regretless.app.
+            If you have any questions about these Terms of Service, please contact us at support@dreamer.app.
           </Text>
         </View>
       </ScrollView>

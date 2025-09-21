@@ -4,8 +4,8 @@
  * Asks user about their current progress in their dream
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Keyboard, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -28,6 +28,7 @@ const CurrentProgressStep: React.FC = () => {
   
   const [customProgress, setCustomProgress] = useState('');
   const selectedAnswer = state.answers[4]; // Question ID 4 for current progress
+  const inputRef = useRef<TextInput>(null);
 
   const handlePresetSelect = (text: string) => {
     updateAnswer(4, text);
@@ -42,26 +43,38 @@ const CurrentProgressStep: React.FC = () => {
   };
 
   const handleContinue = () => {
+    Keyboard.dismiss(); // Close keyboard when continuing
     if (selectedAnswer || customProgress.trim()) {
       navigation.navigate('AchievementComparison' as never);
     }
   };
 
   const handleBack = () => {
+    Keyboard.dismiss(); // Close keyboard when going back
     navigation.goBack();
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <OnboardingHeader 
         onBack={handleBack}
         showProgress={true}
       />
       
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>What's your current progress in your dream?</Text>
         
         <Input
+          ref={inputRef}
           value={customProgress}
           onChangeText={handleCustomInput}
           placeholder="Start writing..."
@@ -81,6 +94,9 @@ const CurrentProgressStep: React.FC = () => {
             />
           ))}
         </View>
+        
+        {/* Add spacing area before button */}
+        <View style={styles.spacingArea} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -92,7 +108,7 @@ const CurrentProgressStep: React.FC = () => {
           disabled={!selectedAnswer && !customProgress.trim()}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -107,6 +123,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing['2xl'],
+    paddingBottom: theme.spacing['4xl'], // Extra padding to ensure content is scrollable above keyboard
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,
@@ -119,7 +136,10 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.lg, // Add spacing between input and first list row
+  },
+  spacingArea: {
+    height: theme.spacing['4xl'], // Large spacing between input and button
   },
   optionsContainer: {
     gap: theme.spacing.sm,
@@ -127,6 +147,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground, // Ensure footer has background
   },
   button: {
     width: '100%',

@@ -21,7 +21,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Platform, Animated, Dimensions, Easing, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Platform, Animated, Dimensions, Easing, Modal, TouchableOpacity, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
@@ -165,6 +165,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleCloseEmailModal = () => {
+    Keyboard.dismiss(); // Close keyboard when closing modal
     setIsEmailModalVisible(false);
     setEmail('');
     setPassword('');
@@ -173,6 +174,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleEmailAuthSubmit = async () => {
+    Keyboard.dismiss(); // Close keyboard when submitting
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
@@ -191,6 +193,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleMagicLink = async () => {
+    Keyboard.dismiss(); // Close keyboard when submitting
     if (!email) {
       Alert.alert('Error', 'Please enter your email address');
       return;
@@ -244,7 +247,7 @@ export const LoginPage: React.FC = () => {
     <View style={styles.container}>
       {/* App Title */}
       <View style={styles.header}>
-        <Text style={styles.appName}>Regretless</Text>
+        <Text style={styles.appName}>Dreamer</Text>
       </View>
 
       {/* Rotating Messages */}
@@ -322,7 +325,11 @@ export const LoginPage: React.FC = () => {
         animationType="slide"
         onRequestClose={handleCloseEmailModal}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -333,7 +340,12 @@ export const LoginPage: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalForm}>
+            <ScrollView 
+              style={styles.modalForm}
+              contentContainerStyle={styles.modalFormContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Input
                 label="Email"
                 value={email}
@@ -375,9 +387,9 @@ export const LoginPage: React.FC = () => {
                 disabled={loading || !email}
                 style={styles.modalButton}
               />
-            </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -478,7 +490,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xs,
   },
   modalForm: {
+    flex: 1,
+  },
+  modalFormContent: {
     gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xl, // Extra padding for keyboard
   },
   modalButton: {
     width: '100%',

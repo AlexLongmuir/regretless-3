@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView } from 'react-native'
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -40,9 +40,18 @@ export default function QuestionsStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <CreateScreenHeader step="questions" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={{ 
           fontSize: 18, 
           fontWeight: 'bold', 
@@ -94,7 +103,8 @@ export default function QuestionsStep() {
         left: 0, 
         right: 0, 
         padding: 16,
-        paddingBottom: 32
+        paddingBottom: 32,
+        backgroundColor: theme.colors.pageBackground
       }}>
         <Button 
           title="Continue"
@@ -102,6 +112,6 @@ export default function QuestionsStep() {
           onPress={handleContinue}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   )
 }

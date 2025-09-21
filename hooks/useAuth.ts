@@ -172,7 +172,7 @@ export const useAuth = (): AuthHook => {
         email,
         options: {
           // Deep link that will open the app when magic link is clicked
-          emailRedirectTo: 'regretless://auth/callback',
+          emailRedirectTo: 'dreamer://auth/callback',
         },
       });
 
@@ -222,6 +222,9 @@ export const useAuth = (): AuthHook => {
       // This will be false on Android or in web browsers
       const isAvailable = await AppleAuthentication.isAvailableAsync();
       
+      console.log('Apple Sign In availability check:', isAvailable);
+      console.log('Running on device:', !__DEV__ || Platform.OS === 'ios');
+      
       if (!isAvailable) {
         console.log('Native Apple Sign In not available, falling back to OAuth...');
         // Fall back to OAuth flow if native is not available
@@ -229,6 +232,9 @@ export const useAuth = (): AuthHook => {
       }
 
       console.log('Starting native Apple Sign In...');
+      console.log('Bundle identifier:', Constants.expoConfig?.ios?.bundleIdentifier);
+      console.log('iOS version:', Platform.Version);
+      console.log('App version:', Constants.expoConfig?.version);
 
       // Request Apple authentication
       const credential = await AppleAuthentication.signInAsync({
@@ -275,8 +281,25 @@ export const useAuth = (): AuthHook => {
         return { success: false, error: 'Sign in was cancelled' };
       }
 
-      const errorMessage = error.message || 'Apple Sign In failed';
       console.error('Apple Sign In error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error userInfo:', error.userInfo);
+      
+      // More specific error handling
+      let errorMessage = 'Apple Sign In failed';
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        errorMessage = 'Sign in was canceled';
+      } else if (error.code === 'ERR_REQUEST_NOT_HANDLED') {
+        errorMessage = 'Apple Sign In not available on this device';
+      } else if (error.code === 'ERR_REQUEST_NOT_INTERACTIVE') {
+        errorMessage = 'Apple Sign In not available in this context';
+      } else if (error.message?.includes('authorization attempt failed')) {
+        errorMessage = 'Apple Sign In configuration issue - check Apple Developer Console';
+      } else {
+        errorMessage = error.message || 'Apple Sign In failed';
+      }
+      
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -306,10 +329,10 @@ export const useAuth = (): AuthHook => {
       // Check if this is a hash-based redirect (OAuth) or query-based (magic link)
       let params: URLSearchParams;
       if (parsedUrl.hash) {
-        // OAuth redirects use hash fragments (regretless://auth/callback#access_token=...)
+        // OAuth redirects use hash fragments (dreamer://auth/callback#access_token=...)
         params = new URLSearchParams(parsedUrl.hash.substring(1));
       } else {
-        // Magic link redirects use query parameters (regretless://auth/callback?access_token=...)
+        // Magic link redirects use query parameters (dreamer://auth/callback?access_token=...)
         params = new URLSearchParams(parsedUrl.search);
       }
 
@@ -379,7 +402,7 @@ export const useAuth = (): AuthHook => {
         provider,
         options: {
           // Deep link that will open the app after OAuth completion
-          redirectTo: 'regretless://auth/callback',
+          redirectTo: 'dreamer://auth/callback',
           // Skip browser redirect for mobile apps - we'll handle it manually
           skipBrowserRedirect: true,
         },
@@ -402,7 +425,7 @@ export const useAuth = (): AuthHook => {
       // Step 2: Open the OAuth URL in a browser
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
-        'regretless://auth/callback',
+        'dreamer://auth/callback',
         {
           // Use ephemeral session for better security
           preferEphemeralSession: true,

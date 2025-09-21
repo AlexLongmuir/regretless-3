@@ -40,14 +40,14 @@ class MockPurchasesClass {
           {
             identifier: 'monthly',
             product: {
-              identifier: 'monthly_subscription',
+              identifier: 'monthly_dreamer',
               priceString: '$9.99'
             }
           },
           {
             identifier: 'annual',
             product: {
-              identifier: 'annual_subscription', 
+              identifier: 'annual_dreamer', 
               priceString: '$79.99'
             }
           }

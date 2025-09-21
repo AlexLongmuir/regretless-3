@@ -28,7 +28,9 @@
  */
 
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Constants from 'expo-constants';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
 import { EntitlementsProvider } from './contexts/EntitlementsContext';
@@ -39,18 +41,39 @@ import { notificationService } from './lib/NotificationService';
 import { initializeRevenueCat } from './lib/revenueCat';
 
 export default function App() {
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Initialize services when app starts
   useEffect(() => {
     const initializeServices = async () => {
-      // Initialize notifications
-      await notificationService.initialize();
-      
-      // Initialize RevenueCat (will use mock if no API key provided)
-      // Replace with your actual RevenueCat public API key when ready
-      await initializeRevenueCat(process.env.EXPO_PUBLIC_REVENUECAT_API_KEY);
+      try {
+        // Initialize notifications
+        await notificationService.initialize();
+        
+        // Initialize RevenueCat (will use mock if no API key provided)
+        const revenueCatApiKey = Constants.expoConfig?.extra?.revenueCatApiKey;
+        await initializeRevenueCat(revenueCatApiKey);
+        
+        console.log('All services initialized successfully');
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Error initializing services:', error);
+        // Still set initialized to true to prevent app from hanging
+        setIsInitialized(true);
+      }
     };
     initializeServices();
   }, []);
+
+  // Show loading screen while services are initializing
+  if (!isInitialized) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Initializing...</Text>
+        <StatusBar style="auto" />
+      </View>
+    );
+  }
 
   return (
     <AuthProvider>
@@ -67,3 +90,16 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
+  },
+});

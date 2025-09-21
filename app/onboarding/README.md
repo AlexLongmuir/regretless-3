@@ -1,6 +1,6 @@
 # Onboarding Flow
 
-This directory contains the complete onboarding flow for the Regretless app, designed to guide new users through the app introduction, subscription purchase, and authentication process.
+This directory contains the complete onboarding flow for the Dreamer app, designed to guide new users through the app introduction, subscription purchase, and authentication process.
 
 ## Flow Overview
 

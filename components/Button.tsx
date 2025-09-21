@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'black';
+  variant?: 'primary' | 'secondary' | 'outline' | 'black' | 'success';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   style?: ViewStyle;
@@ -44,7 +44,7 @@ export const Button: React.FC<ButtonProps> = ({
         )}
         <Text style={[
           styles.text, 
-          styles[`${variant}Text`], 
+          styles[`${variant}Text` as keyof typeof styles], 
           disabled && styles.disabledText,
           icon && styles.textWithIcon
         ]}>
@@ -95,6 +95,9 @@ const styles = StyleSheet.create({
   black: {
     backgroundColor: theme.colors.black,
   },
+  success: {
+    backgroundColor: theme.colors.success[500],
+  },
   disabled: {
     backgroundColor: theme.colors.grey[300],
     borderColor: theme.colors.grey[300],
@@ -115,6 +118,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primary[600],
   },
   blackText: {
+    color: '#ffffff',
+  },
+  successText: {
     color: '#ffffff',
   },
   disabledText: {

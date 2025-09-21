@@ -7,9 +7,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
@@ -19,7 +20,7 @@ import { updateSubscriptionStatus } from '../../utils/onboardingFlow';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
-  const { signInWithApple, signInWithGoogle, loading: authLoading, user } = useAuthContext();
+  const { signInWithApple, signInWithGoogle, loading: authLoading, user, isAuthenticated } = useAuthContext();
   const { 
     customerInfo, 
     hasProAccess, 
@@ -29,35 +30,75 @@ const PostPurchaseSignInStep: React.FC = () => {
     linking 
   } = useEntitlementsContext();
 
+  // Test Apple Sign In availability on component mount
+  useEffect(() => {
+    const testAppleSignIn = async () => {
+      try {
+        const AppleAuth = await import('expo-apple-authentication');
+        const AppleAuthentication = AppleAuth.default;
+        const isAvailable = await AppleAuthentication.isAvailableAsync();
+        console.log('Apple Sign In availability test:', isAvailable);
+        
+        // Additional diagnostic info
+        console.log('=== Apple Sign In Diagnostics ===');
+        console.log('Bundle ID:', Constants.expoConfig?.ios?.bundleIdentifier);
+        console.log('App Name:', Constants.expoConfig?.name);
+        console.log('Platform:', Platform.OS);
+        console.log('Platform Version:', Platform.Version);
+        console.log('Is Device:', Platform.OS === 'ios');
+        console.log('Expo Config:', JSON.stringify(Constants.expoConfig?.ios, null, 2));
+        console.log('================================');
+      } catch (error) {
+        console.log('Apple Sign In not available:', error);
+      }
+    };
+    testAppleSignIn();
+  }, []);
+
+  // Auto-navigate when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      console.log('User authenticated in PostPurchaseSignIn, navigating to main app');
+      
+      // Wait a moment for RevenueCat linking to complete
+      const timer = setTimeout(() => {
+        navigation.navigate('Main' as never);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user?.id, navigation]);
+
   const handleAppleSignIn = async () => {
     try {
       const result = await signInWithApple();
       
-      if (result.success && user?.id) {
-        // Link the RevenueCat user with the authenticated user
-        const linkResult = await linkRevenueCatUser(user.id);
-        
-        if (linkResult.success && customerInfo) {
-          // Store billing snapshot in Supabase
-          const storeResult = await storeBillingSnapshot(customerInfo);
-          
-          if (storeResult.success) {
-            // Update subscription status in AsyncStorage
-            await updateSubscriptionStatus(true);
-            
-            // Navigate to main app
-            navigation.navigate('Main' as never);
-          } else {
-            Alert.alert('Error', storeResult.error || 'Failed to save subscription data');
-          }
-        } else {
-          Alert.alert('Error', linkResult.error || 'Failed to link subscription account');
-        }
+      if (result.success) {
+        console.log('Apple Sign In successful');
+        // Don't show error - the auth state change and auto-linking will handle everything
+        // The user will be navigated to the main app automatically via the auth state listener
       } else {
-        Alert.alert('Sign In Failed', result.error || 'Something went wrong');
+        // Only show error if sign-in actually failed
+        const errorMessage = result.error || 'Apple Sign In failed. Please try again or use Google Sign In.';
+        Alert.alert('Sign In Failed', errorMessage);
       }
     } catch (error: any) {
-      Alert.alert('Sign In Error', error.message || 'Something went wrong');
+      console.error('Apple Sign In error:', error);
+      
+      // Check if this is a configuration issue
+      if (error.message?.includes('authorization attempt failed')) {
+        Alert.alert(
+          'Apple Sign In Not Available', 
+          'Apple Sign In is not properly configured. Please use Google Sign In or continue without signing in.',
+          [
+            { text: 'Try Google Sign In', onPress: handleGoogleSignIn },
+            { text: 'Continue Without Sign In', onPress: handleSkipForNow },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+      } else {
+        Alert.alert('Sign In Error', 'Apple Sign In is not available. Please try Google Sign In or continue without signing in.');
+      }
     }
   };
 

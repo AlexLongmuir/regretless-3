@@ -1,13 +1,13 @@
 # RevenueCat Setup Guide
 
-This guide will help you set up RevenueCat for the onboarding flow in your Regretless app.
+This guide will help you set up RevenueCat for the onboarding flow in your Dreamer app.
 
 ## 1. RevenueCat Account Setup
 
 1. **Create RevenueCat Account**
    - Go to [RevenueCat Dashboard](https://app.revenuecat.com/)
    - Sign up for a free account
-   - Create a new project for your Regretless app
+   - Create a new project for your Dreamer app
 
 2. **Get API Keys**
    - Navigate to Project Settings → API Keys

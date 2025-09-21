@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useToast } from '../../components/toast/ToastProvider'
@@ -28,6 +28,7 @@ export default function TitleStep() {
   }
 
   const handleContinue = async () => {
+    Keyboard.dismiss(); // Close keyboard when continuing
     if (!title.trim()) {
       toast.show('Add a title')
       return
@@ -65,9 +66,18 @@ export default function TitleStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <CreateScreenHeader step="title" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={{ 
           fontSize: 18, 
           fontWeight: 'bold', 
@@ -128,7 +138,8 @@ export default function TitleStep() {
         left: 0, 
         right: 0, 
         padding: 16,
-        paddingBottom: 32
+        paddingBottom: 32,
+        backgroundColor: theme.colors.pageBackground
       }}>
         <Button 
           title="Continue"
@@ -136,7 +147,7 @@ export default function TitleStep() {
           onPress={handleContinue}
         />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
