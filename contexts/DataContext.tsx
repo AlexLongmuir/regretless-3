@@ -90,6 +90,7 @@ type Ctx = {
   isStale: (fetchedAt?: number, ttlMs?: number) => boolean;
   lastSyncedLabel: (fetchedAt?: number) => string;
   clearDreamsWithStatsCache: () => void;
+  checkDreamCompletion: (dreamId: string) => Promise<boolean>;
   
   // Screen focus tracking for automatic refresh
   onScreenFocus: (screenName: 'today' | 'dreams' | 'dream-detail', dreamId?: string) => void;
@@ -385,6 +386,49 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   }, [fetchDreamDetail, state.dreamDetail]);
 
   /**
+   * DREAM COMPLETION DETECTION
+   * 
+   * Check if a dream is complete (all areas approved and all actions completed)
+   */
+  const checkDreamCompletion = useCallback(async (dreamId: string): Promise<boolean> => {
+    try {
+      // Check if all areas are approved
+      const { data: areas, error: areasError } = await supabaseClient
+        .from('areas')
+        .select('id, approved_at')
+        .eq('dream_id', dreamId)
+        .is('deleted_at', null);
+        
+      if (areasError) {
+        console.error('Error checking areas for dream completion:', areasError);
+        return false;
+      }
+      
+      const allAreasApproved = areas?.every(area => area.approved_at) ?? false;
+      if (!allAreasApproved) {
+        return false;
+      }
+      
+      // Check if all action occurrences are completed
+      const { data: occurrences, error: occurrencesError } = await supabaseClient
+        .from('action_occurrences')
+        .select('id, completed_at')
+        .eq('dream_id', dreamId);
+        
+      if (occurrencesError) {
+        console.error('Error checking occurrences for dream completion:', occurrencesError);
+        return false;
+      }
+      
+      const allOccurrencesComplete = occurrences?.every(occ => occ.completed_at) ?? false;
+      return allOccurrencesComplete;
+    } catch (error) {
+      console.error('Error checking dream completion:', error);
+      return false;
+    }
+  }, []);
+
+  /**
    * OPTIMISTIC WRITES
    * 
    * These functions provide immediate UI updates (optimistic updates) while
@@ -429,9 +473,44 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       console.error('Error completing occurrence:', error);
       await refresh(true);
     } else {
+      // Check if this completion makes the dream complete
+      try {
+        const { data: occurrenceData } = await supabaseClient
+          .from('action_occurrences')
+          .select(`
+            dream_id,
+            actions!inner(
+              areas!inner(
+                dreams!inner(id, title, completed_at)
+              )
+            )
+          `)
+          .eq('id', occurrenceId)
+          .single();
+          
+        if (occurrenceData?.actions?.[0]?.areas?.[0]?.dreams?.[0]) {
+          const dream = occurrenceData.actions[0].areas[0].dreams[0];
+          const dreamId = dream.id;
+          const isDreamComplete = await checkDreamCompletion(dreamId);
+          
+          if (isDreamComplete) {
+            console.log(`🎉 Dream "${dream.title}" is now complete!`);
+            
+            // Mark dream as complete
+            await supabaseClient
+              .from('dreams')
+              .update({ completed_at: new Date().toISOString() })
+              .eq('id', dreamId);
+          }
+        }
+      } catch (completionError) {
+        console.error('Error checking dream completion:', completionError);
+        // Don't fail the whole operation if completion check fails
+      }
+      
       refresh();
     }
-  }, [refresh]);
+  }, [refresh, checkDreamCompletion]);
 
   // Defer an action occurrence to tomorrow with optimistic update
   const deferOccurrence: Ctx['deferOccurrence'] = useCallback(async (occurrenceId: string, newDueDate?: string) => {
@@ -817,6 +896,7 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     isStale,
     lastSyncedLabel,
     clearDreamsWithStatsCache,
+    checkDreamCompletion,
     onScreenFocus,
   }), [state]); // Only depend on state - all functions are already memoized with useCallback
 

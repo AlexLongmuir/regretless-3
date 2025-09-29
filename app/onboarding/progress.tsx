@@ -9,6 +9,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { OnboardingHeader } from '../../components/onboarding';
+import { Icon } from '../../components/Icon';
 
 const progressMessages = [
   "Analyzing your responses...",
@@ -38,10 +39,14 @@ const ProgressStep: React.FC = () => {
       setCurrentMessageIndex((prev) => (prev + 1) % progressMessages.length);
     }, 1500);
 
-    // Progress update every 100ms
+    // Progress update with inverse exponential curve
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        const newProgress = prev + 1;
+        // Inverse exponential: fast at start, very slow at end
+        // Using formula: increment = 1 / (1 + prev/10)^2
+        const increment = 1 / Math.pow(1 + prev / 10, 2);
+        const newProgress = Math.min(prev + increment, 100);
+        
         if (newProgress >= 100) {
           clearInterval(progressInterval);
           // Auto-navigate to final page
@@ -51,7 +56,7 @@ const ProgressStep: React.FC = () => {
         }
         return newProgress;
       });
-    }, 100);
+    }, 50);
 
     progressAnimation.start();
 
@@ -95,58 +100,82 @@ const ProgressStep: React.FC = () => {
           
           <View style={styles.checklistContainer}>
             <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 8 && styles.checkboxChecked]} />
+              <View style={[styles.checkbox, progress > 2 && styles.checkboxChecked]}>
+                {progress > 2 && <Icon name="check" size={10} color="white" />}
+              </View>
               <Text style={styles.checklistText}>Creating your personalized dream plan</Text>
             </View>
             <View style={styles.checklistSubItems}>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 16 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 5 && styles.checkboxChecked]}>
+                  {progress > 5 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Goal areas and timeline</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 24 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 8 && styles.checkboxChecked]}>
+                  {progress > 8 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Daily action recommendations</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 32 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 12 && styles.checkboxChecked]}>
+                  {progress > 12 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Progress tracking system</Text>
               </View>
             </View>
             
             <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 40 && styles.checkboxChecked]} />
+              <View style={[styles.checkbox, progress > 18 && styles.checkboxChecked]}>
+                {progress > 18 && <Icon name="check" size={10} color="white" />}
+              </View>
               <Text style={styles.checklistText}>Setting up your daily workflow</Text>
             </View>
             <View style={styles.checklistSubItems}>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 48 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 25 && styles.checkboxChecked]}>
+                  {progress > 25 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Today's action cards</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 56 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 35 && styles.checkboxChecked]}>
+                  {progress > 35 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Progress photo gallery</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 64 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 50 && styles.checkboxChecked]}>
+                  {progress > 50 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Streak tracking</Text>
               </View>
             </View>
             
             <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 72 && styles.checkboxChecked]} />
+              <View style={[styles.checkbox, progress > 70 && styles.checkboxChecked]}>
+                {progress > 70 && <Icon name="check" size={10} color="white" />}
+              </View>
               <Text style={styles.checklistText}>Preparing your progress dashboard</Text>
             </View>
             <View style={styles.checklistSubItems}>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 80 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 85 && styles.checkboxChecked]}>
+                  {progress > 85 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Weekly/monthly analytics</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 88 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 93 && styles.checkboxChecked]}>
+                  {progress > 93 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>Achievement milestones</Text>
               </View>
               <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 96 && styles.checkboxChecked]} />
+                <View style={[styles.checkbox, progress > 97 && styles.checkboxChecked]}>
+                  {progress > 97 && <Icon name="check" size={10} color="white" />}
+                </View>
                 <Text style={styles.checklistText}>AI-powered insights</Text>
               </View>
             </View>
@@ -231,6 +260,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: theme.colors.grey[300],
     marginRight: theme.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkboxChecked: {
     backgroundColor: theme.colors.primary[600],

@@ -1,0 +1,233 @@
+import React from 'react'
+import { View, Text, ScrollView, StyleSheet, Image } from 'react-native'
+import { useNavigation, useRoute } from '@react-navigation/native'
+import { Button } from '../components/Button'
+import { theme } from '../utils/theme'
+
+export default function DreamCompletedPage() {
+  const navigation = useNavigation<any>()
+  const route = useRoute()
+  const params = route.params as {
+    dreamId?: string
+    dreamTitle?: string
+    completedAt?: string
+    totalActions?: number
+    totalAreas?: number
+  }
+
+  const handleDone = () => {
+    // Navigate back to dreams list
+    navigation.navigate('Tabs', { activeTab: 'Dreams' })
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return new Date().toLocaleDateString()
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Success Icon */}
+        <View style={styles.successIcon}>
+          <Text style={styles.checkmark}>🎉</Text>
+        </View>
+
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <Text style={styles.dreamTitle}>{params.dreamTitle || 'Your Dream'}</Text>
+          <Text style={styles.completionTitle}>Dream Completed!</Text>
+          
+          {/* Completion Date */}
+          <Text style={styles.completionDate}>
+            Completed on {formatDate(params.completedAt)}
+          </Text>
+          
+          {/* Stats */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{params.totalAreas || 0}</Text>
+              <Text style={styles.statLabel}>Areas</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{params.totalActions || 0}</Text>
+              <Text style={styles.statLabel}>Actions</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Celebration Message */}
+        <View style={styles.messageSection}>
+          <Text style={styles.messageTitle}>Congratulations! 🎊</Text>
+          <Text style={styles.messageText}>
+            You've successfully completed your dream! This is a huge achievement that shows your dedication and commitment to your goals.
+          </Text>
+          <Text style={styles.messageText}>
+            Take a moment to celebrate this milestone and consider what you've learned along the way.
+          </Text>
+        </View>
+
+        {/* Next Steps */}
+        <View style={styles.nextStepsSection}>
+          <Text style={styles.sectionTitle}>What's Next?</Text>
+          <View style={styles.nextStepItem}>
+            <Text style={styles.nextStepNumber}>1</Text>
+            <Text style={styles.nextStepText}>Reflect on what you've accomplished</Text>
+          </View>
+          <View style={styles.nextStepItem}>
+            <Text style={styles.nextStepNumber}>2</Text>
+            <Text style={styles.nextStepText}>Share your success with others</Text>
+          </View>
+          <View style={styles.nextStepItem}>
+            <Text style={styles.nextStepNumber}>3</Text>
+            <Text style={styles.nextStepText}>Start planning your next dream</Text>
+          </View>
+        </View>
+      </ScrollView>
+      
+      {/* Sticky bottom button */}
+      <View style={styles.bottomButton}>
+        <Button 
+          title="View Dreams" 
+          variant="black"
+          onPress={handleDone} 
+        />
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for bottom button
+  },
+  successIcon: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 80,
+    marginBottom: 24,
+  },
+  checkmark: {
+    fontSize: 100,
+    color: 'white',
+  },
+  heroSection: {
+    padding: 24,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  dreamTitle: {
+    fontSize: 12,
+    color: theme.colors.grey[600],
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  completionTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.grey[900],
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  completionDate: {
+    fontSize: 14,
+    color: theme.colors.grey[900],
+    fontWeight: '500',
+    marginBottom: 24,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 32,
+    marginTop: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.grey[900],
+  },
+  statLabel: {
+    fontSize: 14,
+    color: theme.colors.grey[600],
+    marginTop: 4,
+  },
+  messageSection: {
+    paddingHorizontal: 32,
+    marginBottom: 32,
+  },
+  messageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.colors.grey[900],
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  messageText: {
+    fontSize: 16,
+    color: theme.colors.grey[700],
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  nextStepsSection: {
+    paddingHorizontal: 32,
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.grey[900],
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  nextStepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  nextStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primary[500],
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginRight: 12,
+  },
+  nextStepText: {
+    fontSize: 16,
+    color: theme.colors.grey[700],
+    flex: 1,
+  },
+  bottomButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: theme.colors.pageBackground,
+  },
+})

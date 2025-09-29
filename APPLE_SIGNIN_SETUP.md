@@ -132,3 +132,4 @@ This ensures users can still complete the purchase flow even if Apple Sign In is
 2. Configure Supabase with the Apple provider settings (step 2)
 3. Rebuild and test the app
 4. If issues persist, check the console logs for more specific error messages
+

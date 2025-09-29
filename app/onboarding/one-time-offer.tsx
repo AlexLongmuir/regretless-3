@@ -51,10 +51,6 @@ const OneTimeOfferStep: React.FC = () => {
   };
 
 
-  const handleRestore = () => {
-    // Handle restore purchases
-    console.log('Restore purchases');
-  };
 
   if (!showOffer) {
     return (
@@ -67,9 +63,6 @@ const OneTimeOfferStep: React.FC = () => {
             size="md"
             style={styles.backButton}
           />
-          <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-            <Text style={styles.restoreText}>Restore</Text>
-          </TouchableOpacity>
         </View>
         <View style={styles.waitingContainer}>
           <Text style={styles.waitingText}>Please wait...</Text>
@@ -88,9 +81,6 @@ const OneTimeOfferStep: React.FC = () => {
           size="md"
           style={styles.backButton}
         />
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreText}>Restore</Text>
-        </TouchableOpacity>
       </View>
       
       <Animated.View 
@@ -257,19 +247,9 @@ const styles = StyleSheet.create({
   claimButton: {
     width: '100%',
   },
-  restoreButton: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
   backButton: {
     backgroundColor: 'white',
     borderRadius: 12,
-  },
-  restoreText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: 14,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
   },
 });
 

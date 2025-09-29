@@ -7,12 +7,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, Platform, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
+import { IconButton } from '../../components/IconButton';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
@@ -20,13 +21,14 @@ import { updateSubscriptionStatus } from '../../utils/onboardingFlow';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
-  const { signInWithApple, signInWithGoogle, loading: authLoading, user, isAuthenticated } = useAuthContext();
+  const { signInWithApple, signInWithGoogle, signOut, loading: authLoading, user, isAuthenticated } = useAuthContext();
   const { 
     customerInfo, 
     hasProAccess, 
     loading: entitlementsLoading, 
     linkRevenueCatUser, 
     storeBillingSnapshot,
+    restorePurchases,
     linking 
   } = useEntitlementsContext();
 
@@ -58,16 +60,67 @@ const PostPurchaseSignInStep: React.FC = () => {
   // Auto-navigate when user becomes authenticated
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      console.log('User authenticated in PostPurchaseSignIn, navigating to main app');
+      console.log('User authenticated in PostPurchaseSignIn, starting robust linking...');
       
-      // Wait a moment for RevenueCat linking to complete
-      const timer = setTimeout(() => {
-        navigation.navigate('Main' as never);
-      }, 2000);
+      const handleRobustLinking = async () => {
+        try {
+          // Wait a moment for EntitlementsContext to potentially handle linking
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Check if linking already happened
+          if (customerInfo && !customerInfo.originalAppUserId?.startsWith('$RCAnonymousID')) {
+            console.log('✅ RevenueCat already linked, proceeding...');
+          } else {
+            console.log('🔗 Manual linking fallback triggered...');
+            // Manual linking as fallback
+            const linkResult = await linkRevenueCatUser(user.id);
+            
+            if (linkResult.success && customerInfo) {
+              console.log('✅ Manual linking successful, storing billing snapshot...');
+              const storeResult = await storeBillingSnapshot(customerInfo);
+              
+              if (!storeResult.success) {
+                console.error('❌ Failed to store billing snapshot:', storeResult.error);
+                Alert.alert(
+                  'Subscription Already Redeemed',
+                  storeResult.error || 'This subscription has already been redeemed by another account.',
+                  [
+                    {
+                      text: 'Sign Out',
+                      onPress: () => {
+                        // Sign out and go back to login
+                        signOut();
+                      }
+                    },
+                    {
+                      text: 'OK',
+                      style: 'default'
+                    }
+                  ]
+                );
+                return; // Don't proceed to main app
+              }
+            } else {
+              console.log('⚠️ Manual linking failed, but proceeding anyway...');
+            }
+          }
+          
+          // Update subscription status in AsyncStorage
+          await updateSubscriptionStatus(true);
+          
+          // Navigate to main app
+          navigation.navigate('Main' as never);
+        } catch (error) {
+          console.error('Error in robust linking:', error);
+          // Still navigate even if linking fails
+          await updateSubscriptionStatus(true);
+          navigation.navigate('Main' as never);
+        }
+      };
       
-      return () => clearTimeout(timer);
+      handleRobustLinking();
     }
-  }, [isAuthenticated, user?.id, navigation]);
+  }, [isAuthenticated, user?.id, navigation, linkRevenueCatUser, storeBillingSnapshot, customerInfo]);
 
   const handleAppleSignIn = async () => {
     try {
@@ -75,8 +128,8 @@ const PostPurchaseSignInStep: React.FC = () => {
       
       if (result.success) {
         console.log('Apple Sign In successful');
-        // Don't show error - the auth state change and auto-linking will handle everything
-        // The user will be navigated to the main app automatically via the auth state listener
+        // The linking will be handled by the useEffect when user.id becomes available
+        // No need to do anything here - the auth state change will trigger the linking
       } else {
         // Only show error if sign-in actually failed
         const errorMessage = result.error || 'Apple Sign In failed. Please try again or use Google Sign In.';
@@ -89,15 +142,14 @@ const PostPurchaseSignInStep: React.FC = () => {
       if (error.message?.includes('authorization attempt failed')) {
         Alert.alert(
           'Apple Sign In Not Available', 
-          'Apple Sign In is not properly configured. Please use Google Sign In or continue without signing in.',
+          'Apple Sign In is not properly configured. Please use Google Sign In instead.',
           [
             { text: 'Try Google Sign In', onPress: handleGoogleSignIn },
-            { text: 'Continue Without Sign In', onPress: handleSkipForNow },
             { text: 'Cancel', style: 'cancel' }
           ]
         );
       } else {
-        Alert.alert('Sign In Error', 'Apple Sign In is not available. Please try Google Sign In or continue without signing in.');
+        Alert.alert('Sign In Error', 'Apple Sign In is not available. Please try Google Sign In instead.');
       }
     }
   };
@@ -106,50 +158,52 @@ const PostPurchaseSignInStep: React.FC = () => {
     try {
       const result = await signInWithGoogle();
       
-      if (result.success && user?.id) {
-        // Link the RevenueCat user with the authenticated user
-        const linkResult = await linkRevenueCatUser(user.id);
-        
-        if (linkResult.success && customerInfo) {
-          // Store billing snapshot in Supabase
-          const storeResult = await storeBillingSnapshot(customerInfo);
-          
-          if (storeResult.success) {
-            // Update subscription status in AsyncStorage
-            await updateSubscriptionStatus(true);
-            
-            // Navigate to main app
-            navigation.navigate('Main' as never);
-          } else {
-            Alert.alert('Error', storeResult.error || 'Failed to save subscription data');
-          }
-        } else {
-          Alert.alert('Error', linkResult.error || 'Failed to link subscription account');
-        }
+      if (result.success) {
+        console.log('Google Sign In successful');
+        // The linking will be handled by the useEffect when user.id becomes available
+        // No need to do anything here - the auth state change will trigger the linking
       } else {
-        Alert.alert('Sign In Failed', result.error || 'Something went wrong');
+        // Only show error if sign-in actually failed
+        const errorMessage = result.error || 'Google Sign In failed. Please try again or use Apple Sign In.';
+        Alert.alert('Sign In Failed', errorMessage);
       }
     } catch (error: any) {
+      console.error('Google Sign In error:', error);
       Alert.alert('Sign In Error', error.message || 'Something went wrong');
     }
   };
 
 
-  const handleSkipForNow = async () => {
-    // Update subscription status in AsyncStorage
-    await updateSubscriptionStatus(true);
-    
-    // Navigate to main app as anonymous user
-    navigation.navigate('Main' as never);
+
+  const handleRestore = async () => {
+    try {
+      const result = await restorePurchases();
+      
+      if (result.success) {
+        // User already has pro access, navigate to main app
+        navigation.navigate('Main' as never);
+      } else {
+        Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
+      }
+    } catch (error: any) {
+      Alert.alert('Restore Error', error.message || 'Something went wrong');
+    }
   };
 
   return (
     <View style={styles.container}>
-      <OnboardingHeader 
-        showProgress={false}
-        showBackButton={true} // Allow going back to intro
-        onBack={() => navigation.navigate('Intro' as never)}
-      />
+      <View style={styles.header}>
+        <IconButton
+          icon="arrow_left"
+          onPress={() => navigation.navigate('Intro' as never)}
+          variant="ghost"
+          size="md"
+          style={styles.backButton}
+        />
+        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
+          <Text style={styles.restoreText}>Restore</Text>
+        </TouchableOpacity>
+      </View>
       
       <View style={styles.content}>
         <Text style={styles.title}>Almost There!</Text>
@@ -179,35 +233,25 @@ const PostPurchaseSignInStep: React.FC = () => {
       </View>
 
       <View style={styles.footer}>
-        <Button
-          title="Sign in with Apple"
-          icon="apple"
+        <TouchableOpacity
           onPress={handleAppleSignIn}
-          variant="outline"
           disabled={authLoading || linking || entitlementsLoading}
-          style={styles.button}
-        />
+          style={[styles.appleButton, (authLoading || linking || entitlementsLoading) && styles.buttonDisabled]}
+        >
+          <View style={styles.buttonContent}>
+            <Text style={styles.appleButtonText}>Continue with Apple</Text>
+          </View>
+        </TouchableOpacity>
         
-        <Button
-          title="Sign in with Google"
-          icon="google"
+        <TouchableOpacity
           onPress={handleGoogleSignIn}
-          variant="outline"
           disabled={authLoading || linking || entitlementsLoading}
-          style={styles.button}
-        />
-        
-        <Button
-          title="Continue without signing in"
-          onPress={handleSkipForNow}
-          variant="outline"
-          disabled={authLoading || linking || entitlementsLoading}
-          style={styles.skipButton}
-        />
-        
-        <Text style={styles.termsText}>
-          You can always sign in later from your profile settings
-        </Text>
+          style={[styles.googleButton, (authLoading || linking || entitlementsLoading) && styles.buttonDisabled]}
+        >
+          <View style={styles.buttonContent}>
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </View>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -221,7 +265,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingTop: 100 + theme.spacing.xl, // Add top padding to account for fixed header
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -270,25 +314,87 @@ const styles = StyleSheet.create({
     color: theme.colors.success[700],
     textAlign: 'center',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing['3xl'],
+    paddingBottom: theme.spacing.md,
+  },
+  backButton: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+  },
+  restoreButton: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  restoreText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.grey[500],
+  },
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
   },
-  button: {
+  appleButton: {
     width: '100%',
+    height: 50,
+    backgroundColor: '#000000',
+    borderRadius: 8,
     marginBottom: theme.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+    elevation: 3,
   },
-  skipButton: {
+  googleButton: {
     width: '100%',
+    height: 50,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
     marginBottom: theme.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DADCE0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  termsText: {
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.caption1,
-    fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[500],
-    textAlign: 'center',
-    lineHeight: 16,
+  },
+  googleButtonText: {
+    color: '#3C4043',
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: theme.typography.fontFamily.system,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
 

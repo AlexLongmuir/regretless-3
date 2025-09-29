@@ -37,6 +37,7 @@ import AuthLoadingPage from '../app/AuthLoadingPage';
 import ActionPage from '../app/ActionPage';
 import ActionOccurrencePage from '../app/ActionOccurrencePage';
 import ArtifactSubmittedPage from '../app/ArtifactSubmittedPage';
+import DreamCompletedPage from '../app/DreamCompletedPage';
 import DreamPage from '../app/DreamPage';
 import AreaPage from '../app/AreaPage';
 import ProgressPage from '../app/ProgressPage';
@@ -195,6 +196,7 @@ const MainNavigator = () => (
     <MainStack.Screen name="Action" component={ActionPage} />
     <MainStack.Screen name="ActionOccurrence" component={ActionOccurrencePage} />
     <MainStack.Screen name="ArtifactSubmitted" component={ArtifactSubmittedPage} />
+    <MainStack.Screen name="DreamCompleted" component={DreamCompletedPage} />
     <MainStack.Screen name="Dream" component={DreamPage} />
     <MainStack.Screen name="Area" component={AreaPage} />
     <MainStack.Screen name="Progress" component={ProgressPage} />

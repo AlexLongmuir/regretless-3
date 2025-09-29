@@ -44,7 +44,7 @@ const RealisticGoalStep: React.FC = () => {
         
         <Text style={styles.title}>
           <Text style={styles.dreamText}>{userDream}</Text>
-          <Text style={styles.titleText}> is a realistic goal! It's not hard at all!</Text>
+          <Text style={styles.titleText}> is totally within reach! We'll help you get there.</Text>
         </Text>
         
         <Text style={styles.description}>
@@ -87,16 +87,16 @@ const styles = StyleSheet.create({
   },
   dreamText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: 36,
+    lineHeight: 30,
     color: theme.colors.gold,
   },
   titleText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: 36,
+    lineHeight: 30,
     color: theme.colors.black,
   },
   description: {

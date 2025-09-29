@@ -14,13 +14,11 @@ import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const lifeOptions = [
-  { emoji: '😊', text: 'Content with my life' },
-  { emoji: '🌱', text: 'Eager to learn more' },
-  { emoji: '😐', text: 'Feeling neutral now' },
-  { emoji: '😔', text: 'More downs than ups' },
   { emoji: '💔', text: 'Feeling lost and overwhelmed' },
-  { emoji: '🤔', text: 'Reflecting on my goals' },
-  { emoji: '💪', text: 'Determined to overcome challenges' },
+  { emoji: '😔', text: 'More downs than ups' },
+  { emoji: '😐', text: 'Feeling neutral now' },
+  { emoji: '🌱', text: 'Eager to learn more' },
+  { emoji: '😊', text: 'Content with my life' },
 ];
 
 const CurrentLifeStep: React.FC = () => {

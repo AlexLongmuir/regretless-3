@@ -107,8 +107,8 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     height: 52,
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingHorizontal: theme.spacing.lg, // Match main content padding
+    paddingTop: 30, // Add 30px top padding
     marginTop: 44, // Add space for status bar like create flow
     flexDirection: 'row',
     alignItems: 'center',

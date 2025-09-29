@@ -10,7 +10,6 @@ import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
-import { Icon } from '../../components/Icon';
 
 const GeneratingStep: React.FC = () => {
   const navigation = useNavigation();
@@ -33,12 +32,6 @@ const GeneratingStep: React.FC = () => {
           resizeMode="contain"
         />
         
-        <View style={styles.allDoneContainer}>
-          <View style={styles.tickContainer}>
-            <Icon name="check" size={24} color="white" />
-          </View>
-          <Text style={styles.allDoneText}>All Done</Text>
-        </View>
         
         <Text style={styles.title}>Time to generate your custom plan!</Text>
         
@@ -73,26 +66,6 @@ const styles = StyleSheet.create({
     height: 260,
     marginBottom: theme.spacing.lg,
     borderRadius: 10,
-  },
-  allDoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  tickContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.sm,
-  },
-  allDoneText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.gold,
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,

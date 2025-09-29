@@ -30,6 +30,7 @@ export interface Dream {
   start_date: string;
   end_date?: string;
   activated_at?: string;
+  completed_at?: string;
   image_url?: string;
   baseline?: string;
   obstacles?: string;

@@ -131,8 +131,14 @@ export const waitForRevenueCatInitialization = async (): Promise<boolean> => {
 export const clearRevenueCatCache = async (): Promise<void> => {
   try {
     if (Purchases && typeof Purchases.logOut === 'function') {
-      await Purchases.logOut();
-      console.log('RevenueCat cache cleared - returned to anonymous');
+      // Check if user is not already anonymous before logging out
+      const customerInfo = await Purchases.getCustomerInfo();
+      if (customerInfo && customerInfo.originalAppUserId && !customerInfo.originalAppUserId.startsWith('$RCAnonymousID')) {
+        await Purchases.logOut();
+        console.log('RevenueCat cache cleared - returned to anonymous');
+      } else {
+        console.log('RevenueCat user is already anonymous, skipping logout');
+      }
     }
   } catch (error) {
     console.error('Error clearing RevenueCat cache:', error);

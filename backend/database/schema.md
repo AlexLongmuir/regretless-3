@@ -27,6 +27,7 @@ User's goal container with title, start_date, optional end_date, and archive cap
 | start_date | date | When dream starts | |
 | end_date | date | Optional target end date | |
 | activated_at | timestamptz | When dream was activated (moved from draft) | |
+| completed_at | timestamptz | When dream was completed (all actions done) | |
 | image_url | text | URL to dream cover image | |
 | baseline | text | User's current baseline state | |
 | obstacles | text | Potential obstacles identified | |
@@ -143,12 +144,13 @@ User notification settings and preferences.
 | updated_at | timestamptz | When preferences were last modified | NOT NULL, DEFAULT now() |
 
 ### user_subscriptions
-RevenueCat subscription data for user access control and billing management.
+RevenueCat subscription data for user access control and billing management. Supports separate entries for trials and paid subscriptions.
 
 | Column | Type | Description | Constraints |
 |--------|------|-------------|-------------|
-| user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY, FOREIGN KEY REFERENCES auth.users(id) ON DELETE CASCADE |
-| rc_app_user_id | text | RevenueCat app user ID | NOT NULL, UNIQUE |
+| id | uuid | Primary key | NOT NULL, PRIMARY KEY, DEFAULT gen_random_uuid() |
+| user_id | uuid | References auth.users | NOT NULL, FOREIGN KEY REFERENCES auth.users(id) ON DELETE CASCADE |
+| rc_app_user_id | text | RevenueCat app user ID | NOT NULL |
 | rc_original_app_user_id | text | Original RevenueCat app user ID | |
 | entitlement | text | User's entitlement level | NOT NULL, DEFAULT 'pro' |
 | product_id | text | Product identifier | NOT NULL |
@@ -200,8 +202,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON notification_preferences TO authenticate
 **SQL Setup:**
 ```sql
 CREATE TABLE IF NOT EXISTS public.user_subscriptions (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  rc_app_user_id text UNIQUE NOT NULL,
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  rc_app_user_id text NOT NULL,
   rc_original_app_user_id text,
   entitlement text NOT NULL DEFAULT 'pro',
   product_id text NOT NULL,
@@ -215,6 +218,15 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Create unique constraint for active subscriptions per user
+CREATE UNIQUE INDEX ux_user_subscriptions_active_user 
+  ON public.user_subscriptions (user_id) 
+  WHERE is_active = true;
+
+-- Create index for RevenueCat app user ID lookups
+CREATE UNIQUE INDEX ux_user_subscriptions_rc_app_user_id 
+  ON public.user_subscriptions (rc_app_user_id);
 
 -- Create trigger for updated_at
 DROP TRIGGER IF EXISTS trg_user_subscriptions_updated_at ON public.user_subscriptions;
@@ -477,6 +489,8 @@ CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(us
 CREATE INDEX idx_user_subscriptions_user_id ON user_subscriptions(user_id);
 CREATE INDEX idx_user_subscriptions_rc_app_user_id ON user_subscriptions(rc_app_user_id);
 CREATE INDEX idx_user_subscriptions_is_active ON user_subscriptions(is_active) WHERE is_active = true;
+CREATE INDEX idx_user_subscriptions_is_trial ON user_subscriptions(is_trial) WHERE is_trial = true;
+CREATE INDEX idx_user_subscriptions_user_active ON user_subscriptions(user_id, is_active) WHERE is_active = true;
 
 -- Unique constraints for ordering (ignores soft-deleted rows)
 CREATE UNIQUE INDEX ux_areas_position_live ON areas(user_id, dream_id, position)
@@ -944,6 +958,7 @@ SELECT current_streak(auth.uid(), 'dream-uuid-here');
 
 ### User Subscription Status
 ```sql
+-- Get current active subscription
 SELECT 
   us.entitlement,
   us.is_active,
@@ -953,5 +968,23 @@ SELECT
   us.store,
   us.product_id
 FROM user_subscriptions us
-WHERE us.user_id = auth.uid();
+WHERE us.user_id = auth.uid() 
+  AND us.is_active = true
+ORDER BY us.created_at DESC
+LIMIT 1;
+
+-- Get subscription history (trials + paid)
+SELECT 
+  us.entitlement,
+  us.is_active,
+  us.is_trial,
+  us.will_renew,
+  us.current_period_end,
+  us.store,
+  us.product_id,
+  us.created_at,
+  us.original_purchase_at
+FROM user_subscriptions us
+WHERE us.user_id = auth.uid()
+ORDER BY us.created_at DESC;
 ```

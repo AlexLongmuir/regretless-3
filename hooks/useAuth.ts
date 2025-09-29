@@ -22,6 +22,7 @@ import { supabaseClient } from '../lib/supabaseClient';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as AuthSession from 'expo-auth-session';
 
 // Define the shape of our auth state and operations
 export interface AuthState {
@@ -397,12 +398,15 @@ export const useAuth = (): AuthHook => {
       setLoading(true);
       setError(null);
 
+      // Generate proper redirect URI using Expo's AuthSession
+      const redirectTo = AuthSession.makeRedirectUri({ scheme: 'dreamer' });
+
       // Step 1: Get the OAuth URL from Supabase
       const { data, error: oAuthError } = await supabaseClient.auth.signInWithOAuth({
         provider,
         options: {
-          // Deep link that will open the app after OAuth completion
-          redirectTo: 'dreamer://auth/callback',
+          // Use the properly generated redirect URI
+          redirectTo,
           // Skip browser redirect for mobile apps - we'll handle it manually
           skipBrowserRedirect: true,
         },

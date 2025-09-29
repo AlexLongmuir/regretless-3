@@ -49,11 +49,6 @@ export default {
       "supabaseUrl": process.env.SUPABASE_URL,
       "supabaseAnonKey": process.env.SUPABASE_ANON_KEY,
       "revenueCatApiKey": process.env.EXPO_PUBLIC_REVENUECAT_API_KEY,
-      "googleSignIn": {
-        "iosClientId": process.env.GOOGLE_IOS_CLIENT_ID,
-        "androidClientId": process.env.GOOGLE_ANDROID_CLIENT_ID,
-        "webClientId": process.env.GOOGLE_WEB_CLIENT_ID
-      },
       "eas": {
         "projectId": "f92cdd32-9b86-4148-9f96-6eb8a392ca9f"
       }

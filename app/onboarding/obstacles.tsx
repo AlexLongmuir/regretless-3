@@ -14,13 +14,12 @@ import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const obstacleOptions = [
-  { emoji: '🚫', text: 'Fear of taking risks' },
   { emoji: '⏰', text: 'Procrastination and time mismanagement' },
+  { emoji: '🧠', text: 'Negative mindset or self-doubt' },
+  { emoji: '😰', text: 'Fear of failure or taking risks' },
   { emoji: '😔', text: 'Lack of motivation or support' },
   { emoji: '💰', text: 'Insufficient funds or resources' },
-  { emoji: '🧠', text: 'Negative mindset or self-doubt' },
   { emoji: '🔄', text: 'Inability to adapt to change' },
-  { emoji: '😰', text: 'Fear of failure or rejection' },
 ];
 
 const ObstaclesStep: React.FC = () => {

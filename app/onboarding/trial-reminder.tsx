@@ -19,10 +19,6 @@ const TrialReminderStep: React.FC = () => {
     navigation.navigate('TrialContinuation' as never);
   };
 
-  const handleRestore = () => {
-    // Handle restore purchases
-    console.log('Restore purchases');
-  };
 
   return (
     <View style={styles.container}>
@@ -34,9 +30,6 @@ const TrialReminderStep: React.FC = () => {
           size="md"
           style={styles.backButton}
         />
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreText}>Restore</Text>
-        </TouchableOpacity>
       </View>
       
       <View style={styles.content}>
@@ -146,19 +139,9 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing['3xl'],
     paddingBottom: theme.spacing.md,
   },
-  restoreButton: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
   backButton: {
     backgroundColor: 'white',
     borderRadius: 12,
-  },
-  restoreText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: 14,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
   },
 });
 

@@ -1,15 +1,21 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, Text, Image, ScrollView, StyleSheet } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Button } from '../components/Button'
 import { AIRatingRing } from '../components'
 import { theme } from '../utils/theme'
+import { useData } from '../contexts/DataContext'
+import { supabaseClient } from '../lib/supabaseClient'
 import type { Artifact } from '../frontend-services/backend-bridge'
 
 export default function ArtifactSubmittedPage() {
   const navigation = useNavigation<any>()
   const route = useRoute()
+  const { checkDreamCompletion } = useData()
+  const [isDreamComplete, setIsDreamComplete] = useState(false)
+  const [dreamId, setDreamId] = useState<string | null>(null)
+  
   const params = route.params as {
     occurrenceId?: string
     actionTitle?: string
@@ -22,6 +28,43 @@ export default function ArtifactSubmittedPage() {
     aiFeedback?: string
   }
 
+  // Check if dream is complete when component mounts
+  useEffect(() => {
+    const checkCompletion = async () => {
+      if (params.occurrenceId) {
+        try {
+          // Get dream ID from occurrence
+          const { data: occurrenceData } = await supabaseClient
+            .from('action_occurrences')
+            .select(`
+              dream_id,
+              actions!inner(
+                areas!inner(
+                  dreams!inner(id, title, completed_at)
+                )
+              )
+            `)
+            .eq('id', params.occurrenceId)
+            .single();
+            
+          if (occurrenceData?.actions?.[0]?.areas?.[0]?.dreams?.[0]) {
+            const dream = occurrenceData.actions[0].areas[0].dreams[0];
+            const dreamId = dream.id;
+            setDreamId(dreamId);
+            
+            // Check if dream is complete
+            const isComplete = await checkDreamCompletion(dreamId);
+            setIsDreamComplete(isComplete);
+          }
+        } catch (error) {
+          console.error('Error checking dream completion:', error);
+        }
+      }
+    };
+    
+    checkCompletion();
+  }, [params.occurrenceId, checkDreamCompletion]);
+
   // Helper function to derive category from rating
   const getCategoryFromRating = (rating: number): 'okay' | 'good' | 'very_good' | 'excellent' => {
     if (rating >= 90) return 'excellent';
@@ -31,8 +74,18 @@ export default function ArtifactSubmittedPage() {
   };
 
   const handleDone = () => {
-    // Navigate back to the action occurrence page
-    navigation.goBack()
+    if (isDreamComplete && dreamId) {
+      // Navigate to dream completion page
+      navigation.navigate('DreamCompleted', {
+        dreamId: dreamId,
+        dreamTitle: params.dreamTitle,
+        completedAt: new Date().toISOString(),
+        // Note: We could fetch total actions/areas if needed
+      });
+    } else {
+      // Navigate back to the action occurrence page
+      navigation.goBack();
+    }
   }
 
   const formatTime = (minutes: number) => {

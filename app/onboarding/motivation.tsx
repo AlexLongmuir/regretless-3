@@ -14,13 +14,13 @@ import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const motivationOptions = [
-  { emoji: '⭐', text: 'Make my family proud' },
-  { emoji: '🏆', text: 'Inspire others' },
-  { emoji: '🌈', text: 'Live without regrets' },
-  { emoji: '🤝', text: 'Connect with inspiring individuals' },
-  { emoji: '❤️', text: 'Find a meaningful relationship' },
-  { emoji: '🌍', text: 'Embrace every adventure' },
   { emoji: '🎉', text: 'Experience life to its fullest' },
+  { emoji: '🌈', text: 'Live without regrets' },
+  { emoji: '🌍', text: 'Embrace every adventure' },
+  { emoji: '❤️', text: 'Find a meaningful relationship' },
+  { emoji: '🤝', text: 'Connect with inspiring individuals' },
+  { emoji: '🏆', text: 'Inspire others' },
+  { emoji: '⭐', text: 'Make my family proud' },
 ];
 
 const MotivationStep: React.FC = () => {

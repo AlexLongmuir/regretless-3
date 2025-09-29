@@ -126,6 +126,18 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/create/schedule-actions">
 }
 
+// Validate ../../app/api/cron/check-expired-trials/route.ts
+{
+  const handler = {} as typeof import("../../app/api/cron/check-expired-trials/route.js")
+  handler satisfies RouteHandlerConfig<"/api/cron/check-expired-trials">
+}
+
+// Validate ../../app/api/cron/subscription-lifecycle/route.ts
+{
+  const handler = {} as typeof import("../../app/api/cron/subscription-lifecycle/route.js")
+  handler satisfies RouteHandlerConfig<"/api/cron/subscription-lifecycle">
+}
+
 // Validate ../../app/api/dreams/default-images/route.ts
 {
   const handler = {} as typeof import("../../app/api/dreams/default-images/route.js")
@@ -142,6 +154,18 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   const handler = {} as typeof import("../../app/api/dreams/upload-image/route.js")
   handler satisfies RouteHandlerConfig<"/api/dreams/upload-image">
+}
+
+// Validate ../../app/api/subscriptions/check-trial-status/route.ts
+{
+  const handler = {} as typeof import("../../app/api/subscriptions/check-trial-status/route.js")
+  handler satisfies RouteHandlerConfig<"/api/subscriptions/check-trial-status">
+}
+
+// Validate ../../app/api/subscriptions/validate/route.ts
+{
+  const handler = {} as typeof import("../../app/api/subscriptions/validate/route.js")
+  handler satisfies RouteHandlerConfig<"/api/subscriptions/validate">
 }
 
 

@@ -51,8 +51,12 @@ export interface EntitlementsOperations {
   storeBillingSnapshot: (customerInfo: any) => Promise<{ success: boolean; error?: string }>;
   // Restore purchases
   restorePurchases: () => Promise<{ success: boolean; error?: string }>;
+  // Validate subscription with server
+  validateSubscription: (forceRefresh?: boolean) => Promise<{ success: boolean; error?: string }>;
   // Clear error state
   clearError: () => void;
+  // Debug function
+  debugState: () => void;
 }
 
 export type EntitlementsHook = EntitlementsState & EntitlementsOperations;
@@ -159,14 +163,17 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         hasProAccess: linkedCustomerInfo.entitlements?.active?.['pro'] || false,
       });
       
-      // Try to store billing snapshot (handles both active entitlements and trials)
+      // Try to store billing snapshot with retry mechanism
       console.log('Attempting to store billing snapshot...');
-      const storeResult = await storeBillingSnapshot(linkedCustomerInfo);
+      const storeResult = await storeBillingSnapshotWithRetry(linkedCustomerInfo);
       if (storeResult.success) {
         console.log('✅ Billing snapshot stored successfully');
       } else {
         console.log('⚠️ Billing snapshot not stored:', storeResult.error);
         console.log('Will store when subscription becomes available');
+        
+        // Set up a fallback mechanism to check for subscription later
+        setupSubscriptionFallback(userId);
       }
       
       return { success: true };
@@ -181,7 +188,76 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
   };
 
   /**
+   * Set up fallback mechanism to check for subscription when it becomes available
+   */
+  const setupSubscriptionFallback = (userId: string) => {
+    console.log('🔄 Setting up subscription fallback check...');
+    
+    // Check every 5 seconds for up to 2 minutes
+    const maxChecks = 24; // 24 * 5 seconds = 2 minutes
+    let checkCount = 0;
+    
+    const checkInterval = setInterval(async () => {
+      checkCount++;
+      console.log(`🔍 Fallback check ${checkCount}/${maxChecks} for subscription...`);
+      
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        const result = await storeBillingSnapshot(customerInfo);
+        
+        if (result.success) {
+          console.log('✅ Fallback: Billing snapshot stored successfully');
+          clearInterval(checkInterval);
+          return;
+        }
+        
+        if (checkCount >= maxChecks) {
+          console.log('⚠️ Fallback: Max checks reached, subscription still not available');
+          clearInterval(checkInterval);
+        }
+      } catch (error) {
+        console.error('Error in fallback check:', error);
+        if (checkCount >= maxChecks) {
+          clearInterval(checkInterval);
+        }
+      }
+    }, 5000);
+  };
+
+  /**
+   * Store billing snapshot with retry mechanism to handle race conditions
+   */
+  const storeBillingSnapshotWithRetry = async (customerInfo: any, maxRetries: number = 5, delayMs: number = 2000): Promise<{ success: boolean; error?: string }> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`🔄 Billing snapshot attempt ${attempt}/${maxRetries}`);
+      
+      // Refresh customer info to get latest entitlements
+      const freshCustomerInfo = await Purchases.getCustomerInfo();
+      
+      const result = await storeBillingSnapshot(freshCustomerInfo);
+      if (result.success) {
+        console.log(`✅ Billing snapshot stored successfully on attempt ${attempt}`);
+        return result;
+      }
+      
+      console.log(`⚠️ Attempt ${attempt} failed: ${result.error}`);
+      
+      // If this is the last attempt, return the error
+      if (attempt === maxRetries) {
+        return result;
+      }
+      
+      // Wait before retrying
+      console.log(`⏳ Waiting ${delayMs}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    
+    return { success: false, error: 'Max retries exceeded' };
+  };
+
+  /**
    * Store billing snapshot in Supabase
+   * Simplified and more accurate subscription data extraction
    */
   const storeBillingSnapshot = async (customerInfo: any): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -189,71 +265,335 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         return { success: false, error: 'No authenticated user' };
       }
 
-      // Extract subscription data from RevenueCat customer info
-      const activeEntitlements = customerInfo.entitlements?.active || {};
-      const allEntitlements = customerInfo.entitlements || {};
-      
-      // Look for pro entitlement in active or all entitlements (for trials)
-      let proEntitlement = activeEntitlements['pro'];
-      if (!proEntitlement) {
-        // Check if there's a pro entitlement in trial or other states
-        proEntitlement = allEntitlements['pro'];
-      }
-      
-      // Also check activeSubscriptions for trial subscriptions
-      const activeSubscriptions = customerInfo.activeSubscriptions || {};
-      const hasActiveSubscription = Object.keys(activeSubscriptions).length > 0;
-      
-      console.log('🔍 Subscription analysis:', {
-        hasActiveEntitlement: !!activeEntitlements['pro'],
-        hasAnyProEntitlement: !!allEntitlements['pro'],
-        hasActiveSubscriptions: hasActiveSubscription,
-        activeSubscriptions: Object.keys(activeSubscriptions),
-        allEntitlements: Object.keys(allEntitlements)
+      console.log('🔍 Processing RevenueCat customer info:', {
+        hasEntitlements: !!customerInfo.entitlements,
+        hasActiveEntitlements: !!customerInfo.entitlements?.active,
+        hasActiveSubscriptions: !!customerInfo.activeSubscriptions,
+        hasPurchasedProducts: !!customerInfo.allPurchasedProductIdentifiers?.length
       });
+
+      // Extract subscription data using simplified, more reliable logic
+      const subscriptionData = extractSubscriptionData(customerInfo);
       
-      // Store if we have an active entitlement OR an active subscription (trial)
-      if (!proEntitlement && !hasActiveSubscription) {
-        return { success: false, error: 'No active pro subscription or trial found' };
+      if (!subscriptionData) {
+        return { success: false, error: 'No valid subscription data found' };
       }
 
-      // Prepare subscription data for Supabase
-      // If we have a pro entitlement, use it; otherwise use the first active subscription
-      const subscriptionInfo = proEntitlement || (hasActiveSubscription ? Object.values(activeSubscriptions)[0] : null);
-      
-      const subscriptionData = {
+      // Add user-specific data
+      const finalSubscriptionData = {
+        ...subscriptionData,
         user_id: user.id,
         rc_app_user_id: customerInfo.originalAppUserId,
         rc_original_app_user_id: customerInfo.originalAppUserId,
-        entitlement: 'pro',
-        product_id: subscriptionInfo?.productIdentifier || 'unknown',
-        store: subscriptionInfo?.store || 'app_store',
-        is_active: true,
-        is_trial: subscriptionInfo?.periodType === 'trial' || (subscriptionInfo?.willRenew === false && subscriptionInfo?.periodType === 'trial'),
-        will_renew: subscriptionInfo?.willRenew || false,
-        current_period_end: subscriptionInfo?.expirationDate || new Date().toISOString(),
-        original_purchase_at: subscriptionInfo?.originalPurchaseDate || new Date().toISOString(),
-        rc_snapshot: customerInfo.rawData || {},
+        rc_snapshot: customerInfo.rawData || customerInfo,
       };
 
-      // Upsert subscription data
-      const { error: upsertError } = await supabaseClient
-        .from('user_subscriptions')
-        .upsert(subscriptionData, { 
-          onConflict: 'user_id',
-          ignoreDuplicates: false 
-        });
+      console.log('📊 Final subscription data:', {
+        product_id: finalSubscriptionData.product_id,
+        is_active: finalSubscriptionData.is_active,
+        is_trial: finalSubscriptionData.is_trial,
+        will_renew: finalSubscriptionData.will_renew,
+        current_period_end: finalSubscriptionData.current_period_end
+      });
 
-      if (upsertError) {
-        console.error('Error storing billing snapshot:', upsertError);
-        return { success: false, error: upsertError.message };
+      // Check if this RevenueCat user ID is already associated with a different user
+      const { data: existingByRevenueCat, error: rcCheckError } = await supabaseClient
+        .from('user_subscriptions')
+        .select('id, user_id, is_active, is_trial')
+        .eq('rc_app_user_id', finalSubscriptionData.rc_app_user_id)
+        .single();
+
+      if (rcCheckError && rcCheckError.code !== 'PGRST116') {
+        console.error('Error checking existing RevenueCat subscription:', rcCheckError);
+        return { success: false, error: rcCheckError.message };
       }
 
-      console.log('Billing snapshot stored successfully');
+      if (existingByRevenueCat) {
+        // This RevenueCat user ID is already associated with a different user
+        if (existingByRevenueCat.user_id !== finalSubscriptionData.user_id) {
+          console.log('⚠️ Subscription already redeemed by another account:', existingByRevenueCat.user_id);
+          return { 
+            success: false, 
+            error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
+          };
+        } else {
+          // Same user - webhook handles updates, no need to update here
+          console.log('✅ Subscription already linked to this user, webhook will handle updates');
+        }
+      } else {
+        // No existing subscription with this RevenueCat user ID, create new one
+        const { error: insertError } = await supabaseClient
+          .from('user_subscriptions')
+          .insert(finalSubscriptionData);
+
+        if (insertError) {
+          console.error('Error inserting new subscription:', insertError);
+          return { success: false, error: insertError.message };
+        }
+        console.log('✅ Created new subscription entry');
+      }
+
+
+      console.log('✅ Billing snapshot stored successfully');
       return { success: true };
     } catch (err: any) {
       console.error('Error storing billing snapshot:', err);
       return { success: false, error: err.message || 'Failed to store billing information' };
+    }
+  };
+
+  /**
+   * Extract subscription data from RevenueCat customer info
+   * Enhanced logic with better trial detection
+   */
+  const extractSubscriptionData = (customerInfo: any) => {
+    console.log('🔍 Full customerInfo for trial detection:', JSON.stringify(customerInfo, null, 2));
+    
+    // Priority 1: Active entitlements (most reliable)
+    const activeEntitlements = customerInfo.entitlements?.active || {};
+    const proEntitlement = activeEntitlements['pro'];
+    
+    if (proEntitlement) {
+      console.log('✅ Using active pro entitlement data');
+      console.log('🔍 Pro entitlement details:', JSON.stringify(proEntitlement, null, 2));
+      
+      // Enhanced trial detection - check multiple sources
+      let isTrial = false;
+      
+      // 1. Check RevenueCat's built-in trial indicators
+      if (proEntitlement.periodType === 'trial' || proEntitlement.isInTrialPeriod) {
+        isTrial = true;
+        console.log('🔄 Detected trial from RevenueCat indicators');
+      }
+      
+      // 2. Check if this is a trial based on product identifier
+      if (!isTrial && proEntitlement.productIdentifier) {
+        const productId = proEntitlement.productIdentifier.toLowerCase();
+        if (productId.includes('trial') || productId.includes('free')) {
+          isTrial = true;
+          console.log('🔄 Detected trial from product identifier:', productId);
+        }
+      }
+      
+      // 3. Check active subscriptions for trial indicators
+      if (!isTrial && customerInfo.activeSubscriptions) {
+        const activeSubs = customerInfo.activeSubscriptions;
+        for (const [productId, subscription] of Object.entries(activeSubs)) {
+          const sub = subscription as any;
+          if (sub.isTrialPeriod || sub.periodType === 'trial' || sub.isInTrialPeriod) {
+            isTrial = true;
+            console.log('🔄 Detected trial from active subscription:', productId);
+            break;
+          }
+        }
+      }
+      
+      // 4. Check if expiration date suggests a trial (short period)
+      if (!isTrial && proEntitlement.expirationDate) {
+        const expirationDate = new Date(proEntitlement.expirationDate);
+        const purchaseDate = new Date(proEntitlement.originalPurchaseDate || proEntitlement.purchaseDate);
+        const daysDifference = Math.ceil((expirationDate.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDifference <= 7) {
+          isTrial = true;
+          console.log('🔄 Detected trial from short expiration period:', daysDifference, 'days');
+        }
+      }
+      
+      // 5. Check if this is a new subscription (likely trial if very recent)
+      if (!isTrial && proEntitlement.originalPurchaseDate) {
+        const purchaseDate = new Date(proEntitlement.originalPurchaseDate);
+        const now = new Date();
+        const hoursSincePurchase = (now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60);
+        
+        // If purchased within last 2 hours and no explicit trial indicators, assume trial
+        if (hoursSincePurchase <= 2) {
+          isTrial = true;
+          console.log('🔄 Detected trial from recent purchase (within 2 hours)');
+        }
+      }
+      
+      console.log('🎯 Final trial detection result:', isTrial);
+      
+      return {
+        entitlement: 'pro',
+        product_id: proEntitlement.productIdentifier || 'unknown',
+        store: proEntitlement.store || 'app_store',
+        is_active: true,
+        is_trial: isTrial,
+        will_renew: proEntitlement.willRenew || false,
+        current_period_end: proEntitlement.expirationDate || new Date().toISOString(),
+        original_purchase_at: proEntitlement.originalPurchaseDate || new Date().toISOString(),
+      };
+    }
+
+    // Priority 2: All entitlements (for inactive but valid subscriptions)
+    const allEntitlements = customerInfo.entitlements || {};
+    const anyProEntitlement = allEntitlements['pro'];
+    
+    if (anyProEntitlement) {
+      console.log('✅ Using pro entitlement from all entitlements');
+      return {
+        entitlement: 'pro',
+        product_id: anyProEntitlement.productIdentifier || 'unknown',
+        store: anyProEntitlement.store || 'app_store',
+        is_active: anyProEntitlement.isActive || false,
+        is_trial: anyProEntitlement.periodType === 'trial' || anyProEntitlement.isInTrialPeriod || false,
+        will_renew: anyProEntitlement.willRenew || false,
+        current_period_end: anyProEntitlement.expirationDate || new Date().toISOString(),
+        original_purchase_at: anyProEntitlement.originalPurchaseDate || new Date().toISOString(),
+      };
+    }
+
+    // Priority 3: Active subscriptions (fallback)
+    const activeSubscriptions = customerInfo.activeSubscriptions || {};
+    const activeSubKeys = Object.keys(activeSubscriptions);
+    
+    if (activeSubKeys.length > 0) {
+      const firstSubscription = activeSubscriptions[activeSubKeys[0]];
+      console.log('⚠️ Using active subscription fallback data');
+      
+      // Determine if this is a trial based on customer info
+      const isTrial = customerInfo.entitlements?.active?.pro?.isInTrialPeriod || 
+                     customerInfo.entitlements?.active?.pro?.periodType === 'trial' || 
+                     false;
+      
+      return {
+        entitlement: 'pro',
+        product_id: typeof firstSubscription === 'string' ? firstSubscription : firstSubscription?.productIdentifier || 'unknown',
+        store: 'app_store',
+        is_active: true,
+        is_trial: isTrial,
+        will_renew: customerInfo.entitlements?.active?.pro?.willRenew || true,
+        current_period_end: calculateExpirationDate(firstSubscription, isTrial),
+        original_purchase_at: new Date().toISOString(),
+      };
+    }
+
+    // Priority 4: Purchased products (last resort)
+    const purchasedProducts = customerInfo.allPurchasedProductIdentifiers || [];
+    const proProduct = purchasedProducts.find((id: string) => 
+      id.includes('dreamer') || id.includes('pro') || id.includes('premium') || id.includes('subscription')
+    );
+    
+    if (proProduct) {
+      console.log('⚠️ Using purchased product fallback data');
+      
+      // Enhanced trial detection for fallback
+      let isTrial = false;
+      
+      // Check if this is a recent purchase (likely trial)
+      if (customerInfo.originalPurchaseDate) {
+        const purchaseDate = new Date(customerInfo.originalPurchaseDate);
+        const now = new Date();
+        const hoursSincePurchase = (now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60);
+        
+        if (hoursSincePurchase <= 2) {
+          isTrial = true;
+          console.log('🔄 Detected trial from recent purchase in fallback');
+        }
+      }
+      
+      // Check active subscriptions for trial indicators
+      if (!isTrial && customerInfo.activeSubscriptions) {
+        const activeSubs = customerInfo.activeSubscriptions;
+        for (const [productId, subscription] of Object.entries(activeSubs)) {
+          const sub = subscription as any;
+          if (sub.isTrialPeriod || sub.periodType === 'trial' || sub.isInTrialPeriod) {
+            isTrial = true;
+            console.log('🔄 Detected trial from active subscription in fallback:', productId);
+            break;
+          }
+        }
+      }
+      
+      return {
+        entitlement: 'pro',
+        product_id: proProduct,
+        store: 'app_store',
+        is_active: true,
+        is_trial: isTrial,
+        will_renew: !isTrial, // Assume renewing unless it's a trial
+        current_period_end: calculateExpirationDate(proProduct, isTrial),
+        original_purchase_at: new Date().toISOString(),
+      };
+    }
+
+    console.log('❌ No valid subscription data found');
+    return null;
+  };
+
+  /**
+   * Calculate expiration date based on product type and trial status
+   */
+  const calculateExpirationDate = (productId: string | any, isTrial: boolean): string => {
+    const now = new Date();
+    const expirationDate = new Date(now);
+    
+    if (isTrial) {
+      // Trial periods are typically 3-7 days
+      expirationDate.setDate(expirationDate.getDate() + 3);
+    } else if (typeof productId === 'string') {
+      if (productId.includes('annual') || productId.includes('yearly')) {
+        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+      } else if (productId.includes('monthly')) {
+        expirationDate.setMonth(expirationDate.getMonth() + 1);
+      } else {
+        // Default to monthly
+        expirationDate.setMonth(expirationDate.getMonth() + 1);
+      }
+    } else {
+      // Default to monthly
+      expirationDate.setMonth(expirationDate.getMonth() + 1);
+    }
+    
+    return expirationDate.toISOString();
+  };
+
+  /**
+   * Validate subscription with server
+   */
+  const validateSubscription = async (forceRefresh: boolean = false): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user) {
+        return { success: false, error: 'No authenticated user' };
+      }
+
+      console.log('🔍 Validating subscription with server...');
+      
+      const response = await fetch(`https://cqzutvspbsspgtmcdqyp.supabase.co/functions/v1/subscription-validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          force_refresh: forceRefresh
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || 'Failed to validate subscription' };
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        console.log('✅ Subscription validated:', data.data);
+        
+        // Update local state if validation shows different data
+        if (data.data.needs_attention) {
+          console.warn('⚠️ Subscription needs attention:', data.data.issues);
+        }
+        
+        return { success: true };
+      } else {
+        return { success: false, error: 'Invalid response from server' };
+      }
+    } catch (error: any) {
+      console.error('❌ Error validating subscription:', error);
+      return { success: false, error: error.message || 'Failed to validate subscription' };
     }
   };
 
@@ -301,6 +641,24 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
    */
   const clearError = () => {
     setError(null);
+  };
+
+  /**
+   * Debug function to check current state
+   */
+  const debugState = () => {
+    console.log('🔍 EntitlementsContext Debug State:', {
+      isAuthenticated,
+      userId: user?.id,
+      customerInfo: customerInfo ? {
+        hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
+        userId: customerInfo.originalAppUserId,
+        isAnonymous: customerInfo.originalAppUserId?.startsWith('$RCAnonymousID'),
+      } : null,
+      linking,
+      linkingAttempted: linkingAttempted.current,
+      isRevenueCatConfigured: isRevenueCatConfigured(),
+    });
   };
 
   // Set up RevenueCat listener and initial customer info fetch
@@ -397,7 +755,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
 
   // Auto-link RevenueCat user when user authenticates
   useEffect(() => {
-    if (isAuthenticated && user && customerInfo && !linking) {
+    if (isAuthenticated && user && !linking) {
       // Check if we've already attempted linking for this user
       if (linkingAttempted.current === user.id) {
         return; // Already attempted linking for this user
@@ -405,11 +763,39 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       
       const linkUser = async () => {
         try {
-          // Only link if the RevenueCat user is anonymous
-          if (customerInfo.originalAppUserId && customerInfo.originalAppUserId !== user.id) {
-            console.log('Auto-linking RevenueCat user with authenticated user');
+          console.log('🔗 Auto-linking triggered for authenticated user:', user.id);
+          debugState(); // Debug current state
+          
+          // Get fresh customer info to check current state
+          let currentCustomerInfo = customerInfo;
+          if (!currentCustomerInfo && isRevenueCatConfigured()) {
+            try {
+              currentCustomerInfo = await Purchases.getCustomerInfo();
+              console.log('Fetched fresh customer info for linking:', {
+                hasProAccess: currentCustomerInfo.entitlements?.active?.['pro'] || false,
+                userId: currentCustomerInfo.originalAppUserId,
+              });
+            } catch (err) {
+              console.error('Error fetching customer info for linking:', err);
+              return;
+            }
+          }
+          
+          // Only link if the RevenueCat user is anonymous (starts with $RCAnonymousID)
+          if (currentCustomerInfo?.originalAppUserId && currentCustomerInfo.originalAppUserId.startsWith('$RCAnonymousID')) {
+            console.log('🔗 Auto-linking anonymous RevenueCat user with authenticated user:', user.id);
             linkingAttempted.current = user.id; // Mark as attempted
-            await linkRevenueCatUser(user.id);
+            const linkResult = await linkRevenueCatUser(user.id);
+            
+            if (linkResult.success) {
+              console.log('✅ Auto-linking successful, storing billing snapshot...');
+              // Store billing snapshot after successful linking
+              await storeBillingSnapshot(currentCustomerInfo);
+            } else {
+              console.error('❌ Auto-linking failed:', linkResult.error);
+            }
+          } else {
+            console.log('RevenueCat user already linked or not anonymous:', currentCustomerInfo?.originalAppUserId);
           }
         } catch (err) {
           console.error('Error auto-linking user:', err);
@@ -423,8 +809,13 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       const logoutRevenueCat = async () => {
         try {
           if (Purchases && typeof Purchases.logOut === 'function') {
-            await Purchases.logOut();
-            console.log('✅ RevenueCat logged out - returned to anonymous user');
+            // Check if user is not already anonymous before logging out
+            if (customerInfo && customerInfo.originalAppUserId && !customerInfo.originalAppUserId.startsWith('$RCAnonymousID')) {
+              await Purchases.logOut();
+              console.log('✅ RevenueCat logged out - returned to anonymous user');
+            } else {
+              console.log('RevenueCat user is already anonymous, skipping logout');
+            }
             // Clear customer info to reflect anonymous state
             setCustomerInfo(null);
           }
@@ -437,7 +828,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       
       logoutRevenueCat();
     }
-  }, [isAuthenticated, user?.id, customerInfo?.originalAppUserId, linking]);
+  }, [isAuthenticated, user?.id, linking]);
 
   const value: EntitlementsHook = {
     // State
@@ -452,7 +843,9 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     linkRevenueCatUser,
     storeBillingSnapshot,
     restorePurchases,
+    validateSubscription,
     clearError,
+    debugState,
   };
 
   return (

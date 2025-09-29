@@ -15,13 +15,17 @@ import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const dreamPresets = [
-  { emoji: '✨', text: 'Achieve financial freedom' },
+  { emoji: '💰', text: 'Launch my online business that generates £1,000 / month' },
   { emoji: '🌍', text: 'Travel to every continent' },
-  { emoji: '🎨', text: 'Master a new skill or hobby' },
-  { emoji: '📚', text: 'Write a bestselling book' },
-  { emoji: '🎶', text: 'Learn to play a musical instrument' },
-  { emoji: '💡', text: 'Develop a growth mindset' },
-  { emoji: '🧘‍♀️', text: 'Cultivate inner peace and mindfulness' },
+  { emoji: '🗣️', text: 'Become proficient in a new language and have a 10-minute conversation' },
+  { emoji: '💻', text: 'Learn to code and build my first website in 4 months' },
+  { emoji: '🏠', text: 'Save £25,000 for a house deposit' },
+  { emoji: '📚', text: 'Read and apply principles from one new book each month for a year' },
+  { emoji: '🎹', text: 'Learn to play 3 complete songs on piano' },
+  { emoji: '👥', text: 'Overcome social anxiety and handle stress better in all situations' },
+  { emoji: '🍳', text: 'Learn to cook 20 authentic dishes from different cuisines' },
+  { emoji: '📸', text: 'Master photography and take 50 portfolio-worthy photos' },
+  { emoji: '🌅', text: 'Transform my daily habits and build a sustainable morning routine' },
 ];
 
 const MainDreamStep: React.FC = () => {
@@ -86,6 +90,7 @@ const MainDreamStep: React.FC = () => {
           style={styles.input}
         />
 
+        <Text style={styles.optionsLabel}>Frequently chosen goals</Text>
         <View style={styles.optionsContainer}>
           {dreamPresets.map((preset, index) => (
             <EmojiListRow
@@ -141,6 +146,13 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     marginBottom: theme.spacing.lg, // Add spacing between input and first list row
+  },
+  optionsLabel: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.normal as any,
+    color: theme.colors.grey[600],
+    marginBottom: theme.spacing.md,
   },
   spacingArea: {
     height: theme.spacing['4xl'], // Large spacing between input and button

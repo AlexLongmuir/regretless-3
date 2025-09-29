@@ -152,11 +152,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.grey[400],
   },
   barPrivate: {
-    width: '60%',
+    width: '75%',
     backgroundColor: theme.colors.primary[500],
   },
   barShared: {
-    width: '85%',
+    width: '100%',
     backgroundColor: theme.colors.primary[600],
   },
   graphDescription: {

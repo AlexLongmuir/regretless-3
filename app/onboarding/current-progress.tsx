@@ -11,16 +11,8 @@ import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { OnboardingHeader } from '../../components/onboarding';
-import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
-const progressOptions = [
-  { emoji: '🌿', text: 'Gaining some experience' },
-  { emoji: '🌳', text: 'Developing my skills' },
-  { emoji: '🌟', text: 'Confident in my abilities' },
-  { emoji: '🏆', text: 'Near master level' },
-  { emoji: '🚀', text: 'Living my dream fully' },
-];
 
 const CurrentProgressStep: React.FC = () => {
   const navigation = useNavigation();
@@ -29,11 +21,10 @@ const CurrentProgressStep: React.FC = () => {
   const [customProgress, setCustomProgress] = useState('');
   const selectedAnswer = state.answers[4]; // Question ID 4 for current progress
   const inputRef = useRef<TextInput>(null);
+  
+  // Get the user's dream from the context (question ID 2)
+  const userDream = state.answers[2] || 'your dream';
 
-  const handlePresetSelect = (text: string) => {
-    updateAnswer(4, text);
-    setCustomProgress(text);
-  };
 
   const handleCustomInput = (text: string) => {
     setCustomProgress(text);
@@ -73,6 +64,20 @@ const CurrentProgressStep: React.FC = () => {
       >
         <Text style={styles.title}>What's your current progress in your dream?</Text>
         
+        <Text style={styles.dreamReminder}>
+          Your dream: <Text style={styles.dreamText}>{userDream}</Text>
+        </Text>
+        
+        <Text style={styles.explanation}>
+          Help us create the best goal for you by sharing:
+        </Text>
+        <Text style={styles.bulletPoints}>
+          • Where you've failed or succeeded before{'\n'}
+          • What you enjoyed or didn't enjoy{'\n'}
+          • What would help or not help you{'\n'}
+          • Any relevant experiences or insights
+        </Text>
+        
         <Input
           ref={inputRef}
           value={customProgress}
@@ -80,20 +85,8 @@ const CurrentProgressStep: React.FC = () => {
           placeholder="Start writing..."
           variant="borderless"
           style={styles.input}
+          multiline={true}
         />
-
-        <View style={styles.optionsContainer}>
-          {progressOptions.map((option, index) => (
-            <EmojiListRow
-              key={index}
-              emoji={option.emoji}
-              text={option.text}
-              type="select"
-              onSelect={handlePresetSelect}
-              isSelected={selectedAnswer === option.text}
-            />
-          ))}
-        </View>
         
         {/* Add spacing area before button */}
         <View style={styles.spacingArea} />
@@ -105,7 +98,7 @@ const CurrentProgressStep: React.FC = () => {
           onPress={handleContinue}
           variant="black"
           style={styles.button}
-          disabled={!selectedAnswer && !customProgress.trim()}
+          disabled={!customProgress.trim()}
         />
       </View>
     </KeyboardAvoidingView>
@@ -132,17 +125,46 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.lineHeight.title2,
     color: theme.colors.grey[900],
     textAlign: 'left',
+    marginBottom: theme.spacing.md,
+  },
+  dreamReminder: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[500],
+    textAlign: 'left',
     marginBottom: theme.spacing['2xl'],
+  },
+  dreamText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[500],
   },
   input: {
     width: '100%',
-    marginBottom: theme.spacing.lg, // Add spacing between input and first list row
+    minHeight: 120,
+    marginBottom: theme.spacing.lg,
+  },
+  explanation: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[500],
+    textAlign: 'left',
+    marginBottom: theme.spacing.sm,
+  },
+  bulletPoints: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[500],
+    textAlign: 'left',
+    lineHeight: 20,
+    marginBottom: theme.spacing.sm,
   },
   spacingArea: {
     height: theme.spacing['4xl'], // Large spacing between input and button
-  },
-  optionsContainer: {
-    gap: theme.spacing.sm,
   },
   footer: {
     paddingHorizontal: theme.spacing.lg,
