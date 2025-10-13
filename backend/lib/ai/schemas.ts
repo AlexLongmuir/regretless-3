@@ -35,7 +35,7 @@ export const PLAN_SCHEMA = {
     required: ["dreamTitle","areas"]
   };
 
-export const FEASIBILITY_SCHEMA = {
+export const GOAL_FEASIBILITY_SCHEMA = {
   type: "object",
   properties: {
     summary: {
@@ -54,18 +54,28 @@ export const FEASIBILITY_SCHEMA = {
         },
         required: ["title", "emoji", "reasoning"]
       }
-    },
-    dateAnalysis: {
-      type: "object",
-      properties: {
-        assessment: { type: "string" },
-        suggestedEndDate: { type: "string" },
-        reasoning: { type: "string" }
-      },
-      required: ["assessment", "suggestedEndDate", "reasoning"]
     }
   },
-  required: ["summary", "titleSuggestions", "dateAnalysis"]
+  required: ["summary", "titleSuggestions"]
+};
+
+export const TIMELINE_FEASIBILITY_SCHEMA = {
+  type: "object",
+  properties: {
+    assessment: {
+      type: "string",
+      description: "Assessment of whether the timeline is realistic"
+    },
+    suggestedEndDate: {
+      type: "string",
+      description: "Suggested end date in YYYY-MM-DD format"
+    },
+    reasoning: {
+      type: "string",
+      description: "Clear reasoning for the assessment and suggested date"
+    }
+  },
+  required: ["assessment", "suggestedEndDate", "reasoning"]
 };
 
 export const AREAS_SCHEMA = {

@@ -10,6 +10,8 @@ import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Icon } from '../../components/Icon';
+import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { generateOnboardingAreas } from '../../frontend-services/backend-bridge';
 
 const progressMessages = [
   "Analyzing your responses...",
@@ -17,15 +19,75 @@ const progressMessages = [
   "Creating your custom plan...",
   "Optimizing for your goals...",
   "Finalizing your results...",
-  "Almost ready...",
 ];
 
 const ProgressStep: React.FC = () => {
   const navigation = useNavigation();
+  const { state, setGeneratedAreas } = useOnboardingContext();
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isGenerationComplete, setIsGenerationComplete] = useState(false);
   const animatedValue = useRef(new Animated.Value(0)).current;
 
+  // Helper function to map onboarding answers to dream parameters for areas only
+  const mapOnboardingAnswersToDreamParams = () => {
+    const answers = state.answers;
+    
+    // Map question IDs to dream parameters based on onboarding flow
+    const title = answers[2] || 'Your Dream'; // Main dream from main-dream.tsx
+    const baseline = answers[4] || undefined; // Current progress from current-progress.tsx
+    const obstacles = answers[10] || undefined; // Obstacles from obstacles.tsx
+    const enjoyment = answers[11] || undefined; // Motivation from motivation.tsx
+    
+    return {
+      title,
+      baseline,
+      obstacles,
+      enjoyment
+    };
+  };
+
+  // Generate real content using AI once when component mounts
+  useEffect(() => {
+    // Check if we already have generated content to prevent regeneration
+    if (state.generatedAreas.length > 0) {
+      return;
+    }
+
+    const generateContent = async () => {
+      try {
+        const dreamParams = mapOnboardingAnswersToDreamParams();
+        
+        console.log('🎯 [ONBOARDING] Starting areas generation with params:', dreamParams);
+        
+        // Generate areas using real AI
+        const areas = await generateOnboardingAreas({
+          title: dreamParams.title,
+          baseline: dreamParams.baseline,
+          obstacles: dreamParams.obstacles,
+          enjoyment: dreamParams.enjoyment
+        });
+        
+        if (areas && areas.length > 0) {
+          console.log('✅ [ONBOARDING] Generated areas:', areas.length);
+          setGeneratedAreas(areas);
+          
+          // Mark generation as complete
+          setIsGenerationComplete(true);
+          console.log('🎉 [ONBOARDING] Areas generation complete - ready to navigate');
+        }
+      } catch (error) {
+        console.error('❌ [ONBOARDING] Failed to generate areas:', error);
+        // Continue with progress even if generation fails
+        setIsGenerationComplete(true);
+      }
+    };
+
+    // Start generation immediately
+    generateContent();
+  }, []); // Empty dependency array - only run once on mount
+
+  // Progress animation effect (separate from generation)
   useEffect(() => {
     // Progress animation over 10 seconds
     const progressAnimation = Animated.timing(animatedValue, {
@@ -34,24 +96,27 @@ const ProgressStep: React.FC = () => {
       useNativeDriver: false,
     });
 
-    // Message rotation every 1.5 seconds
+    // Message rotation every 2 seconds (5 messages over 10 seconds)
     const messageInterval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % progressMessages.length);
-    }, 1500);
+      setCurrentMessageIndex((prev) => {
+        const nextIndex = prev + 1;
+        return nextIndex < progressMessages.length ? nextIndex : prev;
+      });
+    }, 2000);
 
     // Progress update with inverse exponential curve
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        // Inverse exponential: fast at start, very slow at end
-        // Using formula: increment = 1 / (1 + prev/10)^2
-        const increment = 1 / Math.pow(1 + prev / 10, 2);
+        // Inverse exponential: fast at start, slow at end
+        // Using formula: increment = 3 / (1 + prev/20)^1.5 for ~10 second completion
+        const increment = 3 / Math.pow(1 + prev / 20, 1.5);
         const newProgress = Math.min(prev + increment, 100);
         
-        if (newProgress >= 100) {
+        if (newProgress >= 100 && isGenerationComplete) {
           clearInterval(progressInterval);
-          // Auto-navigate to final page
+          // Auto-navigate to areas confirmation only after generation is complete
           setTimeout(() => {
-            navigation.navigate('Final' as never);
+            navigation.navigate('AreasConfirm' as never);
           }, 500);
         }
         return newProgress;
@@ -65,7 +130,7 @@ const ProgressStep: React.FC = () => {
       clearInterval(progressInterval);
       progressAnimation.stop();
     };
-  }, [navigation, animatedValue]);
+  }, [navigation, animatedValue, isGenerationComplete]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -85,7 +150,7 @@ const ProgressStep: React.FC = () => {
       
       <View style={styles.content}>
         <View style={styles.progressContainer}>
-          <Text style={styles.progressPercentage}>{progress}%</Text>
+          <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
           <Text style={styles.progressTitle}>We're setting everything up for you</Text>
         </View>
 
@@ -209,7 +274,7 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.lg,
+    fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.medium as any,
     color: theme.colors.grey[700],
     textAlign: 'center',
@@ -221,7 +286,7 @@ const styles = StyleSheet.create({
   },
   currentMessage: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: theme.typography.fontSize.body,
     color: theme.colors.grey[600],
     textAlign: 'center',
   },
@@ -240,7 +305,7 @@ const styles = StyleSheet.create({
   },
   detailsTitle: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: theme.colors.grey[900],
     marginBottom: theme.spacing.md,
@@ -269,7 +334,7 @@ const styles = StyleSheet.create({
   },
   checklistText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: theme.typography.fontSize.footnote,
     color: theme.colors.grey[700],
   },
   checklistSubItems: {

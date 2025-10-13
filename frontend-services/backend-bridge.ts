@@ -19,19 +19,31 @@ export interface UpsertDreamRequest {
   baseline?: string | null
   obstacles?: string | null
   enjoyment?: string | null
+  time_commitment?: { hours: number; minutes: number } | null
 }
 
 export interface UpsertDreamResponse {
   id: string
 }
 
-export interface FeasibilityRequest {
+export interface GoalFeasibilityRequest {
+  title: string
+  baseline?: string
+  obstacles?: string
+  enjoyment?: string
+}
+
+export interface TimelineFeasibilityRequest {
   title: string
   start_date?: string
   end_date?: string
   baseline?: string
   obstacles?: string
   enjoyment?: string
+  timeCommitment: {
+    hours: number
+    minutes: number
+  }
 }
 
 export interface TitleSuggestion {
@@ -44,6 +56,27 @@ export interface DateAnalysis {
   assessment: string
   suggestedEndDate: string
   reasoning: string
+}
+
+export interface GoalFeasibilityResponse {
+  summary: string
+  titleSuggestions: TitleSuggestion[]
+}
+
+export interface TimelineFeasibilityResponse {
+  assessment: string
+  suggestedEndDate: string
+  reasoning: string
+}
+
+// Legacy types for backward compatibility
+export interface FeasibilityRequest {
+  title: string
+  start_date?: string
+  end_date?: string
+  baseline?: string
+  obstacles?: string
+  enjoyment?: string
 }
 
 export interface FeasibilityResponse {
@@ -72,7 +105,31 @@ export interface GenerateActionsRequest {
   baseline?: string
   obstacles?: string
   enjoyment?: string
+  timeCommitment?: { hours: number; minutes: number }
   areas: Area[]
+  feedback?: string
+  original_actions?: Action[]
+}
+
+// Onboarding-specific types (unauthenticated - uses same endpoints)
+export interface OnboardingGenerateAreasRequest {
+  title: string
+  baseline?: string
+  obstacles?: string
+  enjoyment?: string
+  dream_id?: string // Optional for onboarding
+  feedback?: string
+  original_areas?: Area[]
+}
+
+export interface OnboardingGenerateActionsRequest {
+  title: string
+  baseline?: string
+  obstacles?: string
+  enjoyment?: string
+  timeCommitment?: { hours: number; minutes: number }
+  areas: Area[]
+  dream_id?: string // Optional for onboarding
   feedback?: string
   original_actions?: Action[]
 }
@@ -241,6 +298,13 @@ async function patch(path: string, body: unknown, token?: string) {
 export const upsertDream = (body: UpsertDreamRequest, token?: string): Promise<UpsertDreamResponse> => 
   post('/api/dreams', body, token)
 
+export const runGoalFeasibility = (body: GoalFeasibilityRequest, token?: string): Promise<GoalFeasibilityResponse> => 
+  post('/api/create/goal-feasibility', body, token)
+
+export const runTimelineFeasibility = (body: TimelineFeasibilityRequest, token?: string): Promise<TimelineFeasibilityResponse> => 
+  post('/api/create/timeline-feasibility', body, token)
+
+// Legacy function for backward compatibility
 export const runFeasibility = (body: FeasibilityRequest, token?: string): Promise<FeasibilityResponse> => 
   post('/api/create/feasibility', body, token)
 
@@ -249,6 +313,13 @@ export const generateAreas = (body: GenerateAreasRequest, token?: string): Promi
 
 export const generateActions = (body: GenerateActionsRequest, token?: string): Promise<Action[]> => 
   post('/api/create/generate-actions', body, token)
+
+// Onboarding-specific functions (unauthenticated - uses same endpoints)
+export const generateOnboardingAreas = (body: OnboardingGenerateAreasRequest): Promise<Area[]> => 
+  post('/api/create/generate-areas', body) // No token = unauthenticated mode
+
+export const generateOnboardingActions = (body: OnboardingGenerateActionsRequest): Promise<Action[]> => 
+  post('/api/create/generate-actions', body) // No token = unauthenticated mode
 
 export const activateDream = (body: ActivateDreamRequest, token?: string): Promise<{ success: boolean; message?: string; error?: string; scheduling?: any }> => 
   post('/api/create/activate-dream', body, token)
@@ -458,7 +529,7 @@ export const getDefaultImages = (token: string): Promise<{ success: boolean; dat
       if (!res.ok) {
         const errorText = await res.text()
         console.log('❌ [BACKEND-BRIDGE] Get default images Error:', errorText)
-        throw new Error(errorText)
+        throw new Error(`HTTP ${res.status}: ${errorText}`)
       }
       
       const result = await res.json()
@@ -467,7 +538,42 @@ export const getDefaultImages = (token: string): Promise<{ success: boolean; dat
     })
     .catch((error) => {
       console.log('💥 [BACKEND-BRIDGE] Get default images Network/Parse Error:', error)
-      throw error
+      // Return a more structured error response
+      return {
+        success: false,
+        data: { images: [] },
+        message: error.message || 'Failed to load default images'
+      }
+    })
+}
+
+export const getDefaultImagesPublic = (): Promise<{ success: boolean; data: DefaultImagesResponse; message: string }> => {
+  console.log('🌐 [BACKEND-BRIDGE] Getting default images (public)');
+  
+  return fetch(`${API_BASE}/api/dreams/default-images-public`, {
+    method: 'GET',
+  })
+    .then(async (res) => {
+      console.log('📡 [BACKEND-BRIDGE] Get default images (public) response status:', res.status)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.log('❌ [BACKEND-BRIDGE] Get default images (public) Error:', errorText)
+        throw new Error(`HTTP ${res.status}: ${errorText}`)
+      }
+      
+      const result = await res.json()
+      console.log('✅ [BACKEND-BRIDGE] Get default images (public) Success:', result)
+      return result
+    })
+    .catch((error) => {
+      console.log('💥 [BACKEND-BRIDGE] Get default images (public) Network/Parse Error:', error)
+      // Return a more structured error response
+      return {
+        success: false,
+        data: { images: [] },
+        message: error.message || 'Failed to load default images'
+      }
     })
 }
 

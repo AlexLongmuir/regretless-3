@@ -4,19 +4,49 @@
  * Shows bell icon with notification badge and reminder setup
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { IconButton } from '../../components/IconButton';
 import { Ionicons } from '@expo/vector-icons';
+import { notificationService } from '../../lib/NotificationService';
 
 const TrialReminderStep: React.FC = () => {
   const navigation = useNavigation();
+  const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
 
-  const handleContinue = () => {
-    navigation.navigate('TrialContinuation' as never);
+  const handleContinue = async () => {
+    setIsRequestingPermissions(true);
+    
+    try {
+      // Request notification permissions
+      const permissionsGranted = await notificationService.requestPermissions();
+      
+      if (permissionsGranted) {
+        // Navigate to next step
+        navigation.navigate('TrialContinuation' as never);
+      } else {
+        // Show alert if permissions were denied
+        Alert.alert(
+          'Notifications Disabled',
+          'You can enable notifications later in your device settings to receive reminders about your trial.',
+          [
+            {
+              text: 'Continue Anyway',
+              onPress: () => navigation.navigate('TrialContinuation' as never),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
+      // Continue anyway if there's an error
+      navigation.navigate('TrialContinuation' as never);
+    } finally {
+      setIsRequestingPermissions(false);
+    }
   };
 
 
@@ -34,7 +64,7 @@ const TrialReminderStep: React.FC = () => {
       
       <View style={styles.content}>
         <View style={styles.topSection}>
-          <Text style={styles.title}>We'll send you a reminder before your free trial ends</Text>
+          <Text style={styles.title}>Enable notifications to get reminders about your free trial</Text>
           
           <View style={styles.bellContainer}>
             <View style={styles.bellIcon}>
@@ -49,10 +79,11 @@ const TrialReminderStep: React.FC = () => {
         <View style={styles.offerSection}>
           <Text style={styles.noPaymentText}>✓ No Payment Due Now</Text>
           <Button
-            title="Continue for FREE"
+            title={isRequestingPermissions ? "Setting up notifications..." : "Continue for FREE"}
             onPress={handleContinue}
             variant="black"
             style={styles.continueButton}
+            disabled={isRequestingPermissions}
           />
           <Text style={styles.pricingText}>
             Just £39.99 per year (£3.33 / month)

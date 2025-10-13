@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -29,21 +31,7 @@ export class NotificationService {
     if (this.isInitialized) return;
 
     try {
-      // Request permissions
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        console.log('Notification permissions not granted');
-        return;
-      }
-
-      // Configure notification channels for Android
+      // Configure notification channels for Android (no permission request)
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('daily-reminders', {
           name: 'Daily Reminders',
@@ -66,6 +54,29 @@ export class NotificationService {
       console.log('NotificationService initialized successfully');
     } catch (error) {
       console.error('Failed to initialize NotificationService:', error);
+    }
+  }
+
+  async requestPermissions(): Promise<boolean> {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.log('Notification permissions not granted');
+        return false;
+      }
+
+      console.log('Notification permissions granted');
+      return true;
+    } catch (error) {
+      console.error('Failed to request notification permissions:', error);
+      return false;
     }
   }
 
@@ -194,6 +205,7 @@ export class NotificationService {
           priority: Notifications.AndroidNotificationPriority.HIGH,
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
           hour: hours,
           minute: minutes,
           repeats: true,
@@ -308,6 +320,100 @@ export class NotificationService {
     } catch (error) {
       console.error('Error getting scheduled notifications:', error);
       return [];
+    }
+  }
+
+  /**
+   * Schedule a trial expiration reminder notification
+   * @param userId - The user ID
+   * @param trialExpiresAt - ISO string of when the trial expires
+   * @param reminderHoursBeforeExpiration - How many hours before expiration to send reminder (default: 24)
+   */
+  async scheduleTrialReminder(
+    userId: string, 
+    trialExpiresAt: string, 
+    reminderHoursBeforeExpiration: number = 24
+  ): Promise<void> {
+    try {
+      const expirationDate = new Date(trialExpiresAt);
+      const reminderDate = new Date(expirationDate.getTime() - (reminderHoursBeforeExpiration * 60 * 60 * 1000));
+      
+      // Don't schedule if reminder time has already passed
+      if (reminderDate <= new Date()) {
+        console.log('Trial reminder time has already passed, not scheduling');
+        return;
+      }
+
+      // Cancel any existing trial reminders for this user
+      await this.cancelTrialReminders(userId);
+
+      // Schedule the trial reminder notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '⏰ Your Free Trial Ends Soon',
+          body: `Your free trial ends in ${reminderHoursBeforeExpiration} hours. Continue your journey with a full subscription!`,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          data: {
+            type: 'trial_reminder',
+            user_id: userId,
+            trial_expires_at: trialExpiresAt,
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: reminderDate,
+        },
+      });
+
+      console.log(`Trial reminder scheduled for ${reminderDate.toISOString()} (${reminderHoursBeforeExpiration}h before expiration)`);
+    } catch (error) {
+      console.error('Error scheduling trial reminder:', error);
+    }
+  }
+
+  /**
+   * Cancel trial reminder notifications for a specific user
+   */
+  async cancelTrialReminders(userId: string): Promise<void> {
+    try {
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      
+      for (const notification of scheduledNotifications) {
+        if (notification.content.data?.type === 'trial_reminder' && 
+            notification.content.data?.user_id === userId) {
+          await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+          console.log(`Cancelled trial reminder notification ${notification.identifier}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error cancelling trial reminders:', error);
+    }
+  }
+
+  /**
+   * Schedule multiple trial reminders at different intervals
+   * @param userId - The user ID
+   * @param trialExpiresAt - ISO string of when the trial expires
+   * @param reminderHours - Array of hours before expiration to send reminders (e.g., [48, 24, 2])
+   */
+  async scheduleMultipleTrialReminders(
+    userId: string, 
+    trialExpiresAt: string, 
+    reminderHours: number[] = [48, 24, 2]
+  ): Promise<void> {
+    try {
+      // Cancel any existing trial reminders first
+      await this.cancelTrialReminders(userId);
+
+      // Schedule each reminder
+      for (const hours of reminderHours) {
+        await this.scheduleTrialReminder(userId, trialExpiresAt, hours);
+      }
+
+      console.log(`Scheduled ${reminderHours.length} trial reminders for user ${userId}`);
+    } catch (error) {
+      console.error('Error scheduling multiple trial reminders:', error);
     }
   }
 }

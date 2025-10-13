@@ -10,8 +10,8 @@ Create a `.env` or `.env.local` file in the root directory of your project with 
 
 ```bash
 # Supabase Configuration
-SUPABASE_URL=your_supabase_url_here
-SUPABASE_ANON_KEY=your_supabase_anon_key_here
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url_here
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # Google Sign-In Configuration
 GOOGLE_IOS_CLIENT_ID=your_google_ios_client_id_here

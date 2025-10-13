@@ -24,6 +24,7 @@ import UnderstandingStep from '../app/onboarding/understanding';
 import CurrentLifeStep from '../app/onboarding/current-life';
 import MainDreamStep from '../app/onboarding/main-dream';
 import RealisticGoalStep from '../app/onboarding/realistic-goal';
+import DreamImageStep from '../app/onboarding/dream-image';
 import TimeCommitmentStep from '../app/onboarding/time-commitment';
 import CurrentProgressStep from '../app/onboarding/current-progress';
 import AchievementComparisonStep from '../app/onboarding/achievement-comparison';
@@ -34,6 +35,9 @@ import PotentialStep from '../app/onboarding/potential';
 import RatingStep from '../app/onboarding/rating';
 import GeneratingStep from '../app/onboarding/generating';
 import ProgressStep from '../app/onboarding/progress';
+import AreasConfirmStep from '../app/onboarding/areas-confirm';
+import ActionsGeneratingStep from '../app/onboarding/actions-generating';
+import ActionsConfirmStep from '../app/onboarding/actions-confirm';
 import FinalStep from '../app/onboarding/final';
 import PaywallStep from '../app/onboarding/paywall';
 import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
@@ -114,6 +118,13 @@ const OnboardingNavigator = () => {
         }}
       />
       <OnboardingStack.Screen 
+        name="DreamImage" 
+        component={DreamImageStep}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <OnboardingStack.Screen 
         name="TimeCommitment" 
         component={TimeCommitmentStep}
         options={{
@@ -179,6 +190,27 @@ const OnboardingNavigator = () => {
       <OnboardingStack.Screen 
         name="Progress" 
         component={ProgressStep}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <OnboardingStack.Screen 
+        name="AreasConfirm" 
+        component={AreasConfirmStep}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <OnboardingStack.Screen 
+        name="ActionsGenerating" 
+        component={ActionsGeneratingStep}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <OnboardingStack.Screen 
+        name="ActionsConfirm" 
+        component={ActionsConfirmStep}
         options={{
           headerShown: false,
         }}

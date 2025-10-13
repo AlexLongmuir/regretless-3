@@ -15,7 +15,7 @@ export default function QuestionsStep() {
 
   const handleContinue = async () => {
     // Navigate immediately for smooth UX
-    navigation.navigate('Feasibility')
+    navigation.navigate('GoalFeasibility')
 
     // Handle backend operations in background
     if (dreamId) {

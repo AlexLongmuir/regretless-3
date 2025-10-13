@@ -76,7 +76,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
       is_done: occurrence.is_done,
       is_overdue: occurrence.is_overdue,
       occurrence_no: occurrence.occurrence_no,
-      dream_image: (occurrence as any).actions?.areas?.icon || '🎯', // Use area icon if available
+      dream_image: (occurrence as any).actions?.areas?.dreams?.image_url || '🎯', // Use dream image if available
       hideEditButtons: true
     }));
 

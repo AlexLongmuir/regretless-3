@@ -35,6 +35,7 @@ export interface Dream {
   baseline?: string;
   obstacles?: string;
   enjoyment?: string;
+  time_commitment?: { hours: number; minutes: number };
   archived_at?: string;
   created_at: string;
   updated_at: string;

@@ -38,7 +38,8 @@ export default function ActionsStep() {
     end_date,
     baseline,
     obstacles,
-    enjoyment
+    enjoyment,
+    timeCommitment
   } = useCreateDream()
   
   const [isLoading, setIsLoading] = useState(true)
@@ -106,6 +107,7 @@ export default function ActionsStep() {
             baseline: baseline || undefined,
             obstacles: obstacles || undefined,
             enjoyment: enjoyment || undefined,
+            timeCommitment: timeCommitment || undefined,
             areas: areas
           }, session.access_token)
           
@@ -128,7 +130,7 @@ export default function ActionsStep() {
       }
 
       loadActions()
-    }, [dreamId, actions.length, setActions, areas, title, start_date, end_date, baseline, obstacles, enjoyment])
+    }, [dreamId, actions.length, setActions, areas, title, start_date, end_date, baseline, obstacles, enjoyment, timeCommitment])
   )
 
   // Navigation functions
@@ -194,20 +196,6 @@ export default function ActionsStep() {
           }}
         />
         <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={handleRefreshActions}
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 12,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            marginRight: 8
-          }}
-        >
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#000' }}>
-            Refresh
-          </Text>
-        </TouchableOpacity>
         <IconButton 
           icon="close" 
           onPress={handleClose}
@@ -257,6 +245,7 @@ export default function ActionsStep() {
         baseline: baseline || undefined,
         obstacles: obstacles || undefined,
         enjoyment: enjoyment || undefined,
+        timeCommitment: timeCommitment || undefined,
         areas: areas
       }, session.access_token)
       
@@ -586,6 +575,7 @@ export default function ActionsStep() {
                   baseline: baseline || undefined,
                   obstacles: obstacles || undefined,
                   enjoyment: enjoyment || undefined,
+                  timeCommitment: timeCommitment || undefined,
                   areas: areasToRegenerate,
                   feedback: feedback.trim() || undefined,
                   original_actions: actions.filter(action => 

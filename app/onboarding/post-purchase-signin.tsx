@@ -17,11 +17,16 @@ import { IconButton } from '../../components/IconButton';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
+import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { updateSubscriptionStatus } from '../../utils/onboardingFlow';
+import { upsertDream, upsertAreas, upsertActions, activateDream } from '../../frontend-services/backend-bridge';
+import { supabaseClient } from '../../lib/supabaseClient';
+import { supabaseServerAuth } from '../../backend/lib/supabaseServer';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
   const { signInWithApple, signInWithGoogle, signOut, loading: authLoading, user, isAuthenticated } = useAuthContext();
+  const { state: onboardingState } = useOnboardingContext();
   const { 
     customerInfo, 
     hasProAccess, 
@@ -31,6 +36,148 @@ const PostPurchaseSignInStep: React.FC = () => {
     restorePurchases,
     linking 
   } = useEntitlementsContext();
+
+  const [isCreatingDream, setIsCreatingDream] = useState(false);
+
+  // Function to create dream from onboarding data
+  const createDreamFromOnboarding = async (token: string) => {
+    try {
+      console.log('🎯 [ONBOARDING] Starting dream creation from onboarding data...');
+      
+      // Check if we have the required data
+      if (!onboardingState.generatedAreas.length || !onboardingState.generatedActions.length) {
+        console.log('⚠️ [ONBOARDING] No generated areas or actions found, skipping dream creation');
+        return null;
+      }
+
+      // Map onboarding answers to dream parameters
+      const dreamTitle = onboardingState.answers[2] || 'My Dream'; // Main dream answer
+      const dreamBaseline = onboardingState.answers[1] || ''; // Current life answer
+      const dreamObstacles = onboardingState.answers[10] || ''; // Obstacles answer (ID 10)
+      const dreamEnjoyment = onboardingState.answers[11] || ''; // Motivation answer (ID 11)
+      const timeCommitment = onboardingState.answers[3] || ''; // Time commitment answer (ID 3)
+
+      // Parse time commitment from "0h 30m" format to JSON
+      let timeCommitmentJson = null;
+      if (timeCommitment) {
+        const match = timeCommitment.match(/(\d+)h?\s*(\d+)?m?/);
+        if (match) {
+          const hours = parseInt(match[1]) || 0;
+          const minutes = parseInt(match[2]) || 0;
+          timeCommitmentJson = { hours, minutes };
+        }
+      }
+
+      // Create the dream
+      console.log('🎯 [ONBOARDING] Creating dream:', dreamTitle);
+      const dreamResponse = await upsertDream({
+        title: dreamTitle,
+        image_url: onboardingState.dreamImageUrl,
+        baseline: dreamBaseline,
+        obstacles: dreamObstacles,
+        enjoyment: dreamEnjoyment,
+        time_commitment: timeCommitmentJson,
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() // 3 months from now
+      }, token);
+
+      console.log('✅ [ONBOARDING] Dream created with ID:', dreamResponse.id);
+
+      // Save user's name to profile
+      if (onboardingState.name) {
+        console.log('🎯 [ONBOARDING] Saving user name to profile...');
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            const sb = supabaseServerAuth(session.access_token);
+            const { error: profileError } = await sb
+              .from('profiles')
+              .update({ name: onboardingState.name })
+              .eq('user_id', user?.id);
+            
+            if (profileError) {
+              console.error('❌ [ONBOARDING] Failed to save name to profile:', profileError);
+            } else {
+              console.log('✅ [ONBOARDING] User name saved to profile');
+            }
+          }
+        } catch (error) {
+          console.error('❌ [ONBOARDING] Error saving name to profile:', error);
+        }
+      }
+
+      // Save onboarding responses
+      console.log('🎯 [ONBOARDING] Saving onboarding responses...');
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.access_token) {
+          const sb = supabaseServerAuth(session.access_token);
+          
+          // Prepare responses for insertion
+          const responses = Object.entries(onboardingState.answers)
+            .filter(([_, answer]) => answer && answer.trim()) // Only non-empty answers
+            .map(([questionId, answer]) => ({
+              user_id: user?.id,
+              question_id: parseInt(questionId),
+              answer: answer.trim()
+            }));
+
+          if (responses.length > 0) {
+            const { error: responsesError } = await sb
+              .from('onboarding_responses')
+              .upsert(responses, { 
+                onConflict: 'user_id,question_id',
+                ignoreDuplicates: false 
+              });
+            
+            if (responsesError) {
+              console.error('❌ [ONBOARDING] Failed to save onboarding responses:', responsesError);
+            } else {
+              console.log('✅ [ONBOARDING] Onboarding responses saved:', responses.length);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ [ONBOARDING] Error saving onboarding responses:', error);
+      }
+
+      // Save areas
+      console.log('🎯 [ONBOARDING] Saving areas...');
+      const areasResponse = await upsertAreas({
+        dream_id: dreamResponse.id,
+        areas: onboardingState.generatedAreas
+      }, token);
+
+      console.log('✅ [ONBOARDING] Areas saved:', areasResponse.areas.length);
+
+      // Save actions
+      console.log('🎯 [ONBOARDING] Saving actions...');
+      const actionsResponse = await upsertActions({
+        dream_id: dreamResponse.id,
+        actions: onboardingState.generatedActions
+      }, token);
+
+      console.log('✅ [ONBOARDING] Actions saved:', actionsResponse.actions.length);
+
+      // Activate dream and schedule actions
+      console.log('🎯 [ONBOARDING] Activating dream and scheduling actions...');
+      const activationResponse = await activateDream({
+        dream_id: dreamResponse.id
+      }, token);
+
+      if (activationResponse.success) {
+        console.log('✅ [ONBOARDING] Dream activated and actions scheduled successfully!');
+        return dreamResponse.id;
+      } else {
+        console.error('❌ [ONBOARDING] Dream activation failed:', activationResponse.error);
+        return dreamResponse.id; // Still return dream ID even if scheduling failed
+      }
+
+    } catch (error) {
+      console.error('❌ [ONBOARDING] Failed to create dream from onboarding data:', error);
+      return null;
+    }
+  };
 
   // Test Apple Sign In availability on component mount
   useEffect(() => {
@@ -108,12 +255,53 @@ const PostPurchaseSignInStep: React.FC = () => {
           // Update subscription status in AsyncStorage
           await updateSubscriptionStatus(true);
           
+          // Create dream from onboarding data
+          setIsCreatingDream(true);
+          try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) {
+              const dreamId = await createDreamFromOnboarding(session.access_token);
+              if (dreamId) {
+                console.log('🎉 [ONBOARDING] Dream creation completed successfully!');
+              } else {
+                console.log('⚠️ [ONBOARDING] Dream creation skipped or failed');
+              }
+            } else {
+              console.log('⚠️ [ONBOARDING] No auth token available for dream creation');
+            }
+          } catch (error) {
+            console.error('❌ [ONBOARDING] Error during dream creation:', error);
+          } finally {
+            setIsCreatingDream(false);
+          }
+          
           // Navigate to main app
           navigation.navigate('Main' as never);
         } catch (error) {
           console.error('Error in robust linking:', error);
           // Still navigate even if linking fails
           await updateSubscriptionStatus(true);
+          
+          // Create dream from onboarding data even if linking failed
+          setIsCreatingDream(true);
+          try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) {
+              const dreamId = await createDreamFromOnboarding(session.access_token);
+              if (dreamId) {
+                console.log('🎉 [ONBOARDING] Dream creation completed successfully!');
+              } else {
+                console.log('⚠️ [ONBOARDING] Dream creation skipped or failed');
+              }
+            } else {
+              console.log('⚠️ [ONBOARDING] No auth token available for dream creation');
+            }
+          } catch (dreamError) {
+            console.error('❌ [ONBOARDING] Error during dream creation:', dreamError);
+          } finally {
+            setIsCreatingDream(false);
+          }
+          
           navigation.navigate('Main' as never);
         }
       };
@@ -230,13 +418,21 @@ const PostPurchaseSignInStep: React.FC = () => {
             </Text>
           </View>
         )}
+
+        {isCreatingDream && (
+          <View style={styles.dreamCreationStatus}>
+            <Text style={styles.dreamCreationText}>
+              🎯 Creating your personalized dream plan...
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.footer}>
         <TouchableOpacity
           onPress={handleAppleSignIn}
-          disabled={authLoading || linking || entitlementsLoading}
-          style={[styles.appleButton, (authLoading || linking || entitlementsLoading) && styles.buttonDisabled]}
+          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
+          style={[styles.appleButton, (authLoading || linking || entitlementsLoading || isCreatingDream) && styles.buttonDisabled]}
         >
           <View style={styles.buttonContent}>
             <Text style={styles.appleButtonText}>Continue with Apple</Text>
@@ -245,8 +441,8 @@ const PostPurchaseSignInStep: React.FC = () => {
         
         <TouchableOpacity
           onPress={handleGoogleSignIn}
-          disabled={authLoading || linking || entitlementsLoading}
-          style={[styles.googleButton, (authLoading || linking || entitlementsLoading) && styles.buttonDisabled]}
+          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
+          style={[styles.googleButton, (authLoading || linking || entitlementsLoading || isCreatingDream) && styles.buttonDisabled]}
         >
           <View style={styles.buttonContent}>
             <Text style={styles.googleButtonText}>Continue with Google</Text>
@@ -395,6 +591,19 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  dreamCreationStatus: {
+    backgroundColor: theme.colors.primary[50],
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.lg,
+  },
+  dreamCreationText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.body,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.primary[700],
+    textAlign: 'center',
   },
 });
 

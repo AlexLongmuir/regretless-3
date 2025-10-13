@@ -18,14 +18,10 @@ export async function POST(req: Request) {
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = await getUser(req)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = token ? await getUser(req) : null
+    
+    // Allow unauthenticated access for onboarding preview
+    const isOnboarding = !token || !user
 
     const { 
       dream_id, 
@@ -39,8 +35,13 @@ export async function POST(req: Request) {
       original_areas
     } = await req.json()
     
-    if (!dream_id || !title) {
-      return NextResponse.json({ error: 'Dream ID and title are required' }, { status: 400 })
+    if (!title) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+    
+    // For onboarding, dream_id is optional
+    if (!isOnboarding && !dream_id) {
+      return NextResponse.json({ error: 'Dream ID is required for authenticated requests' }, { status: 400 })
     }
 
     // Build the prompt with all available context
@@ -95,16 +96,18 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
 
     const latencyMs = Date.now() - startTime
 
-    // Save telemetry using authenticated client
-    const sb = supabaseServerAuth(token)
-    await saveAIEvent(
-      user.id,
-      'areas',
-      'gemini-2.5-flash-lite',
-      usage,
-      latencyMs,
-      sb
-    )
+    // Save telemetry only for authenticated users
+    if (!isOnboarding && user && token) {
+      const sb = supabaseServerAuth(token)
+      await saveAIEvent(
+        user.id,
+        'areas',
+        'gemini-2.5-flash-lite',
+        usage,
+        latencyMs,
+        sb
+      )
+    }
 
     // Check if AI returned valid data
     if (!data || !data.areas || !Array.isArray(data.areas) || data.areas.length === 0) {
@@ -112,19 +115,37 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
       return NextResponse.json({ error: 'AI failed to generate areas' }, { status: 500 })
     }
 
-    // Convert AI response to Area objects and save to database
-    const areasToInsert = data.areas.map((area: any, index: number) => ({
-      user_id: user.id,
-      dream_id,
+    // Convert AI response to Area objects
+    const areas = data.areas.map((area: any, index: number) => ({
+      id: `temp-${Date.now()}-${index}`, // Temporary ID for onboarding
+      user_id: user?.id || 'temp',
+      dream_id: dream_id || 'temp',
       title: area.title,
       icon: area.emoji,
-      position: index + 1
+      position: index + 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }))
 
-    console.log('💾 Areas to insert:', JSON.stringify(areasToInsert, null, 2))
+    console.log('💾 Generated areas:', JSON.stringify(areas, null, 2))
 
-    // Use authenticated client for database operations
-    const supabase = supabaseServerAuth(token)
+    // For onboarding, return the areas directly without saving to database
+    if (isOnboarding) {
+      console.log('✅ Returning areas for onboarding preview')
+      return NextResponse.json(areas)
+    }
+
+    // For authenticated users, save to database
+    const supabase = supabaseServerAuth(token!)
+    
+    // Convert to database format
+    const areasToInsert = areas.map(area => ({
+      user_id: user!.id,
+      dream_id,
+      title: area.title,
+      icon: area.icon,
+      position: area.position
+    }))
     
     // First, soft delete existing areas for this dream to avoid position conflicts
     // RLS will automatically filter by user_id

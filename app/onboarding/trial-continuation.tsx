@@ -12,6 +12,8 @@ import { Button } from '../../components/Button';
 import { IconButton } from '../../components/IconButton';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
+import { notificationService } from '../../lib/NotificationService';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 // Import RevenueCat with fallback to mock
 import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
@@ -31,6 +33,7 @@ try {
 const TrialContinuationStep: React.FC = () => {
   const navigation = useNavigation();
   const { hasProAccess, restorePurchases } = useEntitlementsContext();
+  const { user } = useAuthContext();
   const [selectedPlan, setSelectedPlan] = useState('$rc_annual');
   const [showOneTimeOffer, setShowOneTimeOffer] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -175,6 +178,24 @@ const TrialContinuationStep: React.FC = () => {
       if (refreshedCustomerInfo.entitlements?.active?.['pro']) {
         // Show success state briefly before navigating
         setPurchaseSuccess(true);
+        
+        // Schedule trial reminder notification (24 hours before trial expires)
+        if (user?.id) {
+          try {
+            const proEntitlement = refreshedCustomerInfo.entitlements?.active?.pro;
+            const expirationDate = proEntitlement?.expirationDate;
+            
+            if (expirationDate) {
+              // Schedule reminder 24 hours before trial expires
+              await notificationService.scheduleTrialReminder(user.id, expirationDate, 24);
+              console.log('Trial reminder notification scheduled for 24 hours before expiration');
+            }
+          } catch (error) {
+            console.error('Error scheduling trial reminder:', error);
+            // Don't block the user flow if reminder scheduling fails
+          }
+        }
+        
         setTimeout(() => {
           navigation.navigate('PostPurchaseSignIn' as never);
         }, 1500);
@@ -188,6 +209,24 @@ const TrialContinuationStep: React.FC = () => {
           // This can happen with trial subscriptions
           console.log('Active subscription found but entitlement not yet active, proceeding anyway');
           setPurchaseSuccess(true);
+          
+          // Schedule trial reminder notification (24 hours before trial expires)
+          if (user?.id) {
+            try {
+              const proEntitlement = refreshedCustomerInfo.entitlements?.active?.pro;
+              const expirationDate = proEntitlement?.expirationDate;
+              
+              if (expirationDate) {
+                // Schedule reminder 24 hours before trial expires
+                await notificationService.scheduleTrialReminder(user.id, expirationDate, 24);
+                console.log('Trial reminder notification scheduled for 24 hours before expiration');
+              }
+            } catch (error) {
+              console.error('Error scheduling trial reminder:', error);
+              // Don't block the user flow if reminder scheduling fails
+            }
+          }
+          
           setTimeout(() => {
             navigation.navigate('PostPurchaseSignIn' as never);
           }, 1500);

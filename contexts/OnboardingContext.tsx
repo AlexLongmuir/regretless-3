@@ -11,6 +11,7 @@
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { Area, Action } from '../backend/database/types';
 
 interface OnboardingState {
   // User information
@@ -18,6 +19,13 @@ interface OnboardingState {
   
   // Question responses
   answers: Record<number, string>;
+  
+  // Dream image
+  dreamImageUrl: string | null;
+  
+  // Generated content from onboarding
+  generatedAreas: Area[];
+  generatedActions: Action[];
   
   // Subscription info
   hasActiveSubscription: boolean;
@@ -32,6 +40,9 @@ interface OnboardingContextType {
   updateName: (name: string) => void;
   updateAnswer: (questionId: number, answer: string) => void;
   updateAnswers: (answers: Record<number, string>) => void;
+  setDreamImageUrl: (imageUrl: string | null) => void;
+  setGeneratedAreas: (areas: Area[]) => void;
+  setGeneratedActions: (actions: Action[]) => void;
   setSubscriptionStatus: (hasActive: boolean) => void;
   setCurrentStep: (step: string) => void;
   setProgress: (progress: number) => void;
@@ -41,6 +52,9 @@ interface OnboardingContextType {
 const defaultState: OnboardingState = {
   name: '',
   answers: {},
+  dreamImageUrl: null,
+  generatedAreas: [],
+  generatedActions: [],
   hasActiveSubscription: false,
   currentStep: 'Intro',
   progress: 0,
@@ -73,6 +87,18 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     setState(prev => ({ ...prev, answers }));
   };
 
+  const setDreamImageUrl = (imageUrl: string | null) => {
+    setState(prev => ({ ...prev, dreamImageUrl: imageUrl }));
+  };
+
+  const setGeneratedAreas = (areas: Area[]) => {
+    setState(prev => ({ ...prev, generatedAreas: areas }));
+  };
+
+  const setGeneratedActions = (actions: Action[]) => {
+    setState(prev => ({ ...prev, generatedActions: actions }));
+  };
+
   const setSubscriptionStatus = (hasActive: boolean) => {
     setState(prev => ({ ...prev, hasActiveSubscription: hasActive }));
   };
@@ -94,6 +120,9 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     updateName,
     updateAnswer,
     updateAnswers,
+    setDreamImageUrl,
+    setGeneratedAreas,
+    setGeneratedActions,
     setSubscriptionStatus,
     setCurrentStep,
     setProgress,

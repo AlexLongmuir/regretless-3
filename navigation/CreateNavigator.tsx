@@ -17,9 +17,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 // Import create flow screens
 import TitleStep from '../app/create/index';
 import PersonalizeStep from '../app/create/personalize';
-import DatesStep from '../app/create/dates';
+import TimeCommitmentStep from '../app/create/time-commitment';
 import QuestionsStep from '../app/create/questions';
-import FeasibilityStep from '../app/create/feasibility';
+import GoalFeasibilityStep from '../app/create/goal-feasibility';
+import TimelineFeasibilityStep from '../app/create/timeline-feasibility';
 import DreamConfirmStep from '../app/create/dream-confirm';
 import AreasStep from '../app/create/areas';
 import AreasConfirmStep from '../app/create/areas-confirm';
@@ -45,10 +46,11 @@ const CreateNavigator = () => (
     }}
   >
     <CreateStack.Screen name="Title" component={TitleStep} />
-    <CreateStack.Screen name="Personalize" component={PersonalizeStep} />
-    <CreateStack.Screen name="Dates" component={DatesStep} />
     <CreateStack.Screen name="Questions" component={QuestionsStep} />
-    <CreateStack.Screen name="Feasibility" component={FeasibilityStep} />
+    <CreateStack.Screen name="Personalize" component={PersonalizeStep} />
+    <CreateStack.Screen name="GoalFeasibility" component={GoalFeasibilityStep} />
+    <CreateStack.Screen name="TimeCommitment" component={TimeCommitmentStep} />
+    <CreateStack.Screen name="TimelineFeasibility" component={TimelineFeasibilityStep} />
     <CreateStack.Screen name="DreamConfirm" component={DreamConfirmStep} />
     <CreateStack.Screen name="Areas" component={AreasStep} />
     <CreateStack.Screen name="AreasConfirm" component={AreasConfirmStep} />

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useCallback, useState } from 'react'
 import type { Dream, Area, Action, ActionWithDueDate } from '../backend/database/types'
-import type { FeasibilityResponse } from '../frontend-services/backend-bridge'
+import type { FeasibilityResponse, GoalFeasibilityResponse, TimelineFeasibilityResponse } from '../frontend-services/backend-bridge'
 
 // Create dream state types
 export interface CreateDreamState {
@@ -16,13 +16,20 @@ export interface CreateDreamState {
   baseline?: string // What's your current progress
   obstacles?: string // What's most likely going to cause you not to achieve this
   enjoyment?: string // What's most likely to cause you to enjoy the journey
+  timeCommitment?: { hours: number; minutes: number } // Daily time commitment
   
   // AI analysis results
-  feasibility?: FeasibilityResponse
-  feasibilityAnalyzed?: boolean // Track if feasibility analysis has been completed
+  goalFeasibility?: GoalFeasibilityResponse
+  timelineFeasibility?: TimelineFeasibilityResponse
+  goalFeasibilityAnalyzed?: boolean // Track if goal feasibility analysis has been completed
+  timelineFeasibilityAnalyzed?: boolean // Track if timeline feasibility analysis has been completed
   originalTitleForFeasibility?: string // Store original title when feasibility was generated
   originalEndDateForFeasibility?: string // Store original end date when feasibility was generated
   areasAnalyzed?: boolean // Track if areas analysis has been completed
+  
+  // Legacy fields for backward compatibility
+  feasibility?: FeasibilityResponse
+  feasibilityAnalyzed?: boolean
   
   // Generated content
   areas: Area[]
@@ -48,6 +55,10 @@ export interface CreateDreamActions {
   reset: () => void
   
   // Feasibility analysis
+  setGoalFeasibilityAnalyzed: (analyzed: boolean) => void
+  setTimelineFeasibilityAnalyzed: (analyzed: boolean) => void
+  
+  // Legacy feasibility analysis
   setFeasibilityAnalyzed: (analyzed: boolean) => void
   
   // Areas analysis
@@ -133,6 +144,14 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setState(initialState)
   }, [])
 
+  const setGoalFeasibilityAnalyzed = useCallback((analyzed: boolean) => {
+    setState(prev => ({ ...prev, goalFeasibilityAnalyzed: analyzed }))
+  }, [])
+
+  const setTimelineFeasibilityAnalyzed = useCallback((analyzed: boolean) => {
+    setState(prev => ({ ...prev, timelineFeasibilityAnalyzed: analyzed }))
+  }, [])
+
   const setFeasibilityAnalyzed = useCallback((analyzed: boolean) => {
     setState(prev => ({ ...prev, feasibilityAnalyzed: analyzed }))
   }, [])
@@ -153,6 +172,8 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     updateAction,
     removeAction,
     reset,
+    setGoalFeasibilityAnalyzed,
+    setTimelineFeasibilityAnalyzed,
     setFeasibilityAnalyzed,
     setAreasAnalyzed
   }), [
@@ -167,6 +188,8 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     updateAction,
     removeAction,
     reset,
+    setGoalFeasibilityAnalyzed,
+    setTimelineFeasibilityAnalyzed,
     setFeasibilityAnalyzed,
     setAreasAnalyzed
   ])

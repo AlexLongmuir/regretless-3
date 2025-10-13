@@ -4,176 +4,111 @@
  * Shows final results with AreaChips and completion animation
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Animated, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
-import { AreaGrid } from '../../components/AreaChips';
+import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
-import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
-
-const targetAreas = [
-  {
-    id: 'planning',
-    title: 'Planning',
-    emoji: '✍️',
-    completedActions: 0,
-    totalActions: 3,
-  },
-  {
-    id: 'developing',
-    title: 'Developing',
-    emoji: '🔧',
-    completedActions: 0,
-    totalActions: 3,
-  },
-  {
-    id: 'launching',
-    title: 'Launching',
-    emoji: '🚀',
-    completedActions: 0,
-    totalActions: 3,
-  },
-  {
-    id: 'marketing',
-    title: 'Marketing',
-    emoji: '📢',
-    completedActions: 0,
-    totalActions: 3,
-  },
-];
+import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const FinalStep: React.FC = () => {
   const navigation = useNavigation();
-  const { restorePurchases, loading } = useEntitlementsContext();
-  const [showAreas, setShowAreas] = useState(false);
-  const animatedValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Show areas after a short delay
-    const timer = setTimeout(() => {
-      setShowAreas(true);
-      
-      // Animate areas in
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [animatedValue]);
+  const { state } = useOnboardingContext();
 
   const handleContinue = () => {
     // Navigate to trial offer flow
     navigation.navigate('TrialOffer' as never);
   };
 
-
-  const handleAreaPress = (id: string) => {
-    // Handle area selection
-    console.log('Area pressed:', id);
+  const handleBack = () => {
+    navigation.goBack();
   };
 
-  const handleEditArea = (id: string) => {
-    // Handle area editing
-    console.log('Edit area:', id);
+  // Helper function to get action count for each area
+  const getActionCountForArea = (areaId: string) => {
+    return state.generatedActions.filter(action => action.area_id === areaId).length;
   };
 
-  const handleRemoveArea = (id: string) => {
-    // Handle area removal
-    console.log('Remove area:', id);
+  // Helper function to get the goal end date
+  const getGoalEndDate = () => {
+    // Calculate end date based on time commitment (default to 3 months from now)
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 3);
+    
+    // Format as "Month Day, Year" (e.g., "March 15, 2024")
+    return endDate.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
   };
 
-  const handleAddArea = () => {
-    // Handle adding new area
-    console.log('Add new area');
-  };
 
-  const handleRestore = async () => {
-    try {
-      const result = await restorePurchases();
-      
-      if (result.success) {
-        // Navigate to PostPurchaseSignIn
-        navigation.navigate('PostPurchaseSignIn' as never);
-      } else {
-        Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
-      }
-    } catch (error: any) {
-      Alert.alert('Restore Error', error.message || 'Something went wrong');
-    }
-  };
-
-  const opacity = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-
-  const translateY = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [20, 0],
-  });
 
   return (
     <View style={styles.container}>
+      <OnboardingHeader onBack={handleBack} />
+      
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <View style={styles.headerContainer}>
-          <View style={styles.checkmarkContainer}>
-            <Ionicons name="checkmark-circle" size={32} color={theme.colors.primary[600]} />
-          </View>
+          {/* Dream Image */}
+          {state.dreamImageUrl && (
+            <View style={styles.dreamImageContainer}>
+              <Image 
+                source={{ uri: state.dreamImageUrl }} 
+                style={styles.dreamImage}
+                resizeMode="cover"
+              />
+            </View>
+          )}
           <Text style={styles.title}>Congratulations, your custom plan is ready!</Text>
         </View>
 
         <View style={styles.goalContainer}>
-          <Text style={styles.goalLabel}>You should achieve</Text>
-          <View style={styles.goalTextContainer}>
-            <Text style={styles.goalTextGold}>Getting fit & healthy</Text>
-            <Text style={styles.goalTextBlack}> by September 28</Text>
-          </View>
+          <Text style={styles.goalLabel}>You're all set to achieve</Text>
+          <Text style={styles.goalTextGold}>{state.answers[2] || 'Your Dream'}</Text>
+          <Text style={styles.goalDateText}>by {getGoalEndDate()}</Text>
         </View>
 
-        {showAreas && (
-          <Animated.View 
-            style={[
-              {
-                opacity,
-                transform: [{ translateY }],
-              }
-            ]}
-          >
-            <AreaGrid 
-              areas={targetAreas}
-              onEdit={handleEditArea}
-              onRemove={handleRemoveArea}
-              onAdd={handleAddArea}
-              onPress={handleAreaPress}
-              clickable={true}
-              showProgress={true}
-              title="Target Areas"
-              showAddButton={false}
-              showEditButtons={false}
-              showRemoveButtons={false}
-            />
-          </Animated.View>
-        )}
+        <View style={styles.summaryContainer}>
+          <Text style={styles.summaryTitle}>Your Personalized Plan</Text>
+          <Text style={styles.summarySubtitle}>
+            We've created {state.generatedActions.length} actions across {state.generatedAreas.length} focus areas
+          </Text>
+          
+          <View style={styles.areasList}>
+            {state.generatedAreas.map((area, index) => {
+              const actionCount = getActionCountForArea(area.id);
+              return (
+                <View key={area.id} style={styles.areaItem}>
+                  <View style={styles.areaHeader}>
+                    <Text style={styles.areaEmoji}>{area.icon}</Text>
+                    <View style={styles.areaInfo}>
+                      <Text style={styles.areaTitle}>{area.title}</Text>
+                      <Text style={styles.areaActionCount}>
+                        {actionCount} action{actionCount !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+        </View>
       </ScrollView>
 
       <View style={styles.buttonContainer}>
         <Button
           title="Continue"
           onPress={handleContinue}
-          variant="primary"
-          size="lg"
+          variant="black"
           style={styles.continueButton}
         />
-        
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreText}>Restore Purchases</Text>
-        </TouchableOpacity>
       </View>
+
     </View>
   );
 };
@@ -188,15 +123,12 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['3xl'],
-    paddingBottom: theme.spacing['2xl'],
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.lg,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: theme.spacing['2xl'],
-  },
-  checkmarkContainer: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,
@@ -205,6 +137,16 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     color: theme.colors.grey[900],
     textAlign: 'center',
+  },
+  dreamImageContainer: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  dreamImage: {
+    width: 240,
+    height: 240,
+    borderRadius: 16,
+    backgroundColor: theme.colors.grey[200],
   },
   goalContainer: {
     alignItems: 'center',
@@ -217,39 +159,85 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[600],
     marginBottom: theme.spacing.sm,
   },
-  goalTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   goalTextGold: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.gold,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
   },
-  goalTextBlack: {
+  goalDateText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 16,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.grey[900],
+    textAlign: 'center',
+  },
+  summaryContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  summaryTitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.grey[900],
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
+  },
+  summarySubtitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.footnote,
+    color: theme.colors.grey[600],
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  areasList: {
+    marginBottom: theme.spacing.lg,
+  },
+  areaItem: {
+    marginBottom: theme.spacing.md,
+  },
+  areaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  areaEmoji: {
+    fontSize: 24,
+    marginRight: theme.spacing.md,
+  },
+  areaInfo: {
+    flex: 1,
+  },
+  areaTitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.body,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.grey[900],
+    marginBottom: 2,
+  },
+  areaActionCount: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.footnote,
+    color: theme.colors.grey[600],
   },
   buttonContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing['2xl'],
   },
   continueButton: {
-    marginBottom: theme.spacing.md,
-  },
-  restoreButton: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-  },
-  restoreText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    width: '100%',
   },
 });
 

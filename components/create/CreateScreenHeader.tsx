@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   wrap: { 
     height: 52, 
     paddingHorizontal: 12, 
-    paddingTop: 8,
+    paddingTop: 15,
     marginTop: 44, // Add space for status bar
     flexDirection:'row', 
     alignItems:'center', 

@@ -69,7 +69,7 @@ const TimeCommitmentStep: React.FC = () => {
       />
       
       <View style={styles.content}>
-        <Text style={styles.title}>How much time are you willing to spend a day working towards this dream?</Text>
+        <Text style={styles.title}>On average, how much time are you willing to spend a day working towards this dream?</Text>
         
         {/* Time Picker Display */}
         <View style={styles.timeDisplay}>

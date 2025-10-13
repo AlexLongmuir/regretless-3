@@ -29,15 +29,39 @@ export default function AreasStep() {
   useEffect(() => {
     const loadDefaultImages = async () => {
       try {
+        console.log('🖼️ [PERSONALIZE] Starting to load default images...')
         const { data: { session } } = await supabaseClient.auth.getSession()
-        if (session?.access_token) {
-          const response = await getDefaultImages(session.access_token)
-          if (response.success) {
-            setDefaultImages(response.data.images)
-          }
+        
+        if (!session?.access_token) {
+          console.log('❌ [PERSONALIZE] No session token available')
+          setIsLoading(false)
+          return
+        }
+
+        console.log('🖼️ [PERSONALIZE] Making API call to get default images...')
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        )
+        
+        const response = await Promise.race([
+          getDefaultImages(session.access_token),
+          timeoutPromise
+        ]) as any
+        
+        console.log('🖼️ [PERSONALIZE] API response:', response)
+        
+        if (response.success && response.data?.images) {
+          console.log('✅ [PERSONALIZE] Successfully loaded', response.data.images.length, 'default images')
+          setDefaultImages(response.data.images)
+        } else {
+          console.log('⚠️ [PERSONALIZE] API call succeeded but no images found:', response)
+          setDefaultImages([]) // Set empty array to show upload option only
         }
       } catch (error) {
-        console.error('Error loading default images:', error)
+        console.error('❌ [PERSONALIZE] Error loading default images:', error)
+        setDefaultImages([]) // Set empty array on error to show upload option
       } finally {
         setIsLoading(false)
       }
@@ -103,8 +127,18 @@ export default function AreasStep() {
   }
 
   const handleContinue = async () => {
+    // Check if an image is selected
+    if (!selectedImage) {
+      Alert.alert(
+        'Image Required',
+        'Please select or upload an image to personalize your dream before continuing.',
+        [{ text: 'OK' }]
+      )
+      return
+    }
+
     // Navigate immediately for smooth UX
-    navigation.navigate('Dates')
+    navigation.navigate('Questions')
 
     // Handle backend operations in background
     if (dreamId) {
@@ -116,7 +150,7 @@ export default function AreasStep() {
             title,
             start_date,
             end_date,
-            image_url
+            image_url: selectedImage
           }, session.access_token)
         }
       } catch (error) {
@@ -195,7 +229,16 @@ export default function AreasStep() {
           color: '#000', 
           marginBottom: 16 
         }}>
-          Choose an image:
+          Choose an image: *
+        </Text>
+        
+        <Text style={{ 
+          fontSize: 12, 
+          color: '#666', 
+          marginBottom: 16,
+          fontStyle: 'italic'
+        }}>
+          An image is required to personalize your dream
         </Text>
         
         {isLoading ? (
@@ -206,7 +249,7 @@ export default function AreasStep() {
           <FlatList
             data={[{ id: 'upload', name: 'upload' } as DreamImage, ...defaultImages]}
             renderItem={renderImageItem}
-            numColumns={4}
+            numColumns={3}
             keyExtractor={(item, index) => item.id || `upload-${index}`}
             columnWrapperStyle={styles.row}
             scrollEnabled={false}
@@ -226,8 +269,9 @@ export default function AreasStep() {
       }}>
         <Button 
           title="Continue"
-          variant={"black" as any}
+          variant={selectedImage ? "black" : "outline"}
           onPress={handleContinue}
+          disabled={!selectedImage}
         />
       </View>
     </View>
@@ -236,8 +280,8 @@ export default function AreasStep() {
 
 const styles = {
   loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     paddingVertical: 40,
   },
   loadingText: {
@@ -248,24 +292,24 @@ const styles = {
     paddingBottom: 20,
   },
   row: {
-    justifyContent: 'space-between',
+    justifyContent: 'space-between' as const,
     marginBottom: 12,
   },
   imageItem: {
-    width: '22%',
+    width: '30%',
     aspectRatio: 1,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
     backgroundColor: 'white',
-    position: 'relative',
+    position: 'relative' as const,
   },
   uploadButton: {
     backgroundColor: theme.colors.surface[50],
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     borderWidth: 2,
     borderColor: theme.colors.grey[200],
-    borderStyle: 'dashed',
+    borderStyle: 'dashed' as const,
   },
   uploadButtonDisabled: {
     opacity: 0.5,
@@ -288,7 +332,7 @@ const styles = {
     borderColor: theme.colors.primary || '#000',
   },
   selectedOverlay: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: 8,
     right: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',

@@ -18,14 +18,10 @@ export async function POST(req: Request) {
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = await getUser(req)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = token ? await getUser(req) : null
+    
+    // Allow unauthenticated access for onboarding preview
+    const isOnboarding = !token || !user
 
     const { 
       dream_id, 
@@ -35,15 +31,21 @@ export async function POST(req: Request) {
       baseline,
       obstacles,
       enjoyment,
+      timeCommitment,
       areas,
       feedback,
       original_actions
     } = await req.json()
     
-    if (!dream_id || !title || !areas || !Array.isArray(areas) || areas.length === 0) {
+    if (!title || !areas || !Array.isArray(areas) || areas.length === 0) {
       return NextResponse.json({ 
-        error: 'Dream ID, title, and areas are required' 
+        error: 'Title and areas are required' 
       }, { status: 400 })
+    }
+    
+    // For onboarding, dream_id is optional
+    if (!isOnboarding && !dream_id) {
+      return NextResponse.json({ error: 'Dream ID is required for authenticated requests' }, { status: 400 })
     }
 
     // Build the prompt with all available context
@@ -53,6 +55,10 @@ export async function POST(req: Request) {
     if (enjoyment) contextInfo.push(`What they enjoy: ${enjoyment}`)
     if (start_date) contextInfo.push(`Start date: ${start_date}`)
     if (end_date) contextInfo.push(`End date: ${end_date}`)
+    if (timeCommitment) {
+      const totalMinutes = timeCommitment.hours * 60 + timeCommitment.minutes
+      contextInfo.push(`Daily time commitment: ${timeCommitment.hours}h ${timeCommitment.minutes}m (${totalMinutes} minutes total)`)
+    }
 
     const contextString = contextInfo.length > 0 ? `\n\nAdditional context:\n${contextInfo.join('\n')}` : ''
 
@@ -132,16 +138,18 @@ Each action should be atomic, measurable, and bounded.`
 
     const latencyMs = Date.now() - startTime
 
-    // Save telemetry using authenticated client
-    const sb = supabaseServerAuth(token)
-    await saveAIEvent(
-      user.id,
-      'actions',
-      'gemini-2.5-flash',
-      usage,
-      latencyMs,
-      sb
-    )
+    // Save telemetry only for authenticated users
+    if (!isOnboarding && user && token) {
+      const sb = supabaseServerAuth(token)
+      await saveAIEvent(
+        user.id,
+        'actions',
+        'gemini-2.5-flash',
+        usage,
+        latencyMs,
+        sb
+      )
+    }
 
     // Check if AI returned valid data
     if (!data || !data.actions || !Array.isArray(data.actions) || data.actions.length === 0) {
@@ -157,8 +165,8 @@ Each action should be atomic, measurable, and bounded.`
       areaTitleToIdMap.set(area.title.replace(/\s*\([^)]*\)\s*$/, ''), area.id) // Remove emoji part
     })
 
-    // Convert AI response to Action objects and save to database
-    const actionsToInsert = data.actions.map((action: any) => {
+    // Convert AI response to Action objects
+    const actions = data.actions.map((action: any, index: number) => {
       // Find the correct area ID by matching the area_id from AI response
       let areaId = action.area_id
       
@@ -182,8 +190,9 @@ Each action should be atomic, measurable, and bounded.`
       }
 
       return {
-        user_id: user.id,
-        dream_id,
+        id: `temp-action-${Date.now()}-${index}`, // Temporary ID for onboarding
+        user_id: user?.id || 'temp',
+        dream_id: dream_id || 'temp',
         area_id: areaId,
         title: action.title,
         est_minutes: action.est_minutes,
@@ -191,14 +200,37 @@ Each action should be atomic, measurable, and bounded.`
         repeat_every_days: action.repeat_every_days || null,
         slice_count_target: action.slice_count_target || null,
         acceptance_criteria: action.acceptance_criteria || [],
-        position: action.position
+        position: action.position,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
     })
 
-    console.log('💾 Actions to insert:', JSON.stringify(actionsToInsert, null, 2))
+    console.log('💾 Generated actions:', JSON.stringify(actions, null, 2))
 
-    // Use authenticated client for database operations
-    const supabase = supabaseServerAuth(token)
+    // For onboarding, return the actions directly without saving to database
+    if (isOnboarding) {
+      console.log('✅ Returning actions for onboarding preview')
+      return NextResponse.json(actions)
+    }
+
+    // For authenticated users, save to database
+    const supabase = supabaseServerAuth(token!)
+    
+    // Convert to database format
+    const actionsToInsert = actions.map(action => ({
+      user_id: user!.id,
+      dream_id,
+      area_id: action.area_id,
+      title: action.title,
+      est_minutes: action.est_minutes,
+      difficulty: action.difficulty,
+      repeat_every_days: action.repeat_every_days,
+      slice_count_target: action.slice_count_target,
+      acceptance_criteria: action.acceptance_criteria,
+      position: action.position
+    }))
     
     // Get area IDs that are being regenerated
     const regeneratingAreaIds = areas.map(area => area.id)

@@ -192,7 +192,8 @@ export const fetchToday = async (date?: Date): Promise<TodayPayload | undefined>
           icon,
           dream_id,
           dreams!inner(
-            title
+            title,
+            image_url
           )
         )
       )

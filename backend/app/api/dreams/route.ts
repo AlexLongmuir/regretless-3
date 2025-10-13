@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     console.log('📝 [DREAMS API] Request body:', JSON.stringify(body, null, 2))
     
-    const { id, title, start_date = null, end_date = null, image_url = null, baseline = null, obstacles = null, enjoyment = null } = body
+    const { id, title, start_date = null, end_date = null, image_url = null, baseline = null, obstacles = null, enjoyment = null, time_commitment = null } = body
 
     // Use authenticated client that respects RLS
     const sb = supabaseServerAuth(token)
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
         baseline,
         obstacles,
         enjoyment,
+        time_commitment,
         activated_at: null
       }
       console.log('💾 [DREAMS API] Inserting dream:', JSON.stringify(insertData, null, 2))
@@ -88,19 +89,20 @@ export async function POST(req: Request) {
     patch.baseline = baseline
     patch.obstacles = obstacles
     patch.enjoyment = enjoyment
+    patch.time_commitment = time_commitment
 
     // For activated dreams, only allow certain fields to be updated
     if (owns.activated_at) {
       console.log('📝 [DREAMS API] Dream is activated, allowing limited updates')
       
       // Check if any restricted fields are being sent
-      const restrictedFields = ['start_date', 'baseline', 'obstacles', 'enjoyment']
+      const restrictedFields = ['start_date', 'baseline', 'obstacles', 'enjoyment', 'time_commitment']
       const hasRestrictedUpdates = restrictedFields.some(field => patch[field] !== undefined)
       
       if (hasRestrictedUpdates) {
         console.log('❌ [DREAMS API] Cannot update restricted fields on activated dream')
         console.log('📝 [DREAMS API] Restricted fields detected:', restrictedFields.filter(field => patch[field] !== undefined))
-        return NextResponse.json({ error: 'Cannot update start_date, baseline, obstacles, or enjoyment on activated dreams' }, { status: 409 })
+        return NextResponse.json({ error: 'Cannot update start_date, baseline, obstacles, enjoyment, or time_commitment on activated dreams' }, { status: 409 })
       }
       
       console.log('✅ [DREAMS API] Only allowed fields being updated for activated dream')

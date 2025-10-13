@@ -20,6 +20,7 @@ const ONBOARDING_SCREEN_ORDER = [
   'CurrentLife',
   'MainDream',
   'RealisticGoal',
+  'DreamImage',
   'TimeCommitment',
   'CurrentProgress',
   'AchievementComparison',

@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { AreaGrid } from '../components/AreaChips';
 import { OptionsPopover } from '../components/OptionsPopover';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import { ProgressPhotosSection, HistorySection } from '../components/progress';
 import { useData } from '../contexts/DataContext';
-import { upsertDream } from '../frontend-services/backend-bridge';
+import { upsertDream, rescheduleActions } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
 
@@ -37,13 +39,24 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const { state, getDreamDetail, getDreamsWithStats, getProgress, deleteDream, archiveDream, onScreenFocus } = useData();
   const [areas, setAreas] = useState<Area[]>([]);
   const [dreamData, setDreamData] = useState<DreamWithStats | null>(null);
+  const [dreamDetail, setDreamDetail] = useState<Dream | null>(null);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [optionsTriggerPosition, setOptionsTriggerPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
+  const [editTimeCommitment, setEditTimeCommitment] = useState({ hours: 0, minutes: 30 });
+  const [timePickerDate, setTimePickerDate] = useState(() => {
+    const date = new Date();
+    date.setHours(0, 30, 0, 0);
+    return date;
+  });
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const optionsButtonRef = useRef<View>(null);
 
@@ -74,6 +87,9 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       const detailData = state.dreamDetail[dreamId];
       if (detailData?.areas) {
         setAreas(detailData.areas);
+      }
+      if (detailData?.dream) {
+        setDreamDetail(detailData.dream);
       }
     }
   }, [dreamId, state.dreamDetail]);
@@ -215,8 +231,18 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const handleEditDream = () => {
     if (dreamData) {
       setEditTitle(dreamData.title);
-      setEditStartDate(dreamData.start_date);
-      setEditEndDate(dreamData.end_date || '');
+      setEditStartDate(formatDateForDisplay(dreamData.start_date));
+      setEditEndDate(formatDateForDisplay(dreamData.end_date || ''));
+      
+      // Initialize time commitment from dreamDetail (which has the full Dream type)
+      const timeCommitment = dreamDetail?.time_commitment || { hours: 0, minutes: 30 };
+      setEditTimeCommitment(timeCommitment);
+      
+      // Update time picker date
+      const date = new Date();
+      date.setHours(timeCommitment.hours, timeCommitment.minutes, 0, 0);
+      setTimePickerDate(date);
+      
       setShowEditModal(true);
     }
   };
@@ -225,6 +251,28 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     Keyboard.dismiss(); // Close keyboard when saving
     if (!dreamId || !editTitle.trim()) {
       Alert.alert('Error', 'Please enter a title for your dream.');
+      return;
+    }
+
+    // Validate dates
+    if (editStartDate && editEndDate) {
+      const startDate = new Date(formatDateForAPI(editStartDate));
+      const endDate = new Date(formatDateForAPI(editEndDate));
+      if (startDate >= endDate) {
+        Alert.alert('Error', 'End date must be after start date.');
+        return;
+      }
+    }
+
+    // Validate time commitment
+    const totalMinutes = editTimeCommitment.hours * 60 + editTimeCommitment.minutes;
+    if (totalMinutes < 10) {
+      Alert.alert('Error', 'Time commitment must be at least 10 minutes.');
+      return;
+    }
+
+    if (totalMinutes > 24 * 60) {
+      Alert.alert('Error', 'Time commitment cannot exceed 24 hours.');
       return;
     }
 
@@ -239,13 +287,14 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           title: editTitle.trim(),
         };
 
-        // Always include end_date and image_url
-        if (editEndDate) updateData.end_date = editEndDate;
+        // Always include end_date, image_url, start_date, and time_commitment
+        if (editEndDate) updateData.end_date = formatDateForAPI(editEndDate);
         if (dreamData?.image_url) updateData.image_url = dreamData.image_url;
+        updateData.start_date = formatDateForAPI(editStartDate);
+        updateData.time_commitment = editTimeCommitment;
 
         // Only include these fields if the dream is not activated
         if (!isActivated) {
-          updateData.start_date = editStartDate;
           updateData.baseline = dreamData?.baseline || null;
           updateData.obstacles = dreamData?.obstacles || null;
           updateData.enjoyment = dreamData?.enjoyment || null;
@@ -343,6 +392,119 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
 
   const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
     setSelectedTimePeriod(period);
+  };
+
+  const handleTimePickerChange = (_event: any, selectedDate?: Date) => {
+    if (selectedDate) {
+      setTimePickerDate(selectedDate);
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      const newTime = { hours, minutes };
+      setEditTimeCommitment(newTime);
+    }
+  };
+
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  const formatDateForAPI = (dateString: string) => {
+    if (!dateString) return '';
+    
+    // Parse the date string "6 October 2025" manually
+    const parts = dateString.split(' ');
+    if (parts.length !== 3) {
+      console.log('Invalid date format:', dateString);
+      return '';
+    }
+    
+    const day = parseInt(parts[0]);
+    const monthName = parts[1];
+    const year = parseInt(parts[2]);
+    
+    // Create a more explicit date string for parsing
+    const date = new Date(`${monthName} ${day}, ${year}`);
+    if (isNaN(date.getTime())) {
+      console.log('Date parsing failed for:', dateString);
+      return '';
+    }
+    
+    const parsedYear = date.getFullYear();
+    const parsedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const parsedDay = date.getDate().toString().padStart(2, '0');
+    return `${parsedYear}-${parsedMonth}-${parsedDay}`;
+  };
+
+  const handleStartDateChange = (date: Date) => {
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    setEditStartDate(`${day} ${month} ${year}`);
+  };
+
+  const handleEndDateChange = (date: Date) => {
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    setEditEndDate(`${day} ${month} ${year}`);
+  };
+
+  const formatTime = (hours: number, minutes: number) => {
+    if (hours === 0) {
+      return `${minutes} min`;
+    } else if (minutes === 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else {
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!dreamId) return;
+
+    Alert.alert(
+      'Reschedule Actions',
+      'This will reschedule all outstanding actions from today to the end date. Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reschedule',
+          onPress: async () => {
+            setIsRescheduling(true);
+            try {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+              if (session?.access_token) {
+                const result = await rescheduleActions(dreamId, session.access_token);
+                if (result.success) {
+                  Alert.alert(
+                    'Success', 
+                    `Rescheduled ${result.rescheduled_count || 0} actions successfully!`
+                  );
+                  // Refresh data to show updated schedule
+                  await getDreamDetail(dreamId, { force: true });
+                  await getProgress({ force: true });
+                } else {
+                  Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
+                }
+              }
+            } catch (error) {
+              console.error('Error rescheduling actions:', error);
+              Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
+            } finally {
+              setIsRescheduling(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
 
@@ -488,101 +650,189 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         />
 
         {/* Edit Dream Modal */}
-        <Modal
-          visible={showEditModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => {
-            Keyboard.dismiss();
-            setShowEditModal(false);
-          }}
+        <Modal 
+          visible={showEditModal} 
+          animationType="slide" 
+          presentationStyle="pageSheet"
         >
           <KeyboardAvoidingView 
-            style={styles.modalOverlay}
+            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Edit Dream</Text>
-                <IconButton
-                  icon="close"
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setShowEditModal(false);
-                  }}
-                  variant="secondary"
-                  size="sm"
-                />
-              </View>
-
-              <ScrollView 
-                style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {dreamData?.activated_at && (
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoText}>
-                      This dream is already active. You can only edit the title and end date.
-                    </Text>
-                  </View>
-                )}
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Title</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={editTitle}
-                    onChangeText={setEditTitle}
-                    placeholder="Enter dream title"
-                    multiline
-                  />
-                </View>
-
-                {!dreamData?.activated_at && (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Start Date</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={editStartDate}
-                      onChangeText={setEditStartDate}
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </View>
-                )}
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>End Date (Optional)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={editEndDate}
-                    onChangeText={setEditEndDate}
-                    placeholder="YYYY-MM-DD"
-                  />
-                </View>
-              </ScrollView>
-
-              <View style={styles.modalFooter}>
-                <Button
-                  title="Cancel"
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setShowEditModal(false);
-                  }}
-                  variant="secondary"
-                  style={styles.modalButton}
-                />
-                <Button
-                  title={isEditing ? "Saving..." : "Save Changes"}
-                  onPress={handleSaveEdit}
-                  variant="primary"
-                  style={styles.modalButton}
-                  disabled={isEditing || !editTitle.trim()}
-                />
-              </View>
+            {/* Header */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: 'white',
+              borderBottomWidth: 1,
+              borderBottomColor: '#E5E7EB'
+            }}>
+              <Pressable onPress={() => {
+                Keyboard.dismiss();
+                setShowEditModal(false);
+              }}>
+                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
+              </Pressable>
+              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Dream</Text>
+              <Pressable onPress={handleSaveEdit} disabled={isEditing || !editTitle.trim()}>
+                <Text style={{ 
+                  fontSize: 16, 
+                  color: isEditing || !editTitle.trim() ? '#999' : '#000', 
+                  fontWeight: '600' 
+                }}>
+                  {isEditing ? "Saving..." : "Save"}
+                </Text>
+              </Pressable>
             </View>
+
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Title */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
+                <TextInput
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="Enter dream title"
+                  multiline
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 16,
+                    minHeight: 44
+                  }}
+                />
+              </View>
+
+              {/* Start Date */}
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  type="date"
+                  value={editStartDate}
+                  onChangeText={() => {}} // Required prop but not used for date input
+                  onDateChange={handleStartDateChange}
+                  onToggleDatePicker={() => setShowStartDatePicker(!showStartDatePicker)}
+                  showDatePicker={showStartDatePicker}
+                  placeholder="Select start date"
+                  label="Start Date"
+                  minimumDate={new Date()}
+                  variant="borderless"
+                />
+              </View>
+
+              {/* End Date */}
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  type="date"
+                  value={editEndDate}
+                  onChangeText={() => {}} // Required prop but not used for date input
+                  onDateChange={handleEndDateChange}
+                  onToggleDatePicker={() => setShowEndDatePicker(!showEndDatePicker)}
+                  showDatePicker={showEndDatePicker}
+                  placeholder="Select end date"
+                  label="End Date"
+                  minimumDate={editStartDate ? new Date(formatDateForAPI(editStartDate)) : new Date()}
+                  variant="borderless"
+                />
+                {/* Debug info */}
+                <Text style={{ fontSize: 10, color: 'red', marginTop: 4 }}>
+                  Debug: startDate={editStartDate}, minDate={editStartDate ? formatDateForAPI(editStartDate) : 'today'}
+                </Text>
+              </View>
+
+              {/* Daily Time Commitment */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Daily Time Commitment</Text>
+                <Pressable
+                  onPress={() => setShowTimePicker(true)}
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    padding: 12,
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 16,
+                    color: '#111827',
+                    textAlign: 'left'
+                  }}>
+                    {formatTime(editTimeCommitment.hours, editTimeCommitment.minutes)}
+                  </Text>
+                </Pressable>
+                {showTimePicker && Platform.OS !== 'web' && (
+                  <View style={{ alignItems: 'center', marginTop: 12 }}>
+                    <DateTimePicker
+                      value={timePickerDate}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleTimePickerChange}
+                      style={{ width: '100%', height: 150 }}
+                      minimumDate={(() => {
+                        const minDate = new Date();
+                        minDate.setHours(0, 10, 0, 0); // Minimum 10 minutes
+                        return minDate;
+                      })()}
+                      maximumDate={(() => {
+                        const maxDate = new Date();
+                        maxDate.setHours(23, 59, 0, 0); // Maximum 23 hours 59 minutes
+                        return maxDate;
+                      })()}
+                      is24Hour={true}
+                      minuteInterval={1}
+                    />
+                    <Pressable
+                      onPress={() => setShowTimePicker(false)}
+                      style={{
+                        backgroundColor: '#000',
+                        paddingHorizontal: 20,
+                        paddingVertical: 8,
+                        borderRadius: 6,
+                        marginTop: 12
+                      }}
+                    >
+                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+
+              {/* Reschedule Actions Section */}
+              {dreamData?.activated_at && editEndDate && (
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Reschedule Actions</Text>
+                  <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 12, lineHeight: 20 }}>
+                    Running behind or changed your time commitment or end date? Reschedule outstanding actions from today's date to your end date.
+                  </Text>
+                  <Pressable
+                    onPress={handleReschedule}
+                    disabled={isRescheduling}
+                    style={{
+                      backgroundColor: isRescheduling ? '#6B7280' : '#000',
+                      borderRadius: 8,
+                      padding: 16,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text style={{
+                      color: 'white',
+                      fontWeight: '600',
+                      fontSize: 16
+                    }}>
+                      {isRescheduling ? "Rescheduling..." : "Reschedule Actions"}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
@@ -743,6 +993,41 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.caption1,
     color: theme.colors.primary[700],
     fontWeight: theme.typography.fontWeight.medium as any,
+  },
+  timeDisplay: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.grey[50],
+    borderRadius: theme.radius.md,
+  },
+  timeText: {
+    fontSize: 24,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.grey[900],
+  },
+  timePickerContainer: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  timePicker: {
+    width: '100%',
+    height: 150,
+  },
+  rescheduleButton: {
+    marginTop: theme.spacing.md,
+  },
+  rescheduleHelpText: {
+    fontSize: theme.typography.fontSize.caption1,
+    color: theme.colors.grey[600],
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+    fontStyle: 'italic',
+  },
+  debugText: {
+    fontSize: 12,
+    color: 'red',
+    marginBottom: 10,
   },
 });
 

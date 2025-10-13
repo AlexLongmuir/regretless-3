@@ -32,6 +32,7 @@ User's goal container with title, start_date, optional end_date, and archive cap
 | baseline | text | User's current baseline state | |
 | obstacles | text | Potential obstacles identified | |
 | enjoyment | text | What user enjoys about this dream | |
+| time_commitment | jsonb | Daily time commitment in format {"hours": number, "minutes": number} | |
 | archived_at | timestamptz | When dream was archived (soft delete) | |
 | created_at | timestamptz | When dream was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When dream was last modified | NOT NULL, DEFAULT now() |

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
@@ -6,7 +5,7 @@ import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
-import { runFeasibility, upsertDream, TitleSuggestion, DateAnalysis } from '../../frontend-services/backend-bridge'
+import { runGoalFeasibility, upsertDream, TitleSuggestion } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
 
@@ -15,14 +14,7 @@ interface GoalSuggestion extends TitleSuggestion {
   selected?: boolean
 }
 
-interface DateSuggestion {
-  id: string
-  date: string
-  label: string
-  selected?: boolean
-}
-
-export default function FeasibilityStep() {
+export default function GoalFeasibilityStep() {
   const navigation = useNavigation<any>()
   const { 
     title, 
@@ -33,39 +25,18 @@ export default function FeasibilityStep() {
     baseline, 
     obstacles, 
     enjoyment, 
-    feasibility,
-    feasibilityAnalyzed,
+    goalFeasibility,
+    goalFeasibilityAnalyzed,
     originalTitleForFeasibility,
-    originalEndDateForFeasibility,
     setField,
-    setFeasibilityAnalyzed
+    setGoalFeasibilityAnalyzed
   } = useCreateDream()
   
-  const [isLoading, setIsLoading] = useState(!feasibilityAnalyzed)
+  const [isLoading, setIsLoading] = useState(!goalFeasibilityAnalyzed)
   const [goalSuggestions, setGoalSuggestions] = useState<GoalSuggestion[]>([])
-  const [dateSuggestions, setDateSuggestions] = useState<DateSuggestion[]>([])
-  const [dateAnalysis, setDateAnalysis] = useState<DateAnalysis | null>(null)
   const [summary, setSummary] = useState<string>('')
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [currentGoal, setCurrentGoal] = useState<string>('')
-  const [currentEndDate, setCurrentEndDate] = useState<string>('')
   const [originalGoal, setOriginalGoal] = useState<string>('')
-  const [originalEndDate, setOriginalEndDate] = useState<string>('')
-  const [dateSuggestionsInitialized, setDateSuggestionsInitialized] = useState<boolean>(false)
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'No date set'
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
-  const handleEndDateChange = (date: Date) => {
-    setField('end_date', date.toISOString().split('T')[0])
-  }
 
   useFocusEffect(
     React.useCallback(() => {
@@ -74,18 +45,14 @@ export default function FeasibilityStep() {
         setCurrentGoal(title)
         setOriginalGoal(title)
       }
-      if (end_date && !currentEndDate) {
-        setCurrentEndDate(end_date)
-        setOriginalEndDate(end_date)
-      }
 
-      // If we already have feasibility data, use it
-      if (feasibility && feasibilityAnalyzed) {
+      // If we already have goal feasibility data, use it
+      if (goalFeasibility && goalFeasibilityAnalyzed) {
         // Process summary
-        setSummary(feasibility.summary)
+        setSummary(goalFeasibility.summary)
         
         // Process title suggestions - add original as last option
-        const processedSuggestions = feasibility.titleSuggestions.map((suggestion, index) => ({
+        const processedSuggestions = goalFeasibility.titleSuggestions.map((suggestion, index) => ({
           ...suggestion,
           id: `suggestion-${index}`,
           selected: false
@@ -101,41 +68,12 @@ export default function FeasibilityStep() {
         })
         
         setGoalSuggestions(processedSuggestions)
-        
-        // Process date analysis
-        setDateAnalysis(feasibility.dateAnalysis)
-        
-        // Create date suggestions - add original as last option
-        const originalDate = originalEndDateForFeasibility || end_date || 'No end date set'
-        const suggestedDate = feasibility.dateAnalysis.suggestedEndDate
-        
-        const dateOptions: DateSuggestion[] = []
-        
-        if (suggestedDate !== originalDate) {
-          dateOptions.push({
-            id: 'suggested',
-            date: suggestedDate,
-            label: `Suggested: ${formatDate(suggestedDate)}`,
-            selected: false
-          })
-        }
-        
-        // Add original date as last option
-        dateOptions.push({
-          id: 'original',
-          date: originalDate,
-          label: `Original: ${formatDate(originalDate)}`,
-          selected: false
-        })
-        
-        setDateSuggestions(dateOptions)
-        setDateSuggestionsInitialized(true)
         setIsLoading(false)
         return
       }
 
       // Only run analysis if we haven't analyzed yet and have a title
-      if (feasibilityAnalyzed || !title) {
+      if (goalFeasibilityAnalyzed || !title) {
         if (!title) {
           setTimeout(() => {
             setIsLoading(false)
@@ -152,20 +90,17 @@ export default function FeasibilityStep() {
             throw new Error('No authentication token available')
           }
 
-          const result = await runFeasibility({ 
+          const result = await runGoalFeasibility({ 
             title,
-            start_date: start_date || undefined,
-            end_date: end_date || undefined,
             baseline: baseline || undefined,
             obstacles: obstacles || undefined,
             enjoyment: enjoyment || undefined
           }, session.access_token)
           
           // Store in context
-          setField('feasibility', result)
+          setField('goalFeasibility', result)
           setField('originalTitleForFeasibility', title)
-          setField('originalEndDateForFeasibility', end_date || 'No end date set')
-          setFeasibilityAnalyzed(true)
+          setGoalFeasibilityAnalyzed(true)
           
           // Process summary
           setSummary(result.summary)
@@ -188,52 +123,19 @@ export default function FeasibilityStep() {
           
           setGoalSuggestions(processedSuggestions)
           
-          // Process date analysis
-          setDateAnalysis(result.dateAnalysis)
-          
-          // Create date suggestions - add original as last option
-          const originalDate = end_date || 'No end date set'
-          const suggestedDate = result.dateAnalysis.suggestedEndDate
-          
-          const dateOptions: DateSuggestion[] = []
-          
-          if (suggestedDate !== originalDate) {
-            dateOptions.push({
-              id: 'suggested',
-              date: suggestedDate,
-              label: `Suggested: ${formatDate(suggestedDate)}`,
-              selected: false
-            })
-          }
-          
-          // Add original date as last option
-          dateOptions.push({
-            id: 'original',
-            date: originalDate,
-            label: `Original: ${formatDate(originalDate)}`,
-            selected: false
-          })
-          
-          setDateSuggestions(dateOptions)
-          setDateSuggestionsInitialized(true)
-          
           // Simulate minimum loading time for UX
           setTimeout(() => {
             setIsLoading(false)
           }, 2000)
         } catch (error) {
-          console.error('Feasibility analysis failed:', error)
+          console.error('Goal feasibility analysis failed:', error)
           // Mark as analyzed even if failed to prevent retries
-          setFeasibilityAnalyzed(true)
+          setGoalFeasibilityAnalyzed(true)
           
           // Fallback to default suggestions if AI fails
           setGoalSuggestions([
             { id: 'original', title: title || 'Your Dream', emoji: '🎯', reasoning: 'Original title', selected: false }
           ])
-          setDateSuggestions([
-            { id: 'original', date: end_date || 'No date set', label: 'Original date', selected: false }
-          ])
-          setDateSuggestionsInitialized(true)
           setTimeout(() => {
             setIsLoading(false)
           }, 1000)
@@ -241,7 +143,7 @@ export default function FeasibilityStep() {
       }
 
       runAnalysis()
-    }, [title, feasibility, feasibilityAnalyzed, setField, setFeasibilityAnalyzed, start_date, end_date, baseline, obstacles, enjoyment, currentGoal, currentEndDate, dateSuggestionsInitialized])
+    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, start_date, end_date, baseline, obstacles, enjoyment, currentGoal])
   )
 
   const handleGoalSelect = (goalId: string) => {
@@ -259,36 +161,24 @@ export default function FeasibilityStep() {
     )
   }
 
-  const handleDateSelect = (dateId: string) => {
-    const selectedDate = dateSuggestions.find(d => d.id === dateId)
-    if (selectedDate) {
-      setCurrentEndDate(selectedDate.date)
-      setField('end_date', selectedDate.date)
-    }
-    
-    // Don't update the suggestions array - keep them stable
-    // The suggestions should remain visible even after selection
-  }
-
   const handleContinue = async () => {
-    // Use current values (which may have been updated by user selections)
+    // Use current goal value
     const updatedTitle = currentGoal
-    const updatedEndDate = currentEndDate
 
     // Navigate immediately for smooth UX
-    navigation.navigate('DreamConfirm')
+    navigation.navigate('TimeCommitment')
 
     // Handle backend operations in background
     if (dreamId) {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
         if (session?.access_token) {
-          // Save current title/date changes
+          // Save current title changes
           await upsertDream({
             id: dreamId,
             title: updatedTitle,
             start_date,
-            end_date: updatedEndDate,
+            end_date,
             image_url,
             baseline,
             obstacles,
@@ -296,7 +186,7 @@ export default function FeasibilityStep() {
           }, session.access_token)
         }
       } catch (error) {
-        console.error('Failed to save/activate dream:', error)
+        console.error('Failed to save dream title:', error)
       }
     }
   }
@@ -316,7 +206,7 @@ export default function FeasibilityStep() {
             marginBottom: 16,
             lineHeight: 24
           }}>
-            Analysing Your Dream
+            Getting Feedback on Your Dream
           </Text>
           
           {/* Description */}
@@ -327,7 +217,7 @@ export default function FeasibilityStep() {
             paddingHorizontal: 32,
             lineHeight: 22
           }}>
-            This helps us ensure we're getting your dream right & increases your chance of success from the get go
+            We're analyzing your goal to provide feedback that will help increase your chance of success
           </Text>
           
           {/* Loading indicator */}
@@ -354,19 +244,11 @@ export default function FeasibilityStep() {
           marginBottom: 24,
           lineHeight: 24
         }}>
-          Let's Perfect Your Dream
+          Get Feedback on Your Goal
         </Text>
 
         {/* Choose Your Goal Section */}
         <View style={{ marginBottom: 32 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            color: '#000', 
-            marginBottom: 16,
-            fontWeight: '600'
-          }}>
-            Choose Your Goal
-          </Text>
           
           {/* AI Summary for Goals */}
           {summary && (
@@ -411,7 +293,7 @@ export default function FeasibilityStep() {
                 color: '#666', 
                 marginBottom: 12
               }}>
-                Suggested goals (click to replace current)
+                Alternative goal suggestions (click to replace current)
               </Text>
               {goalSuggestions.map((goal) => (
                 <TouchableOpacity
@@ -434,86 +316,6 @@ export default function FeasibilityStep() {
             </View>
           )}
         </View>
-
-        {/* Choose Your Timeline Section */}
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            color: '#000', 
-            marginBottom: 16,
-            fontWeight: '600'
-          }}>
-            Choose Your Timeline
-          </Text>
-          
-          {/* AI Summary for Timeline */}
-          {dateAnalysis && (
-            <Text style={{ 
-              fontSize: 16, 
-              color: '#000', 
-              marginBottom: 16,
-              lineHeight: 22,
-              fontStyle: 'italic'
-            }}>
-              {dateAnalysis.assessment}
-            </Text>
-          )}
-          
-          <Text style={{ 
-            fontSize: 14, 
-            color: '#666', 
-            marginBottom: 12
-          }}>
-            Current end date
-          </Text>
-          <Input
-            type="date"
-            value={formatDate(currentEndDate)}
-            onChangeText={() => {}} // Required prop but not used for date input
-            onDateChange={(date) => {
-              const dateString = date.toISOString().split('T')[0]
-              setCurrentEndDate(dateString)
-              setField('end_date', dateString)
-            }}
-            onToggleDatePicker={() => setShowEndDatePicker(!showEndDatePicker)}
-            showDatePicker={showEndDatePicker}
-            placeholder="Select end date"
-            variant="borderless"
-            minimumDate={new Date()}
-            style={{ marginBottom: 16 }}
-          />
-
-          {/* Date Suggestions - directly under current end date */}
-          {dateSuggestions.length > 0 && (
-            <View style={{ gap: 8, marginBottom: 16 }}>
-              <Text style={{ 
-                fontSize: 14, 
-                color: '#666', 
-                marginBottom: 12
-              }}>
-                Suggested dates (click to replace current)
-              </Text>
-              {dateSuggestions.map((date) => (
-                <TouchableOpacity
-                  key={date.id}
-                  onPress={() => handleDateSelect(date.id)}
-                  style={{
-                    backgroundColor: 'white',
-                    height: 44,
-                    paddingHorizontal: 16,
-                    borderRadius: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>📅</Text>
-                  <Text style={{ fontSize: 14, color: '#000' }}>{date.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
       </ScrollView>
       
       {/* Sticky bottom button */}
@@ -527,7 +329,7 @@ export default function FeasibilityStep() {
         backgroundColor: theme.colors.pageBackground
       }}>
         <Button 
-          title="Create Goal"
+          title="Continue to Time Commitment"
           variant="black"
           onPress={handleContinue}
         />

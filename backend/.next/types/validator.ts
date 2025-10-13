@@ -114,6 +114,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/create/generate-areas">
 }
 
+// Validate ../../app/api/create/goal-feasibility/route.ts
+{
+  const handler = {} as typeof import("../../app/api/create/goal-feasibility/route.js")
+  handler satisfies RouteHandlerConfig<"/api/create/goal-feasibility">
+}
+
 // Validate ../../app/api/create/reschedule-actions/route.ts
 {
   const handler = {} as typeof import("../../app/api/create/reschedule-actions/route.js")
@@ -126,6 +132,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/create/schedule-actions">
 }
 
+// Validate ../../app/api/create/timeline-feasibility/route.ts
+{
+  const handler = {} as typeof import("../../app/api/create/timeline-feasibility/route.js")
+  handler satisfies RouteHandlerConfig<"/api/create/timeline-feasibility">
+}
+
 // Validate ../../app/api/cron/check-expired-trials/route.ts
 {
   const handler = {} as typeof import("../../app/api/cron/check-expired-trials/route.js")
@@ -136,6 +148,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   const handler = {} as typeof import("../../app/api/cron/subscription-lifecycle/route.js")
   handler satisfies RouteHandlerConfig<"/api/cron/subscription-lifecycle">
+}
+
+// Validate ../../app/api/dreams/default-images-public/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/default-images-public/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/default-images-public">
 }
 
 // Validate ../../app/api/dreams/default-images/route.ts

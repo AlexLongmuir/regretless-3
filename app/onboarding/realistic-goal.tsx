@@ -23,7 +23,7 @@ const RealisticGoalStep: React.FC = () => {
   const userDream = state.answers[2] || 'your dream';
 
   const handleContinue = () => {
-    navigation.navigate('TimeCommitment' as never);
+    navigation.navigate('DreamImage' as never);
   };
 
   const handleBack = () => {

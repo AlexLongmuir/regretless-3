@@ -7,6 +7,7 @@ const GLOBAL_DAILY_CAP = 5
 const PER_DREAM_CAP_DEFAULT = 1
 const PER_DREAM_CAP_MAX = 3
 const MIN_GAP_DAYS_BETWEEN_SEEDS = 1
+const DEFAULT_DAILY_TIME_MINUTES = 30 // Default if no time commitment specified
 
 // Types for scheduling
 interface SchedulingContext {
@@ -73,7 +74,7 @@ export async function scheduleDreamActions(
     })
     
     // Step 2: Build capacity tracker
-    const capacity = buildCapacityTracker(window.start_date, window.end_date)
+    const capacity = buildCapacityTracker(window.start_date, window.end_date, dream.time_commitment)
     console.log('📊 Capacity tracker initialized:', {
       totalDays: capacity.global_remaining.size,
       sampleDay: Array.from(capacity.global_remaining.entries())[0]
@@ -119,7 +120,8 @@ export async function scheduleDreamActions(
       dream,
       window,
       capacity,
-      [...(seedResults.placements || []), ...(repeatResults.placements || [])]
+      [...(seedResults.placements || []), ...(repeatResults.placements || [])],
+      sortedActions
     )
     
     // Step 7: Tight fallback escalation (Step 4 of algorithm)
@@ -190,14 +192,51 @@ function calculateSchedulingWindow(dream: Dream, actions: Action[]) {
     action.is_active && !action.deleted_at
   ).length
   
-  // Calculate recommended end date
-  const weeksNeeded = Math.ceil(seedableActions / TARGET_PER_WEEK)
+  // Calculate recommended end date based on time commitment
+  const timeCommitment = dream.time_commitment
+  const dailyTimeMinutes = timeCommitment 
+    ? timeCommitment.hours * 60 + timeCommitment.minutes 
+    : DEFAULT_DAILY_TIME_MINUTES
+  
+  // Calculate total time needed for all actions
+  let totalTimeNeeded = 0
+  for (const action of actions) {
+    if (action.is_active && !action.deleted_at && action.est_minutes) {
+      if (action.slice_count_target) {
+        // Finite series: total time = est_minutes * slice_count_target
+        totalTimeNeeded += action.est_minutes * action.slice_count_target
+      } else if (action.repeat_every_days) {
+        // Habit: estimate based on window length and repeat frequency
+        const windowDays = Math.ceil((endDate?.getTime() || Date.now()) - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        const workDays = Math.floor(windowDays * 6 / 7) // Rough estimate excluding Sundays
+        const occurrences = Math.max(1, Math.floor(workDays / action.repeat_every_days))
+        totalTimeNeeded += action.est_minutes * occurrences
+      } else {
+        // One-off action
+        totalTimeNeeded += action.est_minutes
+      }
+    }
+  }
+  
+  // Calculate weeks needed based on time commitment
+  const workDaysPerWeek = 6 // Excluding Sundays
+  const weeklyTimeMinutes = dailyTimeMinutes * workDaysPerWeek
+  const weeksNeeded = Math.max(1, Math.ceil(totalTimeNeeded / weeklyTimeMinutes))
+  
   const recommendedEnd = new Date(startDate)
   recommendedEnd.setDate(startDate.getDate() + (weeksNeeded * 7) - 1)
   
   // Window end is the earlier of end_date or recommended_end
   const windowEnd = endDate && endDate < recommendedEnd ? endDate : recommendedEnd
   const autoCompacted = !endDate || endDate > recommendedEnd
+  
+  console.log('⏰ Time-based scheduling calculation:', {
+    dailyTimeMinutes,
+    totalTimeNeeded,
+    weeklyTimeMinutes,
+    weeksNeeded,
+    recommendedEnd: recommendedEnd.toISOString().split('T')[0]
+  })
   
   return {
     start_date: startDate,
@@ -210,9 +249,30 @@ function calculateSchedulingWindow(dream: Dream, actions: Action[]) {
 /**
  * Build capacity tracker for the scheduling window
  */
-function buildCapacityTracker(startDate: Date, endDate: Date): CapacityTracker {
+function buildCapacityTracker(startDate: Date, endDate: Date, timeCommitment?: { hours: number; minutes: number }): CapacityTracker {
   const globalRemaining = new Map<string, number>()
   const perDreamRemaining = new Map<string, Map<string, number>>()
+  
+  // Calculate daily time budget
+  const dailyTimeMinutes = timeCommitment 
+    ? timeCommitment.hours * 60 + timeCommitment.minutes 
+    : DEFAULT_DAILY_TIME_MINUTES
+  
+  // Calculate time-based capacity (estimate actions that can fit in daily time)
+  // Use a conservative estimate: assume average action takes 45 minutes
+  // This gives us a reasonable cap that respects time commitment
+  const estimatedTimePerAction = 45 // minutes
+  const timeBasedDailyCap = Math.max(1, Math.floor(dailyTimeMinutes / estimatedTimePerAction))
+  
+  // Use the smaller of time-based cap or global cap to respect both constraints
+  const effectiveDailyCap = Math.min(timeBasedDailyCap, GLOBAL_DAILY_CAP)
+  
+  console.log('📊 Capacity calculation:', {
+    dailyTimeMinutes,
+    timeBasedDailyCap,
+    effectiveDailyCap,
+    globalCap: GLOBAL_DAILY_CAP
+  })
   
   const currentDate = new Date(startDate)
   while (currentDate <= endDate) {
@@ -223,7 +283,7 @@ function buildCapacityTracker(startDate: Date, endDate: Date): CapacityTracker {
     if (REST_DAYS.has(dayOfWeek)) {
       globalRemaining.set(dateStr, 0)
     } else {
-      globalRemaining.set(dateStr, GLOBAL_DAILY_CAP)
+      globalRemaining.set(dateStr, effectiveDailyCap)
     }
     
     perDreamRemaining.set(dateStr, new Map())
@@ -494,55 +554,89 @@ async function expandRepeats(
 }
 
 /**
- * Step 3: Global balancing to enforce ≤5/day user-wide
+ * Step 3: Global balancing to enforce time-based capacity limits
  */
 async function globalBalancing(
   context: SchedulingContext,
   dream: Dream,
   window: { start_date: Date; end_date: Date },
   capacity: CapacityTracker,
-  allPlacements: ScheduledPlacement[]
+  allPlacements: ScheduledPlacement[],
+  actions: Action[]
 ): Promise<{ placements: ScheduledPlacement[]; warnings: string[] }> {
   const warnings: string[] = []
   const placements = [...allPlacements]
   
-  // Check for days that exceed global cap
+  // Get time commitment for capacity calculations
+  const timeCommitment = dream.time_commitment
+  const dailyTimeMinutes = timeCommitment 
+    ? timeCommitment.hours * 60 + timeCommitment.minutes 
+    : DEFAULT_DAILY_TIME_MINUTES
+  
+  // Create action lookup map for time estimation
+  const actionMap = new Map(actions.map(action => [action.id, action]))
+  
+  // Check for days that exceed time-based capacity
   const currentDate = new Date(window.start_date)
   while (currentDate <= window.end_date) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const dayPlacements = placements.filter(p => p.due_on === dateStr)
     
-    if (dayPlacements.length > GLOBAL_DAILY_CAP) {
+    // Calculate total time for this day
+    let totalDayTime = 0
+    for (const placement of dayPlacements) {
+      const action = actionMap.get(placement.action_id)
+      if (action?.est_minutes) {
+        totalDayTime += action.est_minutes
+      }
+    }
+    
+    // Check if this day exceeds the time budget
+    if (totalDayTime > dailyTimeMinutes) {
+      console.log(`⏰ Day ${dateStr} exceeds time budget: ${totalDayTime}min > ${dailyTimeMinutes}min`)
+      
       // Find non-repeat one-offs that can be moved
       const moveablePlacements = dayPlacements.filter(p => 
         !p.is_repeat && !p.is_fixed
       )
       
-      // Sort by move priority (newest, hardest, longest)
+      // Sort by move priority (longest actions first to maximize time savings)
       moveablePlacements.sort((a, b) => {
-        // This is a simplified sort - in practice you'd need action details
-        return b.action_id.localeCompare(a.action_id)
+        const actionA = actionMap.get(a.action_id)
+        const actionB = actionMap.get(b.action_id)
+        const timeA = actionA?.est_minutes || 0
+        const timeB = actionB?.est_minutes || 0
+        return timeB - timeA // Sort by time descending
       })
       
-      // Try to move excess placements
-      const excess = dayPlacements.length - GLOBAL_DAILY_CAP
-      for (let i = 0; i < Math.min(excess, moveablePlacements.length); i++) {
-        const placement = moveablePlacements[i]
+      // Try to move actions until we're under the time budget
+      let remainingTime = totalDayTime
+      for (const placement of moveablePlacements) {
+        if (remainingTime <= dailyTimeMinutes) break
+        
+        const action = actionMap.get(placement.action_id)
+        if (!action?.est_minutes) continue
+        
         const newDate = findNextAvailableDate(
           placement,
           new Date(dateStr),
           window.end_date,
           capacity,
-          placements
+          placements,
+          actions,
+          dailyTimeMinutes
         )
         
         if (newDate) {
           placement.due_on = newDate.toISOString().split('T')[0]
           placement.planned_due_on = newDate.toISOString().split('T')[0]
+          remainingTime -= action.est_minutes
+          console.log(`📅 Moved "${action.title}" (${action.est_minutes}min) from ${dateStr} to ${newDate.toISOString().split('T')[0]}`)
         } else {
           // If we can't find a better date, keep the original placement
           // This ensures we don't lose any scheduled actions
-          warnings.push(`Could not balance global cap for ${dateStr} - keeping original placement`)
+          warnings.push(`Could not balance time budget for ${dateStr} - keeping original placement`)
+          break
         }
       }
     }
@@ -730,12 +824,19 @@ function findNextAvailableDate(
   startDate: Date,
   maxDate: Date,
   capacity: CapacityTracker,
-  allPlacements: ScheduledPlacement[]
+  allPlacements: ScheduledPlacement[],
+  actions: Action[],
+  dailyTimeMinutes?: number
 ): Date | null {
   const currentDate = new Date(startDate)
   currentDate.setDate(currentDate.getDate() + 1) // Start from next day
   
-  // First pass: Try to find a date that respects capacity constraints
+  // Create action lookup map for time estimation
+  const actionMap = new Map(actions.map(action => [action.id, action]))
+  const currentAction = actionMap.get(placement.action_id)
+  const currentActionTime = currentAction?.est_minutes || 0
+  
+  // First pass: Try to find a date that respects both capacity and time constraints
   while (currentDate <= maxDate) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const dayOfWeek = currentDate.getDay()
@@ -749,15 +850,35 @@ function findNextAvailableDate(
     const globalRemaining = capacity.global_remaining.get(dateStr) || 0
     const perDreamRemaining = capacity.per_dream_remaining.get(dateStr)?.get(placement.dream_id) || 0
     
-    if (globalRemaining > 0 && perDreamRemaining > 0) {
-      return currentDate
+    // Check capacity constraints
+    if (globalRemaining <= 0 || perDreamRemaining <= 0) {
+      currentDate.setDate(currentDate.getDate() + 1)
+      continue
     }
     
-    currentDate.setDate(currentDate.getDate() + 1)
+    // Check time constraints if daily time budget is provided
+    if (dailyTimeMinutes && currentActionTime > 0) {
+      const dayPlacements = allPlacements.filter(p => p.due_on === dateStr)
+      let totalDayTime = 0
+      for (const dayPlacement of dayPlacements) {
+        const action = actionMap.get(dayPlacement.action_id)
+        if (action?.est_minutes) {
+          totalDayTime += action.est_minutes
+        }
+      }
+      
+      // Check if adding this action would exceed the time budget
+      if (totalDayTime + currentActionTime > dailyTimeMinutes) {
+        currentDate.setDate(currentDate.getDate() + 1)
+        continue
+      }
+    }
+    
+    return currentDate
   }
   
-  // Second pass: If no capacity-respecting date found, find the earliest workday
-  // This ensures we ALWAYS find a date, even if it violates capacity rules
+  // Second pass: If no capacity/time-respecting date found, find the earliest workday
+  // This ensures we ALWAYS find a date, even if it violates capacity/time rules
   currentDate.setTime(startDate.getTime())
   currentDate.setDate(currentDate.getDate() + 1)
   
@@ -770,7 +891,7 @@ function findNextAvailableDate(
       continue
     }
     
-    // Return the first available workday (capacity violations are acceptable)
+    // Return the first available workday (capacity/time violations are acceptable)
     return currentDate
   }
   
