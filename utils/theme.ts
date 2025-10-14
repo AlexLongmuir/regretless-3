@@ -248,6 +248,10 @@ export const theme = {
       library: 'MaterialIcons' as const,
       name: 'delete'
     },
+    mic: {
+      library: 'MaterialIcons' as const,
+      name: 'mic'
+    },
     check: {
       library: 'MaterialIcons' as const,
       name: 'check'

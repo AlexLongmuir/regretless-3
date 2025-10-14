@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -29,8 +29,14 @@ export default function TitleStep() {
   const { title, dreamId, start_date, end_date, image_url, setField } = useCreateDream()
   const navigation = useNavigation<any>()
   const toast = useToast()
+  const scrollViewRef = useRef<ScrollView>(null)
+  
   const handlePresetSelect = (text: string) => {
     setField('title', text)
+    // Scroll to top to show the input field
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+    }, 100)
   }
 
   const handleContinue = async () => {
@@ -79,6 +85,7 @@ export default function TitleStep() {
     >
       <CreateScreenHeader step="title" />
       <ScrollView 
+        ref={scrollViewRef}
         style={{ flex: 1 }} 
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
@@ -128,13 +135,9 @@ export default function TitleStep() {
         </View>
       </ScrollView>
       
-      {/* Sticky bottom button */}
+      {/* Footer with button */}
       <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
+        paddingHorizontal: 16,
         paddingBottom: 32,
         backgroundColor: theme.colors.pageBackground
       }}>

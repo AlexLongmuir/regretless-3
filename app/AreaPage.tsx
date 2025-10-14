@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { ActionChipsList } from '../components/ActionChipsList';
 import { OptionsPopover } from '../components/OptionsPopover';
+import { Input } from '../components/Input';
+import { AddActionModal } from '../components/ActionChipsList';
 import { useData } from '../contexts/DataContext';
 import type { Dream, Action, ActionOccurrence, Area } from '../backend/database/types';
 
@@ -27,12 +29,26 @@ interface AreaPageProps {
 
 const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
   const params = route?.params || {};
-  const { areaId, areaTitle = 'Area', areaEmoji = '🚀', dreamId, dreamTitle = 'Dream' } = params;
+  const { areaId, areaTitle: initialAreaTitle = 'Area', areaEmoji: initialAreaEmoji = '🚀', dreamId, dreamTitle = 'Dream' } = params;
   
-  const { state, getDreamDetail, completeOccurrence, deferOccurrence } = useData();
+  const { state, getDreamDetail, completeOccurrence, deferOccurrence, updateArea, deleteArea } = useData();
   const [actions, setActions] = useState<any[]>([]);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [optionsTriggerPosition, setOptionsTriggerPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editIcon, setEditIcon] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [showAddActionModal, setShowAddActionModal] = useState(false);
+  const optionsButtonRef = React.useRef<View>(null);
+
+  // Get current area data from state to ensure it updates when edited
+  const currentArea = dreamId && areaId && state.dreamDetail[dreamId] 
+    ? state.dreamDetail[dreamId].areas.find((a: Area) => a.id === areaId)
+    : null;
+  
+  const areaTitle = currentArea?.title || initialAreaTitle;
+  const areaEmoji = currentArea?.icon || initialAreaEmoji;
 
   useEffect(() => {
     if (dreamId) {
@@ -82,6 +98,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
               completed_at: occurrence.completed_at,
               is_done: !!occurrence.completed_at,
               is_overdue: new Date(occurrence.due_on) < new Date() && !occurrence.completed_at,
+              // Hide edit buttons on individual actions
+              hideEditButtons: true,
             };
           })
           .filter(Boolean); // Remove null entries
@@ -96,8 +114,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
     }
   };
 
-  const handleOptionsPress = (event: any) => {
-    event.target.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+  const handleOptionsPress = () => {
+    optionsButtonRef.current?.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
       setOptionsTriggerPosition({ x: pageX, y: pageY, width, height });
       setShowOptionsPopover(true);
     });
@@ -189,34 +207,128 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
 
   const areaProgress = calculateAreaProgress();
 
+  // Helper function to check if a string contains only emojis
+  const isValidEmoji = (str: string): boolean => {
+    if (!str || str.trim() === '') return true; // Empty is valid (optional field)
+    // Check if string contains only emoji characters
+    const emojiRegex = /^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji}\uFE0F\u200d]+$/u;
+    return emojiRegex.test(str);
+  };
+
+  const handleEditArea = () => {
+    // Get current area data from state
+    const dreamData = state.dreamDetail[dreamId || ''];
+    const area = dreamData?.areas?.find((a: Area) => a.id === areaId);
+    
+    if (area) {
+      setEditTitle(area.title);
+      setEditIcon(area.icon || '');
+      setShowEditModal(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    Keyboard.dismiss();
+    
+    if (!editTitle.trim()) {
+      Alert.alert('Error', 'Please enter a title for the area.');
+      return;
+    }
+
+    if (!areaId) {
+      Alert.alert('Error', 'Area ID is missing.');
+      return;
+    }
+
+    // Validate emoji
+    if (editIcon.trim() && !isValidEmoji(editIcon.trim())) {
+      Alert.alert('Invalid Input', 'Please enter only emojis in the icon field.');
+      return;
+    }
+
+    setIsEditing(true);
+    try {
+      const updates: { title: string; icon?: string } = {
+        title: editTitle.trim(),
+      };
+
+      if (editIcon.trim()) {
+        updates.icon = editIcon.trim();
+      }
+
+      await updateArea(areaId, updates);
+      
+      // Refresh dream detail to ensure UI updates
+      if (dreamId) {
+        await getDreamDetail(dreamId, { force: true });
+      }
+      
+      setShowEditModal(false);
+      Alert.alert('Success', 'Area updated successfully!');
+    } catch (error) {
+      console.error('Error updating area:', error);
+      Alert.alert('Error', 'Failed to update area. Please try again.');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleDeleteArea = () => {
+    if (!areaId || !dreamId) {
+      Alert.alert('Error', 'Area ID or Dream ID is missing.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Area',
+      `Are you sure you want to delete "${areaTitle}"? This will also delete all associated actions. This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteArea(areaId, dreamId);
+              // Navigate back to dream page after successful deletion
+              if (navigation?.goBack) {
+                navigation.goBack();
+              }
+            } catch (error) {
+              console.error('Error deleting area:', error);
+              Alert.alert('Error', 'Failed to delete area. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const optionsPopoverItems = [
+    {
+      id: 'add_action',
+      icon: 'add',
+      title: 'Add Action',
+      onPress: () => {
+        setShowOptionsPopover(false);
+        setShowAddActionModal(true);
+      }
+    },
     {
       id: 'edit',
       icon: 'edit',
       title: 'Edit Area',
-      onPress: () => {
-        // TODO: Implement edit functionality
-        console.log('Edit area');
-      }
-    },
-    {
-      id: 'archive',
-      icon: 'archive',
-      title: 'Archive Area',
-      onPress: () => {
-        // TODO: Implement archive functionality
-        console.log('Archive area');
-      }
+      onPress: handleEditArea
     },
     {
       id: 'delete',
       icon: 'delete',
       title: 'Delete Area',
       destructive: true,
-      onPress: () => {
-        // TODO: Implement delete functionality
-        console.log('Delete area');
-      }
+      onPress: handleDeleteArea
     }
   ];
 
@@ -231,14 +343,14 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
             variant="secondary"
             size="md"
           />
-          <Pressable onPress={handleOptionsPress}>
+          <View ref={optionsButtonRef}>
             <IconButton
               icon="more_horiz"
-              onPress={() => {}} // Handled by Pressable wrapper
+              onPress={handleOptionsPress}
               variant="secondary"
               size="md"
             />
-          </Pressable>
+          </View>
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
@@ -291,6 +403,84 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           onClose={() => setShowOptionsPopover(false)}
           options={optionsPopoverItems}
           triggerPosition={optionsTriggerPosition}
+        />
+
+        {/* Edit Area Modal */}
+        <Modal 
+          visible={showEditModal} 
+          animationType="slide" 
+          presentationStyle="pageSheet"
+        >
+          <KeyboardAvoidingView 
+            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            {/* Header */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: 'white',
+              borderBottomWidth: 1,
+              borderBottomColor: '#E5E7EB'
+            }}>
+              <Pressable onPress={() => {
+                Keyboard.dismiss();
+                setShowEditModal(false);
+              }}>
+                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
+              </Pressable>
+              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Area</Text>
+              <Pressable onPress={handleSaveEdit} disabled={isEditing || !editTitle.trim()}>
+                <Text style={{ 
+                  fontSize: 16, 
+                  color: isEditing || !editTitle.trim() ? '#999' : '#000', 
+                  fontWeight: '600' 
+                }}>
+                  {isEditing ? "Saving..." : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Title */}
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  label="Title"
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="Enter area title"
+                  multiline
+                  variant="borderless"
+                />
+              </View>
+
+              {/* Icon/Emoji */}
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  label="Icon (Emoji)"
+                  value={editIcon}
+                  onChangeText={setEditIcon}
+                  placeholder="Enter emoji (e.g. 🚀)"
+                  variant="borderless"
+                />
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Add Action Modal */}
+        <AddActionModal
+          visible={showAddActionModal}
+          onClose={() => setShowAddActionModal(false)}
+          onSave={handleAddAction}
         />
       </SafeAreaView>
     </>

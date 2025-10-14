@@ -1,8 +1,12 @@
-import React, { useState, forwardRef } from 'react';
-import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, forwardRef, useEffect, useRef } from 'react';
+import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../utils/theme';
 import { IconButton } from './IconButton';
+import { audioRecorder, AudioRecording } from '../lib/audioRecorder';
+import { transcribeAudio } from '../frontend-services/backend-bridge';
+import { supabaseClient } from '../lib/supabaseClient';
 
 interface InputProps {
   value: string;
@@ -23,6 +27,8 @@ interface InputProps {
   keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   minimumDate?: Date;
+  initialDate?: Date;
+  showMicButton?: boolean;
 }
 
 export const Input = forwardRef<TextInput, InputProps>(({
@@ -44,8 +50,64 @@ export const Input = forwardRef<TextInput, InputProps>(({
   keyboardType = 'default',
   autoCapitalize = 'sentences',
   minimumDate,
+  initialDate,
+  showMicButton = false,
 }, ref) => {
-  const [internalDate, setInternalDate] = useState<Date>(new Date());
+  const [internalDate, setInternalDate] = useState<Date>(() => initialDate || new Date());
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const audioLevelHistory = useRef<number[]>([]); // Store last 30 seconds of audio levels
+  const waveformAnimations = useRef<Animated.Value[]>([]).current;
+  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize waveform animations - more bars for fuller look
+  useEffect(() => {
+    if (showMicButton && waveformAnimations.length === 0) {
+      for (let i = 0; i < 40; i++) {
+        waveformAnimations.push(new Animated.Value(0.15));
+      }
+    }
+  }, [showMicButton]);
+
+  // Update waveform based on real audio levels with rolling history
+  useEffect(() => {
+    if (isRecording && waveformAnimations.length > 0) {
+      // Add current audio level to history
+      audioLevelHistory.current.push(audioLevel);
+      
+      // Keep only last 30 seconds (600 samples at 50ms intervals)
+      const maxHistoryLength = 600;
+      if (audioLevelHistory.current.length > maxHistoryLength) {
+        audioLevelHistory.current.shift();
+      }
+      
+      // Map history to waveform bars
+      const historyLength = audioLevelHistory.current.length;
+      const barsPerSecond = waveformAnimations.length / 30; // 40 bars / 30 seconds
+      
+      waveformAnimations.forEach((anim, index) => {
+        // Calculate which part of history this bar represents
+        const historyIndex = Math.floor((index / waveformAnimations.length) * historyLength);
+        const level = historyIndex < historyLength ? audioLevelHistory.current[historyIndex] : 0;
+        
+        // More exaggerated response like ChatGPT
+        const amplifiedLevel = Math.pow(level, 0.5);
+        const baseHeight = 0.15 + (amplifiedLevel * 0.85);
+        
+        // Add slight randomness for natural feel
+        const randomOffset = (Math.random() - 0.5) * 0.3;
+        const targetHeight = Math.max(0.15, Math.min(1, baseHeight + randomOffset));
+        
+        Animated.timing(anim, {
+          toValue: targetHeight,
+          duration: 50,
+          useNativeDriver: false,
+        }).start();
+      });
+    }
+  }, [audioLevel, isRecording, waveformAnimations]);
   
   // Update internal date when value changes
   React.useEffect(() => {
@@ -57,6 +119,13 @@ export const Input = forwardRef<TextInput, InputProps>(({
     }
   }, [value, type]);
   
+  // Update internal date when initialDate changes
+  React.useEffect(() => {
+    if (initialDate) {
+      setInternalDate(initialDate);
+    }
+  }, [initialDate]);
+  
   const handleDateChange = (_event: any, selectedDate?: Date) => {
     if (selectedDate) {
       setInternalDate(selectedDate);
@@ -64,6 +133,98 @@ export const Input = forwardRef<TextInput, InputProps>(({
         onDateChange(selectedDate);
       }
     }
+  };
+
+  const startRecording = async () => {
+    try {
+      const hasPermission = await audioRecorder.checkPermissions();
+      if (!hasPermission) {
+        const granted = await audioRecorder.requestPermissions();
+        if (!granted) {
+          return;
+        }
+      }
+
+      // Clear previous history
+      audioLevelHistory.current = [];
+
+      // Set up audio level callback for real-time visualization
+      audioRecorder.setAudioLevelCallback((level: number) => {
+        setAudioLevel(level);
+      });
+
+      await audioRecorder.startRecording();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      setAudioLevel(0);
+
+      durationIntervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('[Input] Failed to start recording:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+        durationIntervalRef.current = null;
+      }
+
+      setIsTranscribing(true);
+      const audioFile: AudioRecording = await audioRecorder.stopRecording();
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const result = await transcribeAudio(audioFile, session.access_token);
+
+      if (result.success && result.data?.text) {
+        // Append transcribed text to existing value
+        const newText = value ? `${value} ${result.data.text}` : result.data.text;
+        onChangeText(newText);
+      }
+    } catch (error) {
+      console.error('[Input] Transcription failed:', error);
+    } finally {
+      setIsRecording(false);
+      setIsTranscribing(false);
+      setRecordingDuration(0);
+      setAudioLevel(0);
+      audioLevelHistory.current = [];
+      audioRecorder.setAudioLevelCallback(() => {});
+    }
+  };
+
+  const toggleMic = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      await audioRecorder.cancelRecording();
+    } catch {}
+    setIsRecording(false);
+    setIsTranscribing(false);
+    setRecordingDuration(0);
+    setAudioLevel(0);
+    audioLevelHistory.current = [];
+    audioRecorder.setAudioLevelCallback(() => {});
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -116,6 +277,31 @@ export const Input = forwardRef<TextInput, InputProps>(({
           error && styles.inputContainerError,
           disabled && styles.inputContainerDisabled,
         ]}>
+          {/* Waveform overlay when recording */}
+           {isRecording && (
+             <>
+               <View style={styles.waveformContainer}>
+                 <View style={styles.waveform}>
+                   {waveformAnimations.map((anim, index) => (
+                     <Animated.View
+                       key={index}
+                       style={[
+                         styles.waveformBar,
+                         {
+                           height: anim.interpolate({
+                             inputRange: [0, 1],
+                             outputRange: [6, 16],
+                           }),
+                         },
+                       ]}
+                     />
+                   ))}
+                 </View>
+                 <Text style={styles.recordingTimer}>{formatDuration(recordingDuration)}</Text>
+               </View>
+             </>
+           )}
+          
           <TextInput
             ref={ref}
             style={[
@@ -123,17 +309,58 @@ export const Input = forwardRef<TextInput, InputProps>(({
               size === 'small' && styles.smallInput,
               type === 'date' && styles.dateInput,
               multiline && styles.inputMultiline,
+              isRecording && styles.inputHidden,
+              isTranscribing && styles.inputTranscribing,
             ]}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor={theme.colors.grey[400]}
-            editable={!disabled && type !== 'date'}
+            placeholderTextColor={isRecording ? 'transparent' : theme.colors.grey[400]}
+            editable={!disabled && type !== 'date' && !isTranscribing && !isRecording}
             secureTextEntry={secureTextEntry}
             multiline={multiline}
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
           />
+
+          {/* Controls: mic when idle; X + ✓ when recording or transcribing */}
+          {showMicButton && !(isRecording || isTranscribing) && (
+            <TouchableOpacity
+              onPress={startRecording}
+              disabled={disabled}
+              style={styles.micButton}
+              activeOpacity={0.7}
+            >
+              <MaterialIcon name="mic" size={18} color={theme.colors.grey[700]} />
+            </TouchableOpacity>
+          )}
+
+          {showMicButton && (isRecording || isTranscribing) && (
+            <>
+              <TouchableOpacity
+                onPress={isTranscribing ? undefined : handleCancel}
+                disabled={isTranscribing}
+                style={[styles.controlButton, styles.controlLeft]}
+                activeOpacity={0.7}
+              >
+                <MaterialIcon name="close" size={18} color={theme.colors.grey[700]} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={isTranscribing ? undefined : () => stopRecording()}
+                disabled={isTranscribing}
+                style={[styles.controlButton, styles.controlRight, isTranscribing && styles.controlDisabled]}
+                activeOpacity={0.7}
+              >
+                {isTranscribing ? (
+                  <ActivityIndicator size="small" color={theme.colors.grey[700]} />
+                ) : (
+                  <MaterialIcon name="check" size={18} color={theme.colors.grey[700]} />
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+          
           {type === 'date' && onToggleDatePicker && (
             <IconButton
               icon="calendar"
@@ -153,6 +380,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
           minimumDate={minimumDate}
+          themeVariant="light"
         />
       )}
     </View>
@@ -241,5 +469,82 @@ const styles = StyleSheet.create({
   smallError: {
     fontSize: 12,
     marginTop: 4,
+  },
+  inputHidden: {
+    color: 'transparent',
+  },
+  inputTranscribing: {
+    opacity: 0.6,
+  },
+  micButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.grey[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.xs,
+  },
+  micButtonActive: {
+    backgroundColor: theme.colors.grey[800],
+  },
+  controlButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.grey[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: '50%',
+    marginTop: -18,
+  },
+  controlLeft: {
+    left: 4,
+  },
+  controlRight: {
+    right: 4,
+  },
+  controlDisabled: {
+    opacity: 0.7,
+  },
+  waveformContainer: {
+    position: 'absolute',
+    left: 44, // Start after X button
+    right: 44, // End before tick button
+    top: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  waveform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flex: 1,
+    height: 20,
+  },
+  waveformBar: {
+    width: 2,
+    backgroundColor: theme.colors.grey[600],
+    borderRadius: 1,
+    marginHorizontal: 0.5,
+  },
+  recordingTimer: {
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.grey[700],
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  transcribingIndicator: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.grey[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.xs,
   },
 });

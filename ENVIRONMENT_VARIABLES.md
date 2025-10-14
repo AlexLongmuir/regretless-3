@@ -20,6 +20,9 @@ GOOGLE_WEB_CLIENT_ID=your_google_web_client_id_here
 
 # RevenueCat Configuration
 EXPO_PUBLIC_REVENUECAT_API_KEY=pk_your_revenuecat_api_key_here
+
+# OpenAI Configuration (Backend Only)
+OPENAI_API_KEY=sk_your_openai_api_key_here
 ```
 
 ## RevenueCat API Key
@@ -50,6 +53,31 @@ EXPO_PUBLIC_REVENUECAT_API_KEY=pk_your_revenuecat_api_key_here
 
 - **Without API key**: The app will run in mock mode (no RevenueCat functionality)
 - **With API key**: The app will use real RevenueCat for subscription management
+
+## OpenAI API Key (Backend)
+
+### Where to get your OpenAI API Key:
+
+1. Go to [OpenAI Platform](https://platform.openai.com/)
+2. Sign in to your account
+3. Navigate to **API Keys** section
+4. Click **Create new secret key**
+5. Copy the key (starts with `sk-`)
+
+### How to add it:
+
+1. Add the following line to your `.env` or `.env.local` file in the **backend** directory:
+   ```
+   OPENAI_API_KEY=sk_your_actual_api_key_here
+   ```
+2. Replace `sk_your_actual_api_key_here` with your actual OpenAI API key
+
+### Important Notes:
+
+- This key is used for audio transcription via Whisper API
+- The key is only used on the backend, never exposed to the frontend
+- Keep this key secure and never commit it to version control
+- OpenAI charges $0.006 per minute of audio transcribed
 
 ## Security
 

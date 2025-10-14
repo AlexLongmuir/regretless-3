@@ -96,7 +96,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
       <KeyboardAvoidingView 
         style={{ flex: 1, backgroundColor: '#F3F4F6' }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
         <View style={{ 
@@ -122,7 +122,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
         <ScrollView 
           style={{ flex: 1 }} 
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

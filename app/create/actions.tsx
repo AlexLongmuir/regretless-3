@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TextInput, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button, ActionChipsList, IconButton } from '../../components'
@@ -378,7 +378,11 @@ export default function ActionsStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <CustomHeader />
       
       {/* Area Navigation Header */}
@@ -419,7 +423,8 @@ export default function ActionsStep() {
       
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 200 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Actions Section */}
@@ -487,13 +492,9 @@ export default function ActionsStep() {
         </View>
       </ScrollView>
       
-      {/* Sticky bottom section */}
+      {/* Footer section */}
       <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
+        paddingHorizontal: 16,
         paddingBottom: 32,
         backgroundColor: theme.colors.pageBackground
       }}>
@@ -532,6 +533,8 @@ export default function ActionsStep() {
             variant="secondary"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
+              
+              Keyboard.dismiss() // Close keyboard when AI fix is triggered
               
               // Trigger loading page
               setIsLoading(true)
@@ -610,11 +613,14 @@ export default function ActionsStep() {
           <Button 
             title={isLastArea ? "Complete" : "Next Area"}
             variant="black"
-            onPress={handleApproveArea}
+            onPress={() => {
+              Keyboard.dismiss() // Close keyboard when continuing
+              handleApproveArea()
+            }}
             style={{ flex: 1 }}
           />
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   )
 }

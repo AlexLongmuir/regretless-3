@@ -82,22 +82,40 @@ export async function POST(req: Request) {
     }
 
     // Update existing areas
+    // Use a two-phase update to avoid position conflicts during reordering:
+    // 1. First, set all positions to negative values to free up the positions
+    // 2. Then, set them to the correct positive values
     let updatedAreas = []
-    for (const area of areasToUpdate) {
-      const { data, error } = await sb
-        .from('areas')
-        .update({
-          title: area.title,
-          icon: area.icon || null,
-          position: area.position,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', area.id)
-        .select()
-        .single()
+    
+    if (areasToUpdate.length > 0) {
+      // Phase 1: Set all positions to negative values to avoid conflicts
+      for (const area of areasToUpdate) {
+        await sb
+          .from('areas')
+          .update({
+            position: -Math.abs(area.position),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', area.id)
+      }
 
-      if (error) throw error
-      updatedAreas.push(data)
+      // Phase 2: Set positions to correct positive values
+      for (const area of areasToUpdate) {
+        const { data, error } = await sb
+          .from('areas')
+          .update({
+            title: area.title,
+            icon: area.icon || null,
+            position: area.position,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', area.id)
+          .select()
+          .single()
+
+        if (error) throw error
+        updatedAreas.push(data)
+      }
     }
 
     // Soft delete removed areas

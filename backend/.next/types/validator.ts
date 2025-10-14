@@ -84,10 +84,22 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/actions/update">
 }
 
+// Validate ../../app/api/areas/delete/route.ts
+{
+  const handler = {} as typeof import("../../app/api/areas/delete/route.js")
+  handler satisfies RouteHandlerConfig<"/api/areas/delete">
+}
+
 // Validate ../../app/api/areas/route.ts
 {
   const handler = {} as typeof import("../../app/api/areas/route.js")
   handler satisfies RouteHandlerConfig<"/api/areas">
+}
+
+// Validate ../../app/api/areas/update/route.ts
+{
+  const handler = {} as typeof import("../../app/api/areas/update/route.js")
+  handler satisfies RouteHandlerConfig<"/api/areas/update">
 }
 
 // Validate ../../app/api/create/activate-dream/route.ts
@@ -184,6 +196,12 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   const handler = {} as typeof import("../../app/api/subscriptions/validate/route.js")
   handler satisfies RouteHandlerConfig<"/api/subscriptions/validate">
+}
+
+// Validate ../../app/api/transcribe/route.ts
+{
+  const handler = {} as typeof import("../../app/api/transcribe/route.js")
+  handler satisfies RouteHandlerConfig<"/api/transcribe">
 }
 
 

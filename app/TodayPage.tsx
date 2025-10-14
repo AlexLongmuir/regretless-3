@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
@@ -39,6 +39,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const [fetchingDates, setFetchingDates] = useState<Set<string>>(new Set());
   const { state, getToday, completeOccurrence, deferOccurrence, onScreenFocus } = useData();
   
   // Convert ActionOccurrenceStatus to ActionOccurrenceItem format for the UI
@@ -50,7 +51,9 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
   const todayData = isCurrentDate ? state.today : state.todayByDate[currentDateStr];
   const isDataLoading = !isCurrentDate && state.loadingTodayByDate[currentDateStr];
   const hasCachedData = todayData && todayData.occurrences;
-  const isLoading = !isCurrentDate && !hasCachedData && (isDataLoading || showLoading);
+  const isFetchingDate = fetchingDates.has(currentDateStr);
+  // Show loading if: not current date AND (no cached data OR actively fetching) AND (loading in state OR local loading OR actively fetching)
+  const isLoading = !isCurrentDate && (!hasCachedData || isFetchingDate) && (isDataLoading || showLoading || isFetchingDate);
   
   // Debug logging
   console.log('TodayPage loading state:', {
@@ -59,6 +62,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     hasCachedData: !!hasCachedData,
     isDataLoading,
     showLoading,
+    isFetchingDate,
     isLoading,
     cachedOccurrences: todayData?.occurrences?.length || 0
   });
@@ -104,6 +108,35 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     return inspirationalQuotes[dayOfYear % inspirationalQuotes.length];
   };
 
+  // Prefetch adjacent dates for smoother navigation
+  const prefetchAdjacentDates = useCallback(async (centerDate: Date) => {
+    const yesterday = new Date(centerDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(centerDate);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    
+    // Only prefetch if not already cached and not the current date (which is always loaded)
+    const datesToPrefetch = [];
+    if (yesterdayStr !== todayStr && !state.todayByDate[yesterdayStr]) {
+      datesToPrefetch.push({ date: yesterday, dateStr: yesterdayStr });
+    }
+    if (tomorrowStr !== todayStr && !state.todayByDate[tomorrowStr]) {
+      datesToPrefetch.push({ date: tomorrow, dateStr: tomorrowStr });
+    }
+    
+    // Prefetch in parallel without showing loading states
+    if (datesToPrefetch.length > 0) {
+      console.log('Prefetching adjacent dates:', datesToPrefetch.map(d => d.dateStr));
+      await Promise.all(
+        datesToPrefetch.map(({ date }) => getToday({ date, force: false }))
+      );
+    }
+  }, [state.todayByDate, getToday]);
+
   const getFormattedDate = () => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -132,7 +165,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     }
   };
 
-  const navigateDate = (direction: 'prev' | 'next') => {
+  const navigateDate = async (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
     const newDateStr = newDate.toISOString().slice(0, 10);
@@ -140,15 +173,26 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     
     setCurrentDate(newDate);
     
-    // Show loading state for non-current dates that don't have cached data
+    // Mark this date as being fetched IMMEDIATELY to show loading state without delay
     if (!isNewDateCurrent && !state.todayByDate[newDateStr]) {
+      setFetchingDates(prev => new Set(prev).add(newDateStr));
       const startTime = Date.now();
       setLoadingStartTime(startTime);
       setShowLoading(true);
     }
     
     // Fetch data for the new date
-    getToday({ force: true, date: newDate });
+    await getToday({ force: true, date: newDate });
+    
+    // Remove from fetching set once complete
+    setFetchingDates(prev => {
+      const next = new Set(prev);
+      next.delete(newDateStr);
+      return next;
+    });
+    
+    // Prefetch adjacent dates for smoother future navigation
+    prefetchAdjacentDates(newDate);
   };
 
   // No need for filtering since we're showing all action occurrences
@@ -189,14 +233,16 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
       onScreenFocus('today');
       // Let the refresh system handle the fetching based on staleness
       getToday({ date: currentDate });
-    }, [currentDate]) // Only depend on currentDate - functions are stable from DataContext
+      // Prefetch adjacent dates for smoother navigation
+      prefetchAdjacentDates(currentDate);
+    }, [currentDate, prefetchAdjacentDates]) // Only depend on currentDate - functions are stable from DataContext
   );
 
-  // Clear loading state when data arrives, but ensure it shows for at least 1 second
+  // Clear loading state when data arrives, but ensure it shows for at least 400ms to avoid flash
   useEffect(() => {
     if (todayData && showLoading && loadingStartTime) {
       const elapsedTime = Date.now() - loadingStartTime;
-      const remainingTime = Math.max(0, 1000 - elapsedTime);
+      const remainingTime = Math.max(0, 400 - elapsedTime);
       
       setTimeout(() => {
         setShowLoading(false);
@@ -287,7 +333,7 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
                 onPress={handleActionPress} // Handle action occurrence clicks
               />
               
-              {actionOccurrences.length === 0 && (
+              {actionOccurrences.length === 0 && !isLoading && (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
                     No actions for {getFormattedDate().toLowerCase()}

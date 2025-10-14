@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { theme } from '../utils/theme';
 
 interface SkeletonLoaderProps {
@@ -22,12 +22,14 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
       Animated.sequence([
         Animated.timing(animatedValue, {
           toValue: 1,
-          duration: 1000,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 1000,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
       ])
@@ -39,7 +41,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
 
   const backgroundColor = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [theme.colors.grey[200], theme.colors.grey[300]],
+    outputRange: [theme.colors.grey[100], theme.colors.grey[200]],
   });
 
   return (
@@ -85,6 +87,63 @@ export const ActionChipSkeleton: React.FC<ActionChipSkeletonProps> = ({ style })
   );
 };
 
+interface DreamChipSkeletonProps {
+  style?: any;
+}
+
+export const DreamChipSkeleton: React.FC<DreamChipSkeletonProps> = ({ style }) => {
+  return (
+    <View style={[styles.dreamChipSkeleton, style]}>
+      <View style={styles.dreamChipContent}>
+        {/* Image skeleton */}
+        <SkeletonLoader width={100} height={100} borderRadius={8} />
+        
+        {/* Content skeleton */}
+        <View style={styles.dreamChipTextContainer}>
+          {/* Progress row */}
+          <View style={styles.dreamProgressRow}>
+            <SkeletonLoader width={80} height={12} borderRadius={4} />
+            <SkeletonLoader width={40} height={12} borderRadius={4} />
+          </View>
+          
+          {/* Title */}
+          <SkeletonLoader width="85%" height={18} borderRadius={4} style={{ marginTop: 8 }} />
+          
+          {/* Date */}
+          <SkeletonLoader width="60%" height={12} borderRadius={4} style={{ marginTop: 8 }} />
+        </View>
+      </View>
+    </View>
+  );
+};
+
+interface AreaChipSkeletonProps {
+  style?: any;
+}
+
+export const AreaChipSkeleton: React.FC<AreaChipSkeletonProps> = ({ style }) => {
+  // Randomize title width to make skeletons look more varied
+  const titleWidths = ['70%', '80%', '75%', '85%'];
+  const titleWidth = titleWidths[Math.floor(Math.random() * titleWidths.length)];
+
+  return (
+    <View style={[styles.areaChipSkeleton, style]}>
+      {/* Icon skeleton on the left */}
+      <SkeletonLoader width={40} height={40} borderRadius={8} style={{ marginRight: 16 }} />
+      
+      {/* Title and progress on the right */}
+      <View style={{ flex: 1 }}>
+        <SkeletonLoader width={titleWidth} height={16} borderRadius={4} style={{ marginBottom: 8 }} />
+        <View style={styles.areaProgressRow}>
+          <SkeletonLoader width={60} height={12} borderRadius={4} />
+          <SkeletonLoader width={40} height={12} borderRadius={4} />
+        </View>
+        <SkeletonLoader width="100%" height={6} borderRadius={3} style={{ marginTop: 4 }} />
+      </View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   chipSkeleton: {
     backgroundColor: theme.colors.surface[50],
@@ -104,6 +163,41 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   chipFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dreamChipSkeleton: {
+    backgroundColor: theme.colors.surface[50],
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  dreamChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dreamChipTextContainer: {
+    flex: 1,
+    marginLeft: theme.spacing.md,
+  },
+  dreamProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  areaChipSkeleton: {
+    backgroundColor: theme.colors.surface[50],
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.grey[200],
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 80,
+  },
+  areaProgressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

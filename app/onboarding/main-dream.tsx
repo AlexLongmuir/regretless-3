@@ -35,11 +35,16 @@ const MainDreamStep: React.FC = () => {
   const [customDream, setCustomDream] = useState('');
   const [selectedAnswer, setSelectedAnswer] = useState(''); // Local state for selected answer
   const inputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const handlePresetSelect = (text: string) => {
     setSelectedAnswer(text);
     updateAnswer(2, text);
     setCustomDream(text);
+    // Scroll to top to show the input field
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   const handleCustomInput = (text: string) => {
@@ -74,6 +79,7 @@ const MainDreamStep: React.FC = () => {
       />
       
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.content} 
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"

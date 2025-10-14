@@ -7,7 +7,7 @@ import { IconButton } from '../components/IconButton';
 
 const ContactUsPage = ({ navigation }: { navigation?: any }) => {
   const handleEmailPress = () => {
-    const email = 'support@dreamer.app';
+    const email = 'alexlongmuir@icloud.com';
     const subject = 'Support Request';
     const body = 'Hi there,\n\nI need help with...';
     const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -17,17 +17,6 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
         Linking.openURL(url);
       } else {
         Alert.alert('Error', 'Unable to open email client');
-      }
-    });
-  };
-
-  const handleWebsitePress = () => {
-    const url = 'https://dreamer.app';
-    Linking.canOpenURL(url).then(supported => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        Alert.alert('Error', 'Unable to open website');
       }
     });
   };
@@ -49,44 +38,19 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
         {/* Title */}
         <Text style={styles.title}>Contact Us</Text>
         <Text style={styles.subtitle}>
-          We're here to help! Reach out to us through any of the channels below.
+          Email to report bugs, suggest improvements or any account issues.
         </Text>
 
         {/* Contact Options */}
         <View style={styles.listContainer}>
           <ListRow
             title="Email Support"
-            subtitle="support@dreamer.app"
+            subtitle="alexlongmuir@icloud.com"
             leftIcon="email"
             onPress={handleEmailPress}
             isFirst={true}
-          />
-          <ListRow
-            title="Visit Our Website"
-            subtitle="dreamer.app"
-            leftIcon="language"
-            onPress={handleWebsitePress}
-          />
-          <ListRow
-            title="Report a Bug"
-            subtitle="Help us improve the app"
-            leftIcon="bug_report"
-            onPress={() => Alert.alert('Bug Report', 'Please email us at support@dreamer.app with details about the issue you encountered.')}
             isLast={true}
           />
-        </View>
-
-        {/* Additional Info */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Response Time</Text>
-          <Text style={styles.infoText}>
-            We typically respond to support requests within 24 hours during business days.
-          </Text>
-          
-          <Text style={styles.infoTitle}>Business Hours</Text>
-          <Text style={styles.infoText}>
-            Monday - Friday: 9:00 AM - 5:00 PM PST
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -132,32 +96,11 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     width: '100%',
-    backgroundColor: theme.colors.primary[50],
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     overflow: 'hidden',
+    marginTop: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-  },
-  infoSection: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: 10,
-    padding: theme.spacing.lg,
-  },
-  infoTitle: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.headline,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    lineHeight: theme.typography.lineHeight.headline,
-    color: theme.colors.grey[800],
-    marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.md,
-  },
-  infoText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.regular as any,
-    lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
-    marginBottom: theme.spacing.sm,
   },
 });
 

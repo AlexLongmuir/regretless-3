@@ -182,6 +182,7 @@ const ActionPage: React.FC<ActionPageProps> = ({ route, navigation }) => {
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.header}>
           <IconButton
@@ -193,7 +194,12 @@ const ActionPage: React.FC<ActionPageProps> = ({ route, navigation }) => {
           />
         </View>
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.imagesSection}>
             <View style={styles.imageGrid}>
               {displayImages.map((image, index) => (

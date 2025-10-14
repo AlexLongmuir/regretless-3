@@ -48,7 +48,7 @@ export default function QuestionsStep() {
       <CreateScreenHeader step="questions" />
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -66,43 +66,42 @@ export default function QuestionsStep() {
         <Input
           value={baseline || ''}
           onChangeText={(text) => setField('baseline', text)}
-          placeholder="Start writing..."
+          placeholder="Start writing or tap mic to speak..."
           label="What's your current progress"
           multiline
           variant="borderless"
           style={{ marginBottom: 32 }}
+          showMicButton={true}
         />
 
         {/* Question 2 */}
         <Input
           value={obstacles || ''}
           onChangeText={(text) => setField('obstacles', text)}
-          placeholder="Start writing..."
+          placeholder="Start writing or tap mic to speak..."
           label="What's most likely going to cause you not to achieve this?"
           multiline
           variant="borderless"
           style={{ marginBottom: 32 }}
+          showMicButton={true}
         />
 
         {/* Question 3 */}
         <Input
           value={enjoyment || ''}
           onChangeText={(text) => setField('enjoyment', text)}
-          placeholder="Start writing..."
+          placeholder="Start writing or tap mic to speak..."
           label="What's most likely to cause you to enjoy the journey?"
           multiline
           variant="borderless"
           style={{ marginBottom: 32 }}
+          showMicButton={true}
         />
       </ScrollView>
       
-      {/* Sticky bottom button */}
+      {/* Footer with button */}
       <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
+        paddingHorizontal: 16,
         paddingBottom: 32,
         backgroundColor: theme.colors.pageBackground
       }}>

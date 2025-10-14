@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     width: '100%',
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     overflow: 'hidden',
   },

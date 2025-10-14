@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { AreaGrid } from '../components/AreaChips';
@@ -11,9 +13,23 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { ProgressPhotosSection, HistorySection } from '../components/progress';
 import { useData } from '../contexts/DataContext';
-import { upsertDream, rescheduleActions } from '../frontend-services/backend-bridge';
+import { upsertDream, rescheduleActions, upsertAreas, getDefaultImages, uploadDreamImage, type DreamImage } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
+
+// Popular emojis for area icons
+const POPULAR_EMOJIS = [
+  '🚀', '💪', '🎯', '🌟', '🔥', '💡', '🎨', '📚', '🏋️', '🎵',
+  '🍎', '💼', '🏠', '❤️', '💎', '🎁', '⭐', '🌈', '☀️', '🌙',
+  '🎪', '🎭', '🎬', '🎤', '🎧', '🎮', '🏆', '🎓', '💰', '💳',
+  '✈️', '🚗', '⛰️', '🌊', '🏖️', '🌴', '🌺', '🌸', '🌻', '🌷',
+  '🐶', '🐱', '🐼', '🐨', '🦁', '🐯', '🐸', '🐰', '🐦', '🦋',
+  '🍕', '🍔', '🍟', '🌮', '🌯', '🍜', '🍱', '🍣', '🍰', '🍫',
+  '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸',
+  '📱', '💻', '⌚', '📷', '🎥', '📺', '🔊', '🎙️', '📻', '🎚️',
+  '🔧', '⚙️', '🔨', '⚡', '🔋', '💡', '🔦', '🕯️', '🧯', '🛠️',
+  '🎯', '🎲', '🎰', '🎪', '🎭', '🎨', '🖼️', '🎬', '📽️', '🎞️'
+];
 
 interface DreamPageProps {
   route?: {
@@ -37,9 +53,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const { dreamId, title = 'Sample Dream' } = params;
   
   const { state, getDreamDetail, getDreamsWithStats, getProgress, deleteDream, archiveDream, onScreenFocus } = useData();
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [dreamData, setDreamData] = useState<DreamWithStats | null>(null);
-  const [dreamDetail, setDreamDetail] = useState<Dream | null>(null);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [optionsTriggerPosition, setOptionsTriggerPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -52,20 +65,52 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     date.setHours(0, 30, 0, 0);
     return date;
   });
+  const [startDatePickerDate, setStartDatePickerDate] = useState(new Date());
+  const [endDatePickerDate, setEndDatePickerDate] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
+  const [showCreateAreaModal, setShowCreateAreaModal] = useState(false);
+  const [newAreaTitle, setNewAreaTitle] = useState('');
+  const [newAreaIcon, setNewAreaIcon] = useState('🚀');
+  const [isCreatingArea, setIsCreatingArea] = useState(false);
+  const [defaultImages, setDefaultImages] = useState<DreamImage[]>([]);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showImageOptions, setShowImageOptions] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [localAreas, setLocalAreas] = useState<Area[]>([]);
   const optionsButtonRef = useRef<View>(null);
+
+  // Get data directly from state - no intermediate state needed
+  const detailData = dreamId ? state.dreamDetail[dreamId] : undefined;
+  const areas = detailData?.areas || [];
+  const dreamDetail = detailData?.dream || null;
+  const dreamData = dreamId && state.dreamsWithStats?.dreams 
+    ? state.dreamsWithStats.dreams.find(d => d.id === dreamId) || null
+    : null;
+
+  // Sync local areas with server areas when they change
+  useEffect(() => {
+    if (areas.length > 0) {
+      setLocalAreas(areas);
+    }
+  }, [areas]);
+
+  // Check if we're loading detail data (areas, history sections)
+  // Main content can render with just dreamData, so we only need to wait for detailData
+  const isLoadingDetailData = dreamId && !detailData;
 
   useEffect(() => {
     if (dreamId) {
-      // Initial load - force fetch to ensure we have data
-      getDreamDetail(dreamId, { force: true });
-      getDreamsWithStats({ force: true });
-      getProgress({ force: true });
+      // Initial load - fetch data (will use cache if available)
+      getDreamDetail(dreamId);
+      getDreamsWithStats();
+      getProgress();
     }
   }, [dreamId]); // Only depend on dreamId - functions are stable from DataContext
 
@@ -81,27 +126,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       }
     }, [dreamId]) // Only depend on dreamId - functions are stable from DataContext
   );
-
-  useEffect(() => {
-    if (dreamId && state.dreamDetail[dreamId]) {
-      const detailData = state.dreamDetail[dreamId];
-      if (detailData?.areas) {
-        setAreas(detailData.areas);
-      }
-      if (detailData?.dream) {
-        setDreamDetail(detailData.dream);
-      }
-    }
-  }, [dreamId, state.dreamDetail]);
-
-  useEffect(() => {
-    if (dreamId && state.dreamsWithStats?.dreams) {
-      const dream = state.dreamsWithStats.dreams.find(d => d.id === dreamId);
-      if (dream) {
-        setDreamData(dream);
-      }
-    }
-  }, [dreamId, state.dreamsWithStats?.dreams]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -233,6 +257,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       setEditTitle(dreamData.title);
       setEditStartDate(formatDateForDisplay(dreamData.start_date));
       setEditEndDate(formatDateForDisplay(dreamData.end_date || ''));
+      setEditImageUrl(dreamData.image_url || null);
       
       // Initialize time commitment from dreamDetail (which has the full Dream type)
       const timeCommitment = dreamDetail?.time_commitment || { hours: 0, minutes: 30 };
@@ -243,39 +268,114 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       date.setHours(timeCommitment.hours, timeCommitment.minutes, 0, 0);
       setTimePickerDate(date);
       
+      // Set start date picker to current start date
+      if (dreamData.start_date) {
+        const startDate = new Date(dreamData.start_date);
+        setStartDatePickerDate(startDate);
+      } else {
+        setStartDatePickerDate(new Date());
+      }
+      
+      // Set end date picker to current end date or today
+      if (dreamData.end_date) {
+        const endDate = new Date(dreamData.end_date);
+        setEndDatePickerDate(endDate);
+      } else {
+        setEndDatePickerDate(new Date());
+      }
+      
+      // Load default images
+      loadDefaultImages();
+      
       setShowEditModal(true);
     }
   };
 
-  const handleSaveEdit = async () => {
-    Keyboard.dismiss(); // Close keyboard when saving
-    if (!dreamId || !editTitle.trim()) {
-      Alert.alert('Error', 'Please enter a title for your dream.');
-      return;
-    }
-
-    // Validate dates
-    if (editStartDate && editEndDate) {
-      const startDate = new Date(formatDateForAPI(editStartDate));
-      const endDate = new Date(formatDateForAPI(editEndDate));
-      if (startDate >= endDate) {
-        Alert.alert('Error', 'End date must be after start date.');
+  const loadDefaultImages = async () => {
+    setIsLoadingImages(true);
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      if (!session?.access_token) {
+        console.log('❌ [DREAM PAGE] No session token available');
+        setIsLoadingImages(false);
         return;
       }
-    }
 
-    // Validate time commitment
-    const totalMinutes = editTimeCommitment.hours * 60 + editTimeCommitment.minutes;
-    if (totalMinutes < 10) {
-      Alert.alert('Error', 'Time commitment must be at least 10 minutes.');
-      return;
+      const response = await getDefaultImages(session.access_token);
+      
+      if (response.success && response.data?.images) {
+        console.log('✅ [DREAM PAGE] Successfully loaded', response.data.images.length, 'default images');
+        setDefaultImages(response.data.images);
+      } else {
+        console.log('⚠️ [DREAM PAGE] API call succeeded but no images found');
+        setDefaultImages([]);
+      }
+    } catch (error) {
+      console.error('❌ [DREAM PAGE] Error loading default images:', error);
+      setDefaultImages([]);
+    } finally {
+      setIsLoadingImages(false);
     }
+  };
 
-    if (totalMinutes > 24 * 60) {
-      Alert.alert('Error', 'Time commitment cannot exceed 24 hours.');
-      return;
+  const handleImageSelect = (imageUrl: string) => {
+    setEditImageUrl(imageUrl);
+  };
+
+  const handleImageUpload = async () => {
+    try {
+      // Request permission to access media library
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera roll is required!');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0] && dreamId) {
+        setIsUploadingImage(true);
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            // Create a file object for React Native
+            const file = {
+              uri: result.assets[0].uri,
+              name: result.assets[0].fileName || 'image.jpg',
+              type: result.assets[0].type || 'image/jpeg',
+              size: result.assets[0].fileSize || 0,
+            };
+
+            const uploadResponse = await uploadDreamImage(file, dreamId, session.access_token);
+            
+            if (uploadResponse.success) {
+              setEditImageUrl(uploadResponse.data.signed_url);
+            }
+          }
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          Alert.alert('Error', 'Failed to upload image. Please try again.');
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      console.error('Image picker error:', error);
     }
+  };
 
+  const performSave = async () => {
+    if (!dreamId) return;
+    
     setIsEditing(true);
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -287,11 +387,21 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           title: editTitle.trim(),
         };
 
-        // Always include end_date, image_url, start_date, and time_commitment
-        if (editEndDate) updateData.end_date = formatDateForAPI(editEndDate);
-        if (dreamData?.image_url) updateData.image_url = dreamData.image_url;
+        // Always include image_url, start_date, and time_commitment
+        if (editImageUrl) updateData.image_url = editImageUrl;
         updateData.start_date = formatDateForAPI(editStartDate);
         updateData.time_commitment = editTimeCommitment;
+        
+        // Only include end_date if it has a value
+        console.log('📝 [DREAM PAGE] editEndDate:', editEndDate);
+        const formattedEndDate = editEndDate ? formatDateForAPI(editEndDate) : null;
+        console.log('📝 [DREAM PAGE] formattedEndDate:', formattedEndDate);
+        if (formattedEndDate && formattedEndDate !== '') {
+          updateData.end_date = formattedEndDate;
+          console.log('📝 [DREAM PAGE] Added end_date to update data:', formattedEndDate);
+        } else {
+          console.log('📝 [DREAM PAGE] Skipping end_date (empty or invalid)');
+        }
 
         // Only include these fields if the dream is not activated
         if (!isActivated) {
@@ -317,6 +427,61 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     } finally {
       setIsEditing(false);
     }
+  };
+
+  const handleSaveEdit = async () => {
+    Keyboard.dismiss(); // Close keyboard when saving
+    if (!dreamId || !editTitle.trim()) {
+      Alert.alert('Error', 'Please enter a title for your dream.');
+      return;
+    }
+
+    // Validate dates
+    if (editStartDate && editEndDate) {
+      const startDate = new Date(formatDateForAPI(editStartDate));
+      const endDate = new Date(formatDateForAPI(editEndDate));
+      if (startDate >= endDate) {
+        Alert.alert('Error', 'End date must be after start date.');
+        return;
+      }
+    }
+    
+    // Warn if end date is not set
+    if (!editEndDate || editEndDate.trim() === '') {
+      Alert.alert(
+        'No End Date',
+        'You haven\'t set an end date. Do you want to continue without an end date?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Continue',
+            onPress: () => {
+              // Continue with save
+              performSave();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Validate time commitment
+    const totalMinutes = editTimeCommitment.hours * 60 + editTimeCommitment.minutes;
+    if (totalMinutes < 10) {
+      Alert.alert('Error', 'Time commitment must be at least 10 minutes.');
+      return;
+    }
+
+    if (totalMinutes > 24 * 60) {
+      Alert.alert('Error', 'Time commitment cannot exceed 24 hours.');
+      return;
+    }
+
+    // All validations passed, proceed with save
+    await performSave();
   };
 
   const dayProgress = calculateDayProgress();
@@ -416,7 +581,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const formatDateForAPI = (dateString: string) => {
     if (!dateString) return '';
     
-    // Parse the date string "6 October 2025" manually
+    // Parse the date string "13 December 2025" manually
     const parts = dateString.split(' ');
     if (parts.length !== 3) {
       console.log('Invalid date format:', dateString);
@@ -427,27 +592,67 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     const monthName = parts[1];
     const year = parseInt(parts[2]);
     
-    // Create a more explicit date string for parsing
-    const date = new Date(`${monthName} ${day}, ${year}`);
+    // Map month names to month numbers (0-indexed for Date constructor)
+    const monthMap: { [key: string]: number } = {
+      'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
+      'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
+    };
+    
+    const month = monthMap[monthName];
+    if (month === undefined) {
+      console.log('Invalid month name:', monthName);
+      return '';
+    }
+    
+    // Create date using explicit month, day, year to avoid timezone issues
+    const date = new Date(year, month, day);
     if (isNaN(date.getTime())) {
       console.log('Date parsing failed for:', dateString);
       return '';
     }
     
-    const parsedYear = date.getFullYear();
-    const parsedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
-    const parsedDay = date.getDate().toString().padStart(2, '0');
-    return `${parsedYear}-${parsedMonth}-${parsedDay}`;
+    // Format as YYYY-MM-DD
+    const formattedYear = date.getFullYear();
+    const formattedMonth = (date.getMonth() + 1).toString().padStart(2, '0');
+    const formattedDay = date.getDate().toString().padStart(2, '0');
+    return `${formattedYear}-${formattedMonth}-${formattedDay}`;
   };
 
   const handleStartDateChange = (date: Date) => {
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
     const day = date.getDate();
     const month = date.toLocaleDateString('en-US', { month: 'long' });
     const year = date.getFullYear();
-    setEditStartDate(`${day} ${month} ${year}`);
+    const newStartDate = `${day} ${month} ${year}`;
+    setEditStartDate(newStartDate);
+    
+    // If end date exists and is now before or equal to the new start date, clear it
+    if (editEndDate) {
+      const endDate = new Date(formatDateForAPI(editEndDate));
+      endDate.setHours(0, 0, 0, 0);
+      if (selectedDate >= endDate) {
+        setEditEndDate('');
+        Alert.alert('End Date Cleared', 'The end date has been cleared because it was before or equal to the new start date.');
+      }
+    }
   };
 
   const handleEndDateChange = (date: Date) => {
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Validate that the date is not before the start date
+    if (editStartDate) {
+      const startDate = new Date(formatDateForAPI(editStartDate));
+      startDate.setHours(0, 0, 0, 0);
+      if (selectedDate <= startDate) {
+        Alert.alert('Invalid Date', 'End date must be after the start date.');
+        return;
+      }
+    }
+    
     const day = date.getDate();
     const month = date.toLocaleDateString('en-US', { month: 'long' });
     const year = date.getFullYear();
@@ -467,48 +672,254 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const handleReschedule = async () => {
     if (!dreamId) return;
 
-    Alert.alert(
-      'Reschedule Actions',
-      'This will reschedule all outstanding actions from today to the end date. Continue?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Reschedule',
-          onPress: async () => {
-            setIsRescheduling(true);
-            try {
-              const { data: { session } } = await supabaseClient.auth.getSession();
-              if (session?.access_token) {
-                const result = await rescheduleActions(dreamId, session.access_token);
-                if (result.success) {
-                  Alert.alert(
-                    'Success', 
-                    `Rescheduled ${result.rescheduled_count || 0} actions successfully!`
-                  );
-                  // Refresh data to show updated schedule
-                  await getDreamDetail(dreamId, { force: true });
-                  await getProgress({ force: true });
-                } else {
-                  Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
-                }
-              }
-            } catch (error) {
-              console.error('Error rescheduling actions:', error);
-              Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
-            } finally {
-              setIsRescheduling(false);
-            }
+    // Check if the end date has changed in the UI
+    const originalEndDate = dreamData?.end_date ? formatDateForDisplay(dreamData.end_date) : '';
+    const hasEndDateChanged = editEndDate !== originalEndDate;
+
+    let endDateToUse = editEndDate;
+    
+    // If end date has changed, ask the user what they want to do
+    if (hasEndDateChanged) {
+      Alert.alert(
+        'Reschedule with New End Date?',
+        `You've changed the end date from ${originalEndDate || 'none'} to ${editEndDate}.\n\nDo you want to reschedule actions using the new end date?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
           },
-        },
-      ]
-    );
+          {
+            text: 'Use Old End Date',
+            onPress: () => {
+              endDateToUse = originalEndDate;
+              performReschedule(endDateToUse);
+            },
+          },
+          {
+            text: 'Use New End Date',
+            onPress: () => {
+              endDateToUse = editEndDate;
+              performReschedule(endDateToUse);
+            },
+          },
+        ]
+      );
+    } else {
+      // No change, proceed with normal reschedule
+      Alert.alert(
+        'Reschedule Actions',
+        'This will reschedule all outstanding actions from today to the end date. Continue?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Reschedule',
+            onPress: () => performReschedule(endDateToUse),
+          },
+        ]
+      );
+    }
+  };
+
+  const performReschedule = async (endDate: string) => {
+    if (!dreamId) return;
+    
+    setIsRescheduling(true);
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.access_token) {
+        // Format the end date for the API (convert from display format to API format)
+        const formattedEndDate = formatDateForAPI(endDate);
+        console.log('📝 [DREAM PAGE] Rescheduling with end date:', formattedEndDate);
+        
+        // Determine if we're extending or contracting the end date
+        const originalEndDate = dreamData?.end_date;
+        let options: { extendEndDate?: string; contractEndDate?: string; timeCommitment?: { hours: number; minutes: number } } | undefined = {};
+        
+        if (formattedEndDate && formattedEndDate !== originalEndDate) {
+          if (new Date(formattedEndDate) > new Date(originalEndDate || '')) {
+            options.extendEndDate = formattedEndDate;
+            console.log('📝 [DREAM PAGE] Extending end date to:', formattedEndDate);
+          } else {
+            options.contractEndDate = formattedEndDate;
+            console.log('📝 [DREAM PAGE] Contracting end date to:', formattedEndDate);
+          }
+        }
+        
+        // Always pass the current time commitment from the edit state
+        options.timeCommitment = editTimeCommitment;
+        console.log('📝 [DREAM PAGE] Using time commitment:', editTimeCommitment);
+        
+        const result = await rescheduleActions(dreamId, session.access_token, options);
+        if (result.success) {
+          Alert.alert('Success', 'Rescheduled actions successfully!');
+          // Refresh data to show updated schedule
+          await getDreamDetail(dreamId, { force: true });
+          await getProgress({ force: true });
+        } else {
+          Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error rescheduling actions:', error);
+      Alert.alert('Error', 'Failed to reschedule actions. Please try again.');
+    } finally {
+      setIsRescheduling(false);
+    }
   };
 
 
+  const handleCreateArea = () => {
+    setNewAreaTitle('');
+    setNewAreaIcon('🚀');
+    setShowCreateAreaModal(true);
+  };
+
+  const handleToggleReorder = () => {
+    setIsReordering(!isReordering);
+    setShowOptionsPopover(false);
+  };
+
+  const handleSaveReorder = async (reorderedAreaSuggestions: Array<{ id: string; title: string; emoji: string; completedActions?: number; totalActions?: number }>) => {
+    if (!dreamId) return;
+    
+    // Optimistically update local state immediately
+    const reorderedAreas = reorderedAreaSuggestions.map((suggestion, index) => {
+      const originalArea = localAreas.find(a => a.id === suggestion.id);
+      if (!originalArea) {
+        throw new Error(`Area ${suggestion.id} not found`);
+      }
+      return {
+        ...originalArea,
+        position: index + 1,
+        updated_at: new Date().toISOString()
+      };
+    });
+    
+    // Update UI immediately
+    setLocalAreas(reorderedAreas);
+    
+    // Sync with backend in the background
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.access_token) {
+        await upsertAreas({
+          dream_id: dreamId,
+          areas: reorderedAreas
+        }, session.access_token);
+
+        // Silently refresh to ensure consistency
+        await getDreamDetail(dreamId, { force: true });
+      }
+    } catch (error) {
+      console.error('Error reordering areas:', error);
+      // Revert to previous state on error
+      setLocalAreas(areas);
+      Alert.alert('Error', 'Failed to reorder areas. Please try again.');
+    }
+  };
+
+  const handleSaveNewArea = async () => {
+    Keyboard.dismiss();
+    
+    if (!newAreaTitle.trim()) {
+      Alert.alert('Error', 'Please enter a title for the area.');
+      return;
+    }
+
+    if (!newAreaIcon.trim()) {
+      Alert.alert('Error', 'Please enter an emoji for the area.');
+      return;
+    }
+
+    // Simple emoji validation - check if it's a single emoji character
+    const emojiRegex = /^[\p{Emoji}]$/u;
+    if (!emojiRegex.test(newAreaIcon.trim())) {
+      Alert.alert('Error', 'Please enter a valid emoji (single emoji character only).');
+      return;
+    }
+
+    if (!dreamId) {
+      Alert.alert('Error', 'Dream ID is missing.');
+      return;
+    }
+
+    setIsCreatingArea(true);
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.access_token) {
+        // Get existing areas and add the new one
+        const existingAreas = areas.map(area => ({
+          id: area.id,
+          dream_id: area.dream_id,
+          title: area.title,
+          icon: area.icon || undefined,
+          position: area.position,
+          created_at: area.created_at,
+          updated_at: area.updated_at
+        }));
+
+        // Create new area without ID (will be generated by backend)
+        const newArea = {
+          dream_id: dreamId,
+          title: newAreaTitle.trim(),
+          icon: newAreaIcon,
+          position: existingAreas.length + 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Send all areas including the new one
+        const response = await upsertAreas({
+          dream_id: dreamId,
+          areas: [...existingAreas, newArea]
+        }, session.access_token);
+
+        // Refresh dream detail to get the real area ID
+        await getDreamDetail(dreamId, { force: true });
+
+        // Find the newly created area in the refreshed data
+        const refreshedData = state.dreamDetail[dreamId];
+        const createdArea = refreshedData?.areas?.find((a: Area) => 
+          a.title === newAreaTitle.trim() && a.icon === newAreaIcon
+        );
+
+        setShowCreateAreaModal(false);
+        
+        if (createdArea && navigation?.navigate) {
+          // Navigate to the new area page
+          navigation.navigate('Area', {
+            areaId: createdArea.id,
+            areaTitle: createdArea.title,
+            areaEmoji: createdArea.icon || '🚀',
+            dreamId: dreamId,
+            dreamTitle: title
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error creating area:', error);
+      Alert.alert('Error', 'Failed to create area. Please try again.');
+    } finally {
+      setIsCreatingArea(false);
+    }
+  };
+
   const optionsPopoverItems = [
+    {
+      id: 'create-area',
+      icon: 'add',
+      title: 'Create Area',
+      onPress: handleCreateArea
+    },
+    {
+      id: 'reorder',
+      icon: 'reorder',
+      title: isReordering ? 'Done Reordering' : 'Reorder Areas',
+      onPress: handleToggleReorder
+    },
     {
       id: 'edit',
       icon: 'edit',
@@ -582,64 +993,117 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           )}
 
           {/* Areas */}
-          <AreaGrid
-            areas={areas.map(area => {
-              // Calculate progress for this area
-              const detailData = state.dreamDetail[dreamId || ''];
-              let completedActions = 0;
-              let totalActions = 0;
-              
-              if (detailData?.actions && detailData?.occurrences) {
-                // Filter actions for this area
-                const areaActions = detailData.actions.filter(action => action.area_id === area.id);
-                totalActions = areaActions.length;
+          {isLoadingDetailData ? (
+            <View style={styles.areasSkeleton}>
+              <View>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.areaSkeletonCard}>
+                    <View style={styles.areaSkeletonEmoji} />
+                    <View style={styles.areaSkeletonContent}>
+                      <View style={styles.areaSkeletonTitle} />
+                      <View style={styles.areaSkeletonProgressContainer}>
+                        <View style={styles.areaSkeletonProgressTextRow}>
+                          <View style={styles.areaSkeletonProgressText} />
+                          <View style={styles.areaSkeletonProgressText} />
+                        </View>
+                        <View style={styles.areaSkeletonProgressBar}>
+                          <View style={styles.areaSkeletonProgressFill} />
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <AreaGrid
+              areas={(isReordering ? localAreas : areas).map(area => {
+                // Calculate progress for this area
+                const detailData = state.dreamDetail[dreamId || ''];
+                let completedActions = 0;
+                let totalActions = 0;
                 
-                // Count completed occurrences for this area's actions
-                const areaActionIds = areaActions.map(action => action.id);
-                completedActions = detailData.occurrences.filter(occurrence => 
-                  areaActionIds.includes(occurrence.action_id) && occurrence.completed_at
-                ).length;
-              }
-              
-              return {
-                id: area.id,
-                title: area.title,
-                emoji: area.icon || '🚀',
-                completedActions,
-                totalActions
-              };
-            })}
-            onEdit={() => {}} // No edit functionality in DreamPage
-            onRemove={() => {}} // No remove functionality in DreamPage
-            onAdd={() => {}} // No add functionality in DreamPage
-            onPress={handleAreaPress}
-            clickable={true}
-            showProgress={true}
-            title="Areas"
-            style={styles.areasContainer}
-            showAddButton={false}
-            showEditButtons={false}
-            showRemoveButtons={false}
-          />
+                if (detailData?.actions && detailData?.occurrences) {
+                  // Filter actions for this area
+                  const areaActions = detailData.actions.filter(action => action.area_id === area.id);
+                  const areaActionIds = areaActions.map(action => action.id);
+                  
+                  // Count ALL occurrences for this area's actions (not just action definitions)
+                  totalActions = detailData.occurrences.filter(occurrence => 
+                    areaActionIds.includes(occurrence.action_id)
+                  ).length;
+                  
+                  // Count completed occurrences for this area's actions
+                  completedActions = detailData.occurrences.filter(occurrence => 
+                    areaActionIds.includes(occurrence.action_id) && occurrence.completed_at
+                  ).length;
+                }
+                
+                return {
+                  id: area.id,
+                  title: area.title,
+                  emoji: area.icon || '🚀',
+                  completedActions,
+                  totalActions
+                };
+              })}
+              onEdit={() => {}} // No edit functionality in DreamPage
+              onRemove={() => {}} // No remove functionality in DreamPage
+              onAdd={() => {}} // No add functionality in DreamPage
+              onReorder={isReordering ? handleSaveReorder : undefined}
+              onPress={handleAreaPress}
+              clickable={!isReordering}
+              showProgress={!isReordering}
+              title=""
+              style={styles.areasContainer}
+              showAddButton={false}
+              showEditButtons={false}
+              showRemoveButtons={false}
+            />
+          )}
 
           {/* Progress Photos Section */}
-          <ProgressPhotosSection
-            photos={dreamProgressPhotos}
-            onPhotoPress={(photo) => {
-              // Handle photo press - could open full screen view
-              console.log('Photo pressed:', photo);
-            }}
-            columns={4}
-          />
+          {isLoadingDetailData ? (
+            <View style={styles.progressPhotosSkeleton}>
+              <Text style={styles.progressPhotosTitle}>Progress Photos</Text>
+              <View style={styles.progressPhotosSkeletonGrid}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={styles.progressPhotoSkeleton} />
+                ))}
+              </View>
+            </View>
+          ) : (
+            <ProgressPhotosSection
+              photos={dreamProgressPhotos}
+              onPhotoPress={(photo) => {
+                // Handle photo press - could open full screen view
+                console.log('Photo pressed:', photo);
+              }}
+              columns={4}
+            />
+          )}
 
           {/* History Section */}
-          <HistorySection
-            actionsComplete={currentHistoryStats.actionsComplete}
-            activeDays={currentHistoryStats.activeDays}
-            actionsOverdue={currentHistoryStats.actionsOverdue}
-            onTimePeriodChange={handleTimePeriodChange}
-            selectedPeriod={selectedTimePeriod}
-          />
+          {isLoadingDetailData ? (
+            <View style={styles.historySkeleton}>
+              <Text style={styles.historyTitle}>History</Text>
+              <View style={styles.historySkeletonContent}>
+                <View style={styles.historySkeletonRow}>
+                  <View style={styles.historySkeletonStat} />
+                  <View style={styles.historySkeletonStat} />
+                  <View style={styles.historySkeletonStat} />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <HistorySection
+              actionsComplete={currentHistoryStats.actionsComplete}
+              activeDays={currentHistoryStats.activeDays}
+              actionsOverdue={currentHistoryStats.actionsOverdue}
+              onTimePeriodChange={handleTimePeriodChange}
+              selectedPeriod={selectedTimePeriod}
+            />
+          )}
         </ScrollView>
 
         <OptionsPopover
@@ -690,10 +1154,146 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
 
             <ScrollView 
               style={{ flex: 1 }} 
-              contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
+              {/* Dream Image */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Dream Image</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  {/* Current Image */}
+                  <View style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
+                    {editImageUrl ? (
+                      <Image
+                        source={{ uri: editImageUrl }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+                      </View>
+                    )}
+                  </View>
+                  
+                  {/* Change Photo Button */}
+                  <Pressable
+                    onPress={() => setShowImageOptions(!showImageOptions)}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      backgroundColor: pressed ? '#E5E7EB' : '#F9FAFB',
+                      borderWidth: 1,
+                      borderColor: '#E5E7EB',
+                      borderRadius: 8,
+                      padding: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 44
+                    })}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                      {showImageOptions ? 'Hide Options' : (editImageUrl ? 'Change Photo' : 'Add Photo')}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* Image Options */}
+                {showImageOptions && (
+                  <View style={{ marginTop: 12 }}>
+                    {isLoadingImages ? (
+                      <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                        <Text style={{ fontSize: 14, color: '#666' }}>Loading images...</Text>
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={[{ id: 'upload', name: 'upload' } as DreamImage, ...defaultImages]}
+                        renderItem={({ item, index }) => {
+                          const isUploadButton = index === 0;
+                          const isSelected = editImageUrl === item.signed_url;
+                          
+                          if (isUploadButton) {
+                            return (
+                              <Pressable
+                                onPress={handleImageUpload}
+                                disabled={isUploadingImage}
+                                style={{
+                                  width: '30%',
+                                  aspectRatio: 1,
+                                  backgroundColor: '#F9FAFB',
+                                  borderRadius: 12,
+                                  borderWidth: 2,
+                                  borderColor: '#E5E7EB',
+                                  borderStyle: 'dashed',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  marginRight: '3.33%',
+                                  marginBottom: 12,
+                                  opacity: isUploadingImage ? 0.5 : 1
+                                }}
+                              >
+                                {isUploadingImage ? (
+                                  <Ionicons name="hourglass-outline" size={24} color="#6B7280" />
+                                ) : (
+                                  <Ionicons name="add" size={24} color="#111827" />
+                                )}
+                                <Text style={{
+                                  fontSize: 12,
+                                  color: isUploadingImage ? '#6B7280' : '#111827',
+                                  marginTop: 4,
+                                  fontWeight: '500'
+                                }}>
+                                  {isUploadingImage ? 'Uploading...' : 'Add'}
+                                </Text>
+                              </Pressable>
+                            );
+                          }
+                          
+                          return (
+                            <Pressable
+                              onPress={() => handleImageSelect(item.signed_url)}
+                              style={{
+                                width: '30%',
+                                aspectRatio: 1,
+                                borderRadius: 12,
+                                overflow: 'hidden',
+                                backgroundColor: 'white',
+                                marginRight: '3.33%',
+                                marginBottom: 12,
+                                borderWidth: isSelected ? 3 : 0,
+                                borderColor: '#000'
+                              }}
+                            >
+                              <Image
+                                source={{ uri: item.signed_url }}
+                                style={{ width: '100%', height: '100%' }}
+                                resizeMode="cover"
+                              />
+                              {isSelected && (
+                                <View style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                  borderRadius: 12,
+                                  padding: 4
+                                }}>
+                                  <Ionicons name="checkmark-circle" size={20} color="white" />
+                                </View>
+                              )}
+                            </Pressable>
+                          );
+                        }}
+                        numColumns={3}
+                        keyExtractor={(item, index) => item.id || `upload-${index}`}
+                        columnWrapperStyle={{ justifyContent: 'space-between' }}
+                        scrollEnabled={false}
+                      />
+                    )}
+                  </View>
+                )}
+              </View>
+
               {/* Title */}
               <View style={{ marginBottom: 16 }}>
                 <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
@@ -723,7 +1323,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   showDatePicker={showStartDatePicker}
                   placeholder="Select start date"
                   label="Start Date"
-                  minimumDate={new Date()}
+                  initialDate={startDatePickerDate}
                   variant="borderless"
                 />
               </View>
@@ -739,13 +1339,20 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   showDatePicker={showEndDatePicker}
                   placeholder="Select end date"
                   label="End Date"
-                  minimumDate={editStartDate ? new Date(formatDateForAPI(editStartDate)) : new Date()}
+                  initialDate={endDatePickerDate}
+                  minimumDate={(() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (editStartDate) {
+                      const startDate = new Date(formatDateForAPI(editStartDate));
+                      startDate.setHours(0, 0, 0, 0);
+                      // Return the later of today or start date
+                      return startDate > today ? startDate : today;
+                    }
+                    return today;
+                  })()}
                   variant="borderless"
                 />
-                {/* Debug info */}
-                <Text style={{ fontSize: 10, color: 'red', marginTop: 4 }}>
-                  Debug: startDate={editStartDate}, minDate={editStartDate ? formatDateForAPI(editStartDate) : 'today'}
-                </Text>
               </View>
 
               {/* Daily Time Commitment */}
@@ -776,6 +1383,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                       display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                       onChange={handleTimePickerChange}
                       style={{ width: '100%', height: 150 }}
+                      themeVariant="light"
                       minimumDate={(() => {
                         const minDate = new Date();
                         minDate.setHours(0, 10, 0, 0); // Minimum 10 minutes
@@ -835,6 +1443,93 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Create Area Modal */}
+        <Modal 
+          visible={showCreateAreaModal} 
+          animationType="slide" 
+          presentationStyle="pageSheet"
+        >
+          <KeyboardAvoidingView 
+            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            {/* Header */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: 'white',
+              borderBottomWidth: 1,
+              borderBottomColor: '#E5E7EB'
+            }}>
+              <Pressable onPress={() => {
+                Keyboard.dismiss();
+                setShowCreateAreaModal(false);
+              }}>
+                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
+              </Pressable>
+              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Create Area</Text>
+              <Pressable onPress={handleSaveNewArea} disabled={isCreatingArea || !newAreaTitle.trim()}>
+                <Text style={{ 
+                  fontSize: 16, 
+                  color: isCreatingArea || !newAreaTitle.trim() ? '#999' : '#000', 
+                  fontWeight: '600' 
+                }}>
+                  {isCreatingArea ? "Creating..." : "Create"}
+                </Text>
+              </Pressable>
+            </View>
+
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Title */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
+                <TextInput
+                  value={newAreaTitle}
+                  onChangeText={setNewAreaTitle}
+                  placeholder="Enter area title"
+                  multiline
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 16,
+                    minHeight: 44
+                  }}
+                />
+              </View>
+
+              {/* Icon/Emoji */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Icon (Emoji)</Text>
+                <TextInput
+                  value={newAreaIcon}
+                  onChangeText={setNewAreaIcon}
+                  placeholder="Enter emoji (e.g. 🚀)"
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 16,
+                    minHeight: 44
+                  }}
+                  maxLength={2}
+                />
+                <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                  Optional: Enter 1-2 emojis to represent this area
+                </Text>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Modal>
       </SafeAreaView>
     </>
   );
@@ -859,12 +1554,12 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    paddingTop: 0,
     paddingBottom: theme.spacing.xl,
   },
   imageContainer: {
-    width: 150,
-    height: 150,
+    width: 225,
+    height: 225,
     borderRadius: theme.radius.lg,
     marginBottom: theme.spacing.lg,
     overflow: 'hidden',
@@ -912,7 +1607,7 @@ const styles = StyleSheet.create({
   dueDate: {
     fontSize: theme.typography.fontSize.caption1,
     color: theme.colors.grey[600],
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   areasContainer: {
     marginBottom: theme.spacing.lg,
@@ -1028,6 +1723,107 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'red',
     marginBottom: 10,
+  },
+  areasSkeleton: {
+    marginBottom: theme.spacing.lg,
+  },
+  areaSkeletonCard: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 80,
+  },
+  areaSkeletonEmoji: {
+    width: 40,
+    height: 40,
+    backgroundColor: theme.colors.grey[100],
+    borderRadius: theme.radius.sm,
+    marginRight: 16,
+  },
+  areaSkeletonContent: {
+    flex: 1,
+  },
+  areaSkeletonTitle: {
+    height: 16,
+    backgroundColor: theme.colors.grey[100],
+    borderRadius: theme.radius.sm,
+    width: '70%',
+    marginBottom: 8,
+  },
+  areaSkeletonProgressContainer: {
+    width: '100%',
+  },
+  areaSkeletonProgressTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  areaSkeletonProgressText: {
+    height: 12,
+    backgroundColor: theme.colors.grey[100],
+    borderRadius: theme.radius.sm,
+    width: 60,
+  },
+  areaSkeletonProgressBar: {
+    height: 6,
+    backgroundColor: theme.colors.grey[100],
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  areaSkeletonProgressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.grey[200],
+    borderRadius: 3,
+    width: '60%',
+  },
+  progressPhotosSkeleton: {
+    marginBottom: theme.spacing.lg,
+  },
+  progressPhotosTitle: {
+    fontSize: theme.typography.fontSize.title3,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.grey[900],
+    marginBottom: theme.spacing.md,
+  },
+  progressPhotosSkeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  progressPhotoSkeleton: {
+    width: '23%',
+    aspectRatio: 1,
+    backgroundColor: theme.colors.grey[100],
+    borderRadius: theme.radius.md,
+  },
+  historySkeleton: {
+    marginBottom: theme.spacing.lg,
+  },
+  historyTitle: {
+    fontSize: theme.typography.fontSize.title3,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.grey[900],
+    marginBottom: theme.spacing.md,
+  },
+  historySkeletonContent: {
+    backgroundColor: theme.colors.grey[50],
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
+  historySkeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: theme.spacing.sm,
+  },
+  historySkeletonStat: {
+    flex: 1,
+    height: 60,
+    backgroundColor: theme.colors.grey[200],
+    borderRadius: theme.radius.sm,
   },
 });
 

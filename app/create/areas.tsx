@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -298,12 +298,17 @@ export default function AreasStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <CreateScreenHeader step="areas" />
       
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 300 }} // Increased padding for bottom area
+        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Dream Title */}
@@ -348,13 +353,9 @@ export default function AreasStep() {
 
       </ScrollView>
       
-      {/* Sticky bottom section */}
+      {/* Footer section */}
       <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
+        paddingHorizontal: 16,
         paddingBottom: 32,
         backgroundColor: theme.colors.pageBackground
       }}>
@@ -392,6 +393,8 @@ export default function AreasStep() {
             variant="secondary"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
+              
+              Keyboard.dismiss() // Close keyboard when AI fix is triggered
               
               // Trigger loading page
               setIsLoading(true)
@@ -440,7 +443,10 @@ export default function AreasStep() {
           <Button 
             title={isSaving ? "Saving..." : "Looks Good"}
             variant="black"
-            onPress={handleSaveAreas}
+            onPress={() => {
+              Keyboard.dismiss() // Close keyboard when continuing
+              handleSaveAreas()
+            }}
             disabled={isSaving}
             style={{ flex: 1 }}
           />
@@ -612,6 +618,6 @@ export default function AreasStep() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   )
 }

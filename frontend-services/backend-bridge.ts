@@ -345,8 +345,8 @@ export const deferOccurrence = (occurrenceId: string, newDueDate: string, token?
 export const scheduleActions = (dreamId: string, token?: string): Promise<{ success: boolean; scheduled_count: number; warnings?: string[] }> => 
   post('/api/create/schedule-actions', { dream_id: dreamId }, token)
 
-export const rescheduleActions = (dreamId: string, token?: string): Promise<{ success: boolean; rescheduled_count: number; warnings?: string[] }> => 
-  post('/api/create/reschedule-actions', { dream_id: dreamId }, token)
+export const rescheduleActions = (dreamId: string, token?: string, options?: { extendEndDate?: string; contractEndDate?: string; resetCompleted?: boolean; timeCommitment?: { hours: number; minutes: number } }): Promise<{ success: boolean; scheduled_count: number; warnings?: string[] }> => 
+  post('/api/create/reschedule-actions', { dream_id: dreamId, extend_end_date: options?.extendEndDate, contract_end_date: options?.contractEndDate, reset_completed: options?.resetCompleted, time_commitment: options?.timeCommitment }, token)
 
 export const deleteAccount = (token?: string): Promise<{ success: boolean; message?: string; error?: string }> => 
   del('/api/account/delete', token)
@@ -359,6 +359,12 @@ export const updateActionOccurrence = (occurrenceId: string, updates: { note?: s
 
 export const updateAction = (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
   put('/api/actions/update', { actionId, updates }, token)
+
+export const updateArea = (areaId: string, updates: { title?: string; icon?: string; position?: number }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
+  put('/api/areas/update', { areaId, updates }, token)
+
+export const deleteArea = (areaId: string, token?: string): Promise<{ success: boolean; message: string }> => 
+  del('/api/areas/delete', token, { areaId })
 
 // Artifact-related functions
 export interface Artifact {
@@ -624,6 +630,63 @@ export const uploadDreamImage = async (file: any, dreamId: string, token: string
     return result
   } catch (error) {
     console.log('💥 [BACKEND-BRIDGE] Upload dream image Network/Parse Error:', error)
+    throw error
+  }
+}
+
+// Audio Transcription Types
+export interface TranscribeAudioResponse {
+  success: boolean
+  data: { text: string }
+  message?: string
+  error?: string
+}
+
+export const transcribeAudio = async (file: any, token: string): Promise<TranscribeAudioResponse> => {
+  const formData = new FormData()
+  
+  // Handle React Native file upload
+  if (file.uri) {
+    // For React Native, append the file with proper structure
+    formData.append('file', {
+      uri: file.uri,
+      type: file.type,
+      name: file.name,
+    } as any)
+  } else {
+    // For web, use the file directly
+    formData.append('file', file)
+  }
+
+  console.log('🎤 [BACKEND-BRIDGE] Transcribing audio:', {
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type
+  })
+
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  try {
+    const res = await fetch(`${API_BASE}/api/transcribe`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Transcribe audio response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Transcribe audio Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Transcribe audio Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Transcribe audio Network/Parse Error:', error)
     throw error
   }
 }

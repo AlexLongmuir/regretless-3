@@ -15,6 +15,7 @@ export async function rescheduleDreamActions(
     extendEndDate?: string
     contractEndDate?: string
     resetCompleted?: boolean // Whether to reschedule completed actions too
+    timeCommitment?: { hours: number; minutes: number } // Optional time commitment override
   } = {}
 ): Promise<{
   success: boolean
@@ -50,6 +51,11 @@ export async function rescheduleDreamActions(
         .eq('id', dreamId)
       
       dream.end_date = newEndDate
+    }
+
+    // Override time commitment if specified
+    if (options.timeCommitment) {
+      dream.time_commitment = options.timeCommitment
     }
 
     // Fetch areas and actions
@@ -149,19 +155,37 @@ export async function rescheduleDreamActions(
       }
     }
 
-    // Insert new occurrences
+    // Insert new occurrences (upsert with deduplication and required fields)
     if (schedulingResult.occurrences.length > 0) {
-      const { error: insertError } = await sb
-        .from('action_occurrences')
-        .insert(schedulingResult.occurrences.map(occ => ({
-          action_id: occ.action_id,
-          occurrence_no: occ.occurrence_no,
-          planned_due_on: occ.planned_due_on,
-          due_on: occ.due_on,
-          defer_count: occ.defer_count
-        })))
+      // Deduplicate by (action_id, occurrence_no)
+      const unique = schedulingResult.occurrences.reduce((acc, occ) => {
+        const key = `${occ.action_id}-${occ.occurrence_no}`
+        if (!acc.has(key)) acc.set(key, occ)
+        return acc
+      }, new Map<string, typeof schedulingResult.occurrences[number]>())
 
-      if (insertError) {
+      const deduped = Array.from(unique.values())
+
+      // Build action lookup for area_id derivation
+      const actionIdToAreaId = new Map(actions.map(a => [a.id, a.area_id]))
+
+      const { error: upsertError } = await sb
+        .from('action_occurrences')
+        .upsert(
+          deduped.map(occ => ({
+            action_id: occ.action_id,
+            area_id: actionIdToAreaId.get(occ.action_id)!,
+            dream_id: dreamId,
+            user_id: userId,
+            occurrence_no: occ.occurrence_no,
+            planned_due_on: occ.planned_due_on,
+            due_on: occ.due_on,
+            defer_count: occ.defer_count
+          })),
+          { onConflict: 'action_id,occurrence_no', ignoreDuplicates: false }
+        )
+
+      if (upsertError) {
         return {
           success: false,
           scheduled_count: 0,
@@ -193,7 +217,7 @@ export async function rescheduleDreamActions(
  */
 export async function handleRescheduleRequest(req: Request) {
   try {
-    const { dream_id, extend_end_date, contract_end_date, reset_completed } = await req.json()
+    const { dream_id, extend_end_date, contract_end_date, reset_completed, time_commitment } = await req.json()
     
     if (!dream_id) {
       return {
@@ -225,7 +249,8 @@ export async function handleRescheduleRequest(req: Request) {
     const result = await rescheduleDreamActions(dream_id, user.id, token, {
       extendEndDate: extend_end_date,
       contractEndDate: contract_end_date,
-      resetCompleted: reset_completed || false
+      resetCompleted: reset_completed || false,
+      timeCommitment: time_commitment
     })
 
     return result

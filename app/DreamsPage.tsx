@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
-import { ScrollView, View, Text, StyleSheet, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ScrollView, View, Text, StyleSheet, Image, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
 import { DreamCard, DreamChipList } from '../components';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
+import { DreamChipSkeleton } from '../components/SkeletonLoader';
 import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import type { Dream, DreamWithStats } from '../backend/database/types';
@@ -13,18 +14,86 @@ import type { Dream, DreamWithStats } from '../backend/database/types';
 const DreamsPage = ({ navigation }: { navigation?: any }) => {
   const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus } = useData();
   const { user, isAuthenticated, loading: authLoading } = useAuthContext();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const skeletonOpacity = useRef(new Animated.Value(1)).current;
+  const [skeletonOverlayVisible, setSkeletonOverlayVisible] = useState(false);
+  
   const dreams = state.dreamsSummary?.dreams || [];
   const dreamsWithStats = state.dreamsWithStats?.dreams || [];
+  
+  // Track if we have any cached data with actual dreams
+  const hasCachedData = Boolean(
+    (state.dreamsSummary && state.dreamsSummary.dreams && state.dreamsSummary.dreams.length > 0) ||
+    (state.dreamsWithStats && state.dreamsWithStats.dreams && state.dreamsWithStats.dreams.length > 0)
+  );
+  
+  // Show loading skeleton if: initial load AND no cached data OR actively refreshing without cache
+  // BUT if we have dreams data, don't show skeleton (even during initial load)
+  const shouldShowSkeleton = (isInitialLoad && !hasCachedData && dreams.length === 0) || 
+                             (isRefreshing && !hasCachedData && dreams.length === 0);
 
-  // Re-fetch data when user navigates back to this screen
+  // Smooth crossfade: show overlay when we need skeleton; fade out when content is ready
+  useEffect(() => {
+    if (shouldShowSkeleton) {
+      setSkeletonOverlayVisible(true);
+      skeletonOpacity.setValue(1);
+    }
+  }, [shouldShowSkeleton, skeletonOpacity]);
+
+  useEffect(() => {
+    const hasContent = dreamsWithStats.length > 0;
+    if (hasContent && skeletonOverlayVisible) {
+      Animated.timing(skeletonOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start(() => setSkeletonOverlayVisible(false));
+    }
+  }, [dreamsWithStats.length, skeletonOverlayVisible, skeletonOpacity]);
+
+  // Initial data load on mount
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      console.log('DreamsPage: Initial data load');
+      // On first load, use cached data if available (don't force)
+      const loadInitialData = async () => {
+        if (!hasCachedData) {
+          setIsRefreshing(true);
+        }
+        await Promise.all([
+          getDreamsSummary({ force: false }),
+          getDreamsWithStats({ force: false })
+        ]);
+        setIsRefreshing(false);
+        setIsInitialLoad(false);
+        setHasLoadedOnce(true);
+      };
+      
+      loadInitialData();
+    }
+  }, [isAuthenticated, authLoading]);
+
+  // Re-fetch data when user navigates back to this screen (e.g., after creating a dream)
   useFocusEffect(
     React.useCallback(() => {
       console.log('DreamsPage: useFocusEffect triggered');
       onScreenFocus('dreams');
-      // Let the refresh system handle the fetching based on staleness
-      getDreamsSummary();
-      getDreamsWithStats();
-    }, []) // No dependencies - functions are stable from DataContext
+      
+      // Only force refresh if we're not in the initial load
+      if (!isInitialLoad && isAuthenticated && !authLoading) {
+        const refreshData = async () => {
+          // Force refresh to get latest data (in case a dream was just created)
+          await Promise.all([
+            getDreamsSummary({ force: true }),
+            getDreamsWithStats({ force: true })
+          ]);
+        };
+        
+        refreshData();
+      }
+    }, [isInitialLoad, isAuthenticated, authLoading]) // Add dependencies to prevent unnecessary calls
   );
 
   const handleDreamPress = (dreamId: string) => {
@@ -46,20 +115,8 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
     }
   };
 
-  // Show loading state while checking authentication or fetching data
-  if (authLoading || (!state.dreamsSummary && !state.dreamsWithStats)) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>Loading...</Text>
-        <Text style={styles.emptySubtitle}>
-          {authLoading ? 'Checking authentication status...' : 'Loading your dreams...'}
-        </Text>
-      </View>
-    );
-  }
-
   // Show login prompt if not authenticated
-  if (!isAuthenticated) {
+  if (!authLoading && !isAuthenticated) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Please Sign In</Text>
@@ -75,7 +132,30 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
     );
   }
 
-  if (dreams.length === 0) {
+  // Show empty state only if we've finished loading AND confirmed no dreams exist
+  // Don't show if still loading, initializing, or refreshing
+  // Also ensure we're not in initial load phase
+  // AND we've confirmed there are truly no dreams (not just empty array from initial state)
+  const shouldShowEmptyState = !authLoading && 
+                                hasLoadedOnce && 
+                                !isRefreshing && 
+                                !isInitialLoad &&
+                                dreams.length === 0;
+  
+  console.log('DreamsPage render state:', {
+    authLoading,
+    hasLoadedOnce,
+    isRefreshing,
+    isInitialLoad,
+    dreamsLength: dreams.length,
+    shouldShowSkeleton,
+    shouldShowEmptyState,
+    hasCachedData: !!hasCachedData,
+    dreamsSummaryExists: !!state.dreamsSummary,
+    dreamsWithStatsExists: !!state.dreamsWithStats
+  });
+  
+  if (shouldShowEmptyState) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Start Your Journey</Text>
@@ -118,10 +198,23 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
           </View>
         </View>
 
-        <DreamChipList
-          dreams={dreamsWithStats}
-          onDreamPress={handleDreamPress}
-        />
+        {/* Content always rendered; skeleton overlays and fades out when ready */}
+        <View style={styles.contentStack}>
+          <DreamChipList
+            dreams={dreamsWithStats}
+            onDreamPress={handleDreamPress}
+            showEmpty={shouldShowEmptyState}
+            emptyTitle="No dreams yet"
+            emptySubtitle="Create your first dream to get started"
+          />
+          {skeletonOverlayVisible && (
+            <Animated.View style={[styles.skeletonOverlay, { opacity: skeletonOpacity }]}> 
+              <DreamChipSkeleton />
+              <DreamChipSkeleton />
+              <DreamChipSkeleton />
+            </Animated.View>
+          )}
+        </View>
 
       </ScrollView>
     </View>
@@ -175,6 +268,20 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: theme.spacing.lg,
     alignItems: 'center',
+  },
+  skeletonContainer: {
+    flex: 1,
+  },
+  contentStack: {
+    position: 'relative',
+    minHeight: 1,
+  },
+  skeletonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    // Let content define its own height; overlay will sit on top
   },
   emptyContainer: {
     flex: 1,

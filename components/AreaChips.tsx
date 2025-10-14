@@ -84,16 +84,15 @@ export function AreaChip({
       activeOpacity={clickable ? 0.7 : 1}
       style={[
         {
-          width: '48%',
-          aspectRatio: 1,
+          width: '100%',
           backgroundColor: getBackgroundColor(),
           borderRadius: 12,
           padding: 16,
-          marginBottom: 8,
-          justifyContent: 'center',
+          marginBottom: 12,
+          flexDirection: 'row',
           alignItems: 'center',
           position: 'relative',
-          minHeight: 120
+          minHeight: 80
         },
         style
       ]}
@@ -181,61 +180,67 @@ export function AreaChip({
         </TouchableOpacity>
       )}
       
-      <Text style={{ fontSize: 40, marginBottom: 8 }}>{emoji}</Text>
-      <Text style={{ 
-        fontSize: 16, 
-        fontWeight: 'bold',
-        color: '#000',
-        textAlign: 'center',
-        marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0
-      }}>
-        {title}
-      </Text>
+      {/* Icon on the left */}
+      <View style={{ marginRight: 16 }}>
+        <Text style={{ fontSize: 40 }}>{emoji}</Text>
+      </View>
       
-      {/* Progress Indicator - only show when clickable and has actions */}
-      {showProgress && clickable && totalActions > 0 && (
-        <View style={{ width: '100%', marginTop: 4 }}>
-          {/* Progress Text */}
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: 4
-          }}>
-            <Text style={{ 
-              fontSize: 10, 
-              fontWeight: '500',
-              color: '#666'
+      {/* Title and Progress on the right */}
+      <View style={{ flex: 1 }}>
+        <Text style={{ 
+          fontSize: 16, 
+          fontWeight: 'bold',
+          color: '#000',
+          marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0
+        }}>
+          {title}
+        </Text>
+        
+        {/* Progress Indicator - only show when clickable and has actions */}
+        {showProgress && clickable && totalActions > 0 && (
+          <View style={{ width: '100%' }}>
+            {/* Progress Text */}
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: 4
             }}>
-              {completedActions} of {totalActions}
-            </Text>
-            <Text style={{ 
-              fontSize: 10, 
-              fontWeight: 'bold',
-              color: '#666'
+              <Text style={{ 
+                fontSize: 12, 
+                fontWeight: '500',
+                color: '#666'
+              }}>
+                {completedActions} of {totalActions}
+              </Text>
+              <Text style={{ 
+                fontSize: 12, 
+                fontWeight: 'bold',
+                color: '#666'
+              }}>
+                {progressPercentage}%
+              </Text>
+            </View>
+            
+            {/* Progress Bar */}
+            <View style={{
+              height: 6,
+              backgroundColor: '#E0E0E0',
+              borderRadius: 3,
+              overflow: 'hidden'
             }}>
-              {progressPercentage}%
-            </Text>
+              <View 
+                style={{
+                  height: '100%',
+                  backgroundColor: '#4CAF50',
+                  borderRadius: 3,
+                  width: `${progressPercentage}%`
+                }} 
+              />
+            </View>
           </View>
-          
-          {/* Progress Bar */}
-          <View style={{
-            height: 6,
-            backgroundColor: '#E0E0E0',
-            borderRadius: 3,
-            overflow: 'hidden'
-          }}>
-            <View 
-              style={{
-                height: '100%',
-                backgroundColor: '#4CAF50',
-                borderRadius: 3,
-                width: `${progressPercentage}%`
-              }} 
-            />
-          </View>
-        </View>
-      )}
+        )}
+      </View>
     </ChipWrapper>
   )
 }
@@ -264,7 +269,7 @@ export function AddAreaChip({ onPress, style }: AddAreaChipProps) {
   )
 }
 
-// Wrapper component for AddAreaChip positioned in grid
+// Wrapper component for AddAreaChip in vertical layout
 interface AddAreaChipInGridProps {
   onPress: () => void
   style?: any
@@ -274,14 +279,15 @@ export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
   return (
     <View style={[
       {
-        width: '48%',
-        aspectRatio: 1,
+        width: '100%',
         borderRadius: 12,
-        marginBottom: 8,
-        justifyContent: 'flex-start',
-        alignItems: 'flex-start',
-        position: 'relative',
-        minHeight: 120
+        marginBottom: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 80,
+        borderWidth: 2,
+        borderColor: '#E0E0E0',
+        borderStyle: 'dashed'
       },
       style
     ]}>
@@ -336,49 +342,49 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
 
   return (
     <View style={style}>
-      {/* Header with title and add button */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-      }}>
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: '#111827', // grey[900]
+      {/* Header with title and add button - only show if there's a title or add button */}
+      {(title || showAddButton) && (
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
         }}>
-          {title}
-        </Text>
-        {showAddButton && (
-          <TouchableOpacity
-            onPress={onAdd}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-            activeOpacity={0.7}
-          >
+          {title && (
             <Text style={{
               fontSize: 18,
               fontWeight: 'bold',
-              color: '#6b7280', // grey[500]
+              color: '#111827', // grey[900]
             }}>
-              +
+              {title}
             </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+          )}
+          {showAddButton && (
+            <TouchableOpacity
+              onPress={onAdd}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={{
+                fontSize: 18,
+                fontWeight: 'bold',
+                color: '#6b7280', // grey[500]
+              }}>
+                +
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
       
-      {/* Areas Grid */}
-      <View style={{
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between'
-      }}>
+      {/* Areas List - Vertical Stacking */}
+      <View>
         {areas.map((area, index) => (
           <AreaChip
             key={area.id}

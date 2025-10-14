@@ -83,28 +83,54 @@ export async function POST(req: Request) {
 
     const patch: any = {}
     if (typeof title === 'string') patch.title = title.trim()
-    patch.start_date = start_date
-    patch.end_date = end_date
-    patch.image_url = image_url
-    patch.baseline = baseline
-    patch.obstacles = obstacles
-    patch.enjoyment = enjoyment
-    patch.time_commitment = time_commitment
-
+    
     // For activated dreams, only allow certain fields to be updated
-    if (owns.activated_at) {
-      console.log('📝 [DREAMS API] Dream is activated, allowing limited updates')
-      
-      // Check if any restricted fields are being sent
-      const restrictedFields = ['start_date', 'baseline', 'obstacles', 'enjoyment', 'time_commitment']
-      const hasRestrictedUpdates = restrictedFields.some(field => patch[field] !== undefined)
-      
-      if (hasRestrictedUpdates) {
-        console.log('❌ [DREAMS API] Cannot update restricted fields on activated dream')
-        console.log('📝 [DREAMS API] Restricted fields detected:', restrictedFields.filter(field => patch[field] !== undefined))
-        return NextResponse.json({ error: 'Cannot update start_date, baseline, obstacles, enjoyment, or time_commitment on activated dreams' }, { status: 409 })
+    const isActivated = !!owns.activated_at
+    const restrictedFields = ['baseline', 'obstacles', 'enjoyment']
+    
+    // Only add fields that are not restricted (or if dream is not activated)
+    if (!isActivated || !restrictedFields.includes('start_date')) {
+      if (start_date !== null && start_date !== undefined && start_date !== '') {
+        patch.start_date = start_date
       }
-      
+    }
+    
+    if (!isActivated || !restrictedFields.includes('end_date')) {
+      if (end_date !== null && end_date !== undefined && end_date !== '') {
+        patch.end_date = end_date
+      }
+    }
+    
+    if (image_url !== null && image_url !== undefined) {
+      patch.image_url = image_url
+    }
+    
+    if (!isActivated || !restrictedFields.includes('baseline')) {
+      if (baseline !== null && baseline !== undefined) {
+        patch.baseline = baseline
+      }
+    }
+    
+    if (!isActivated || !restrictedFields.includes('obstacles')) {
+      if (obstacles !== null && obstacles !== undefined) {
+        patch.obstacles = obstacles
+      }
+    }
+    
+    if (!isActivated || !restrictedFields.includes('enjoyment')) {
+      if (enjoyment !== null && enjoyment !== undefined) {
+        patch.enjoyment = enjoyment
+      }
+    }
+    
+    if (!isActivated || !restrictedFields.includes('time_commitment')) {
+      if (time_commitment !== null && time_commitment !== undefined) {
+        patch.time_commitment = time_commitment
+      }
+    }
+
+    if (isActivated) {
+      console.log('📝 [DREAMS API] Dream is activated, allowing limited updates')
       console.log('✅ [DREAMS API] Only allowed fields being updated for activated dream')
     }
 

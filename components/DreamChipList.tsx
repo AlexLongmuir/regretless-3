@@ -14,6 +14,9 @@ interface DreamChipListProps {
   dreams: DreamWithStats[];
   onDreamPress: (dreamId: string) => void;
   style?: any;
+  showEmpty?: boolean;
+  emptyTitle?: string;
+  emptySubtitle?: string;
 }
 
 const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
@@ -103,13 +106,16 @@ const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
 export const DreamChipList: React.FC<DreamChipListProps> = ({ 
   dreams, 
   onDreamPress, 
-  style 
+  style,
+  showEmpty = false,
+  emptyTitle = 'No dreams yet',
+  emptySubtitle = 'Create your first dream to get started'
 }) => {
-  if (dreams.length === 0) {
+  if (dreams.length === 0 && showEmpty) {
     return (
       <View style={[styles.emptyContainer, style]}>
-        <Text style={styles.emptyText}>No dreams yet</Text>
-        <Text style={styles.emptySubtext}>Create your first dream to get started</Text>
+        <Text style={styles.emptyText}>{emptyTitle}</Text>
+        <Text style={styles.emptySubtext}>{emptySubtitle}</Text>
       </View>
     );
   }

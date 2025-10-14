@@ -82,10 +82,11 @@ const CurrentProgressStep: React.FC = () => {
           ref={inputRef}
           value={customProgress}
           onChangeText={handleCustomInput}
-          placeholder="Start writing..."
+          placeholder="Start writing or tap mic to speak..."
           variant="borderless"
           style={styles.input}
           multiline={true}
+          showMicButton={true}
         />
         
         {/* Add spacing area before button */}

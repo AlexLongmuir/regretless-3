@@ -20,7 +20,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabaseClient } from '../lib/supabaseClient';
-import { deleteDream as deleteDreamAPI, archiveDream as archiveDreamAPI, unarchiveDream as unarchiveDreamAPI, deferOccurrence as deferOccurrenceAPI } from '../frontend-services/backend-bridge';
+import { deleteDream as deleteDreamAPI, archiveDream as archiveDreamAPI, unarchiveDream as unarchiveDreamAPI, deferOccurrence as deferOccurrenceAPI, updateArea as updateAreaAPI, deleteArea as deleteAreaAPI } from '../frontend-services/backend-bridge';
 import { useAuthContext } from './AuthContext';
 import { 
   CACHE_KEYS, 
@@ -85,6 +85,8 @@ type Ctx = {
   unarchiveDream: (dreamId: string) => Promise<void>;
   updateAction: (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] }) => Promise<void>;
   deleteActionOccurrence: (occurrenceId: string) => Promise<void>;
+  updateArea: (areaId: string, updates: { title?: string; icon?: string; position?: number }) => Promise<void>;
+  deleteArea: (areaId: string, dreamId: string) => Promise<void>;
   
   // Helper utilities
   isStale: (fetchedAt?: number, ttlMs?: number) => boolean;
@@ -784,6 +786,77 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     });
   }, []);
 
+  // Update an area with optimistic update
+  const updateArea: Ctx['updateArea'] = useCallback(async (areaId: string, updates: { title?: string; icon?: string; position?: number }) => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated');
+    }
+
+    await updateAreaAPI(areaId, updates, session.access_token);
+
+    // Optimistically update area in dreamDetail cache
+    setState(s => {
+      const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
+      
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            areas: dd.areas.map(a => 
+              a.id === areaId 
+                ? { ...a, ...updates } as any
+                : a
+            ) 
+          };
+        }
+      }
+      
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          saveJSON(CACHE_KEYS.detail(k), next.dreamDetail[k]);
+        }
+      }
+      
+      return next;
+    });
+
+    refresh();
+  }, [refresh]);
+
+  // Delete an area with optimistic removal
+  const deleteArea: Ctx['deleteArea'] = useCallback(async (areaId: string, dreamId: string) => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated');
+    }
+
+    await deleteAreaAPI(areaId, session.access_token);
+
+    // Optimistically remove area and associated actions from dreamDetail cache
+    setState(s => {
+      const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
+      
+      if (next.dreamDetail[dreamId]) {
+        const dd = next.dreamDetail[dreamId]!;
+        next.dreamDetail[dreamId] = { 
+          ...dd, 
+          areas: dd.areas.filter(a => a.id !== areaId),
+          actions: dd.actions.filter(a => a.area_id !== areaId)
+        };
+      }
+      
+      if (next.dreamDetail[dreamId]) {
+        saveJSON(CACHE_KEYS.detail(dreamId), next.dreamDetail[dreamId]);
+      }
+      
+      return next;
+    });
+
+    refresh();
+  }, [refresh]);
+
   /**
    * EFFECTS AND LIFECYCLE MANAGEMENT
    * 
@@ -893,6 +966,8 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     unarchiveDream,
     updateAction,
     deleteActionOccurrence,
+    updateArea,
+    deleteArea,
     isStale,
     lastSyncedLabel,
     clearDreamsWithStatsCache,

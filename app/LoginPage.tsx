@@ -342,7 +342,7 @@ export const LoginPage: React.FC = () => {
 
             <ScrollView 
               style={styles.modalForm}
-              contentContainerStyle={styles.modalFormContent}
+              contentContainerStyle={[styles.modalFormContent, { paddingBottom: 400 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

@@ -28,7 +28,7 @@ export { OptionsPopover } from './OptionsPopover'
 export { StickyActionSuggestions } from './StickyActionSuggestions'
 export { BottomNavigation } from './BottomNavigation'
 export { default as AIRatingRing } from './AIRatingRing'
-export { default as SkeletonLoader, ActionChipSkeleton } from './SkeletonLoader'
+export { default as SkeletonLoader, ActionChipSkeleton, DreamChipSkeleton, AreaChipSkeleton } from './SkeletonLoader'
 export { RevenueCatDebugger } from './RevenueCatDebugger'
 
 // Progress components

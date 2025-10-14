@@ -530,7 +530,12 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
@@ -689,7 +694,7 @@ interface AddActionModalProps {
   onSave: (action: ActionCard) => void
 }
 
-function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
+export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
   const [formData, setFormData] = useState<ActionCard>({
     id: '',
     title: '',
@@ -774,7 +779,12 @@ function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>

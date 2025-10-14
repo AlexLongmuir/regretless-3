@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -212,12 +212,17 @@ const AreasConfirmStep: React.FC = () => {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <OnboardingHeader onBack={handleBack} />
       
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 300 }} // Increased padding for bottom area
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Title */}
@@ -256,13 +261,9 @@ const AreasConfirmStep: React.FC = () => {
 
       </ScrollView>
       
-      {/* Sticky bottom section */}
+      {/* Footer section */}
       <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
+        paddingHorizontal: 16,
         paddingBottom: 32,
         backgroundColor: theme.colors.pageBackground
       }}>
@@ -298,14 +299,20 @@ const AreasConfirmStep: React.FC = () => {
           <Button 
             title="Fix with AI" 
             variant="secondary"
-            onPress={handleRegenerate}
+            onPress={() => {
+              Keyboard.dismiss(); // Close keyboard when AI fix is triggered
+              handleRegenerate();
+            }}
             style={{ flex: 1 }}
             disabled={!feedback.trim()}
           />
           <Button 
             title="Looks Good"
             variant="black"
-            onPress={handleContinue}
+            onPress={() => {
+              Keyboard.dismiss(); // Close keyboard when continuing
+              handleContinue();
+            }}
             style={{ flex: 1 }}
           />
         </View>
@@ -476,7 +483,7 @@ const AreasConfirmStep: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

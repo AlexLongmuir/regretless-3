@@ -332,6 +332,11 @@ async function seedAllActions(
   const placements: ScheduledPlacement[] = []
   const tightPending: string[] = []
   
+  // Compute daily time budget for oversized detection
+  const dailyTimeMinutes = dream.time_commitment 
+    ? dream.time_commitment.hours * 60 + dream.time_commitment.minutes 
+    : DEFAULT_DAILY_TIME_MINUTES
+  
   // Get eligible workdays
   const eligibleDays = getEligibleWorkdays(window.start_date, window.end_date)
   
@@ -347,13 +352,11 @@ async function seedAllActions(
   
   for (const action of sortedActions) {
     let count = 1 // Default to 1 occurrence
-    if (action.slice_count_target && action.slice_count_target > 1) {
+    if (action.repeat_every_days) {
+      // For habits, only seed the FIRST occurrence. Ongoing repeats are handled in expandRepeats.
+      count = 1
+    } else if (action.slice_count_target && action.slice_count_target > 1) {
       count = action.slice_count_target
-    } else if (action.repeat_every_days) {
-      // For habits, estimate occurrences based on window length
-      const windowDays = Math.ceil((window.end_date.getTime() - window.start_date.getTime()) / (1000 * 60 * 60 * 24))
-      const workDays = Math.floor(windowDays * 6 / 7) // Rough estimate excluding Sundays
-      count = Math.max(1, Math.floor(workDays / action.repeat_every_days))
     }
     actionOccurrenceCounts.set(action.id, count)
     totalOccurrences += count
@@ -456,7 +459,8 @@ async function seedAllActions(
         planned_due_on: dateStr,
         due_on: dateStr,
         is_repeat: false,
-        is_fixed: false
+        // Mark oversized actions as fixed so they are not moved by balancing
+        is_fixed: (action.est_minutes || 0) > dailyTimeMinutes
       })
       
       // Update capacity (can go negative to track violations)
@@ -528,6 +532,11 @@ async function expandRepeats(
         
         // Check capacity (advisory - we'll schedule even if violated)
         const globalRemaining = capacity.global_remaining.get(dateStr) || 0
+        
+        // Ensure per_dream_remaining has an entry for this date
+        if (!capacity.per_dream_remaining.has(dateStr)) {
+          capacity.per_dream_remaining.set(dateStr, new Map())
+        }
         const perDreamRemaining = capacity.per_dream_remaining.get(dateStr)?.get(dream.id) || 0
         
         placements.push({
@@ -576,72 +585,106 @@ async function globalBalancing(
   // Create action lookup map for time estimation
   const actionMap = new Map(actions.map(action => [action.id, action]))
   
+  // Track moved placements to prevent infinite loops
+  const movedPlacements = new Set<string>()
+  
+  // Maximum number of iterations to prevent infinite loops
+  const MAX_ITERATIONS = 100
+  let iteration = 0
+  
   // Check for days that exceed time-based capacity
-  const currentDate = new Date(window.start_date)
-  while (currentDate <= window.end_date) {
-    const dateStr = currentDate.toISOString().split('T')[0]
-    const dayPlacements = placements.filter(p => p.due_on === dateStr)
+  while (iteration < MAX_ITERATIONS) {
+    iteration++
+    let hasChanges = false
+    const currentDate = new Date(window.start_date)
+    // Track target dates we've already moved to in this iteration to avoid clustering
+    const usedTargetDates = new Set<string>()
     
-    // Calculate total time for this day
-    let totalDayTime = 0
-    for (const placement of dayPlacements) {
-      const action = actionMap.get(placement.action_id)
-      if (action?.est_minutes) {
-        totalDayTime += action.est_minutes
-      }
-    }
-    
-    // Check if this day exceeds the time budget
-    if (totalDayTime > dailyTimeMinutes) {
-      console.log(`⏰ Day ${dateStr} exceeds time budget: ${totalDayTime}min > ${dailyTimeMinutes}min`)
+    while (currentDate <= window.end_date) {
+      const dateStr = currentDate.toISOString().split('T')[0]
+      const dayPlacements = placements.filter(p => p.due_on === dateStr)
       
-      // Find non-repeat one-offs that can be moved
-      const moveablePlacements = dayPlacements.filter(p => 
-        !p.is_repeat && !p.is_fixed
-      )
-      
-      // Sort by move priority (longest actions first to maximize time savings)
-      moveablePlacements.sort((a, b) => {
-        const actionA = actionMap.get(a.action_id)
-        const actionB = actionMap.get(b.action_id)
-        const timeA = actionA?.est_minutes || 0
-        const timeB = actionB?.est_minutes || 0
-        return timeB - timeA // Sort by time descending
-      })
-      
-      // Try to move actions until we're under the time budget
-      let remainingTime = totalDayTime
-      for (const placement of moveablePlacements) {
-        if (remainingTime <= dailyTimeMinutes) break
-        
+      // Calculate total time for this day
+      let totalDayTime = 0
+      for (const placement of dayPlacements) {
         const action = actionMap.get(placement.action_id)
-        if (!action?.est_minutes) continue
-        
-        const newDate = findNextAvailableDate(
-          placement,
-          new Date(dateStr),
-          window.end_date,
-          capacity,
-          placements,
-          actions,
-          dailyTimeMinutes
-        )
-        
-        if (newDate) {
-          placement.due_on = newDate.toISOString().split('T')[0]
-          placement.planned_due_on = newDate.toISOString().split('T')[0]
-          remainingTime -= action.est_minutes
-          console.log(`📅 Moved "${action.title}" (${action.est_minutes}min) from ${dateStr} to ${newDate.toISOString().split('T')[0]}`)
-        } else {
-          // If we can't find a better date, keep the original placement
-          // This ensures we don't lose any scheduled actions
-          warnings.push(`Could not balance time budget for ${dateStr} - keeping original placement`)
-          break
+        if (action?.est_minutes) {
+          totalDayTime += action.est_minutes
         }
       }
+      
+      // Check if this day exceeds the time budget
+          if (totalDayTime > dailyTimeMinutes) {
+        console.log(`⏰ Day ${dateStr} exceeds time budget: ${totalDayTime}min > ${dailyTimeMinutes}min`)
+        
+            // Find non-repeat one-offs that can be moved (skip oversized actions marked fixed)
+         const moveablePlacements = dayPlacements.filter(p => 
+              !p.is_repeat && !p.is_fixed && !movedPlacements.has(p.action_id)
+         )
+        
+        // Sort by move priority (longest actions first to maximize time savings)
+        moveablePlacements.sort((a, b) => {
+          const actionA = actionMap.get(a.action_id)
+          const actionB = actionMap.get(b.action_id)
+          const timeA = actionA?.est_minutes || 0
+          const timeB = actionB?.est_minutes || 0
+          return timeB - timeA // Sort by time descending
+        })
+        
+        // Try to move actions until we're under the time budget
+        let remainingTime = totalDayTime
+        for (const placement of moveablePlacements) {
+          if (remainingTime <= dailyTimeMinutes) break
+          
+          const action = actionMap.get(placement.action_id)
+          if (!action?.est_minutes) continue
+          
+              const avoidDates = new Set<string>([
+                dateStr,
+                ...Array.from(usedTargetDates)
+              ])
+               const newDate = findNextAvailableDate(
+            placement,
+            new Date(dateStr),
+            window.end_date,
+            capacity,
+            placements,
+            actions,
+                 dailyTimeMinutes,
+                 avoidDates
+          )
+          
+          if (newDate) {
+            placement.due_on = newDate.toISOString().split('T')[0]
+            placement.planned_due_on = newDate.toISOString().split('T')[0]
+            remainingTime -= action.est_minutes
+            movedPlacements.add(placement.action_id)
+                usedTargetDates.add(placement.due_on)
+            hasChanges = true
+            console.log(`📅 Moved "${action.title}" (${action.est_minutes}min) from ${dateStr} to ${newDate.toISOString().split('T')[0]}`)
+          } else {
+            // If we can't find a better date, keep the original placement
+            // This ensures we don't lose any scheduled actions
+            warnings.push(`Could not balance time budget for ${dateStr} - keeping original placement`)
+            break
+          }
+        }
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1)
     }
     
-    currentDate.setDate(currentDate.getDate() + 1)
+    // If no changes were made in this iteration, we're done
+    if (!hasChanges) {
+      break
+    }
+    
+    // Clear moved placements for next iteration
+    movedPlacements.clear()
+  }
+  
+  if (iteration >= MAX_ITERATIONS) {
+    warnings.push('Maximum balancing iterations reached - some days may still exceed time budget')
   }
   
   return { placements, warnings }
@@ -826,7 +869,8 @@ function findNextAvailableDate(
   capacity: CapacityTracker,
   allPlacements: ScheduledPlacement[],
   actions: Action[],
-  dailyTimeMinutes?: number
+  dailyTimeMinutes?: number,
+  avoidDates?: Set<string>
 ): Date | null {
   const currentDate = new Date(startDate)
   currentDate.setDate(currentDate.getDate() + 1) // Start from next day
@@ -836,7 +880,7 @@ function findNextAvailableDate(
   const currentAction = actionMap.get(placement.action_id)
   const currentActionTime = currentAction?.est_minutes || 0
   
-  // First pass: Try to find a date that respects both capacity and time constraints
+  // First pass: Try to find a date that respects capacity and, when reasonable, time constraints
   while (currentDate <= maxDate) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const dayOfWeek = currentDate.getDay()
@@ -847,17 +891,15 @@ function findNextAvailableDate(
       continue
     }
     
-    const globalRemaining = capacity.global_remaining.get(dateStr) || 0
-    const perDreamRemaining = capacity.per_dream_remaining.get(dateStr)?.get(placement.dream_id) || 0
+    const globalRemaining = capacity.global_remaining.get(dateStr) ?? 0
+    const perDreamRemaining = capacity.per_dream_remaining.get(dateStr)?.get(placement.dream_id) ?? 0
     
-    // Check capacity constraints
-    if (globalRemaining <= 0 || perDreamRemaining <= 0) {
-      currentDate.setDate(currentDate.getDate() + 1)
-      continue
-    }
+    // Capacity is advisory: do not block placement solely due to slot counts
+    // (We still prefer lower-load days in fallback)
     
     // Check time constraints if daily time budget is provided
-    if (dailyTimeMinutes && currentActionTime > 0) {
+    // If the single action itself exceeds the daily budget, allow placement (advisory constraint)
+    if (dailyTimeMinutes && currentActionTime > 0 && currentActionTime <= dailyTimeMinutes) {
       const dayPlacements = allPlacements.filter(p => p.due_on === dateStr)
       let totalDayTime = 0
       for (const dayPlacement of dayPlacements) {
@@ -874,25 +916,60 @@ function findNextAvailableDate(
       }
     }
     
-    return currentDate
-  }
-  
-  // Second pass: If no capacity/time-respecting date found, find the earliest workday
-  // This ensures we ALWAYS find a date, even if it violates capacity/time rules
-  currentDate.setTime(startDate.getTime())
-  currentDate.setDate(currentDate.getDate() + 1)
-  
-  while (currentDate <= maxDate) {
-    const dayOfWeek = currentDate.getDay()
-    
-    // Skip rest days
-    if (REST_DAYS.has(dayOfWeek)) {
+    if (avoidDates && avoidDates.has(dateStr)) {
       currentDate.setDate(currentDate.getDate() + 1)
       continue
     }
     
-    // Return the first available workday (capacity/time violations are acceptable)
     return currentDate
+  }
+  
+  // Second pass: If no capacity/time-respecting date found, choose earliest among K lightest future days
+  // Priority 1: Minimize number of big actions (> dailyTimeMinutes) on that day
+  // Priority 2: Minimize total scheduled time on that day
+  let bestDate: Date | null = null
+  let bestBigCount = Number.POSITIVE_INFINITY
+  let bestLoad = Number.POSITIVE_INFINITY
+  const candidates: { date: Date; big: number; load: number }[] = []
+  
+  const scanDate = new Date(startDate)
+  scanDate.setDate(scanDate.getDate() + 1)
+  
+  while (scanDate <= maxDate) {
+    const dayOfWeek = scanDate.getDay()
+    if (REST_DAYS.has(dayOfWeek)) {
+      scanDate.setDate(scanDate.getDate() + 1)
+      continue
+    }
+    const dateStr = scanDate.toISOString().split('T')[0]
+    if (avoidDates && avoidDates.has(dateStr)) {
+      scanDate.setDate(scanDate.getDate() + 1)
+      continue
+    }
+    const dayPlacements = allPlacements.filter(p => p.due_on === dateStr)
+    let totalDayTime = 0
+    let bigCount = 0
+    for (const dayPlacement of dayPlacements) {
+      const action = actionMap.get(dayPlacement.action_id)
+      if (!action) continue
+      const mins = action.est_minutes || 0
+      totalDayTime += mins
+      if (dailyTimeMinutes && mins > dailyTimeMinutes) bigCount++
+    }
+    candidates.push({ date: new Date(scanDate), big: bigCount, load: totalDayTime })
+    scanDate.setDate(scanDate.getDate() + 1)
+  }
+  
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => {
+      if (a.big !== b.big) return a.big - b.big
+      if (a.load !== b.load) return a.load - b.load
+      return a.date.getTime() - b.date.getTime()
+    })
+    // Pick earliest among top-K lightest (K=7) to promote distribution
+    const K = Math.min(7, candidates.length)
+    const choice = candidates.slice(0, K).sort((a, b) => a.date.getTime() - b.date.getTime())[0]
+    return choice.date
   }
   
   return null
