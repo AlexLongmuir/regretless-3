@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Image } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Button } from '../components/Button'
 import { theme } from '../utils/theme'
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation'
 
 export default function DreamCompletedPage() {
   const navigation = useNavigation<any>()
@@ -95,7 +96,8 @@ export default function DreamCompletedPage() {
         <Button 
           title="View Dreams" 
           variant="black"
-          onPress={handleDone} 
+          onPress={handleDone}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>
@@ -227,7 +229,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: BOTTOM_NAV_PADDING,
     backgroundColor: theme.colors.pageBackground,
   },
 })

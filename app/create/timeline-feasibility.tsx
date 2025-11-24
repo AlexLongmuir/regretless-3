@@ -58,8 +58,8 @@ export default function TimelineFeasibilityStep() {
 
   useFocusEffect(
     React.useCallback(() => {
-      // Initialize current values
-      if (start_date && !currentStartDate) {
+      // Initialize current values from context when navigating back
+      if (start_date) {
         setCurrentStartDate(start_date)
       } else if (!currentStartDate) {
         // Default to today if no start date
@@ -68,7 +68,7 @@ export default function TimelineFeasibilityStep() {
         setField('start_date', today)
       }
 
-      if (end_date && !currentEndDate) {
+      if (end_date) {
         setCurrentEndDate(end_date)
       }
 
@@ -371,6 +371,7 @@ export default function TimelineFeasibilityStep() {
           title="Create Goal"
           variant="black"
           onPress={handleContinue}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>

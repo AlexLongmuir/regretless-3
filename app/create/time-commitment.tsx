@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Platform } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { theme } from '../../utils/theme'
+import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function TimeCommitmentStep() {
   const navigation = useNavigation<any>()
@@ -26,6 +27,17 @@ export default function TimeCommitmentStep() {
     return date
   })
 
+  // Initialize from context when navigating back
+  useFocusEffect(
+    React.useCallback(() => {
+      if (timeCommitment) {
+        setSelectedTime(timeCommitment)
+        const newDate = new Date()
+        newDate.setHours(timeCommitment.hours, timeCommitment.minutes, 0, 0)
+        setTimePickerDate(newDate)
+      }
+    }, [timeCommitment])
+  )
 
   // Update time picker date when selectedTime changes
   useEffect(() => {
@@ -127,7 +139,7 @@ export default function TimeCommitmentStep() {
         left: 0, 
         right: 0, 
         padding: 16,
-        paddingBottom: 32
+        paddingBottom: BOTTOM_NAV_PADDING
       }}>
         <Button 
           title="Continue"

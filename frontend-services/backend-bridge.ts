@@ -518,6 +518,25 @@ export interface DreamImageUploadResponse {
   size: number;
 }
 
+// Celebrity & Dreamboard types
+export interface CelebrityProfile {
+  id: string;
+  name: string;
+  image_url?: string;
+  signed_url?: string;
+  description?: string;
+  category?: string;
+}
+
+export interface GeneratedDreamSuggestion {
+  id?: string;
+  title: string;
+  emoji?: string;
+  source_type?: 'celebrity' | 'dreamboard';
+  source_data?: any;
+  created_at?: string;
+}
+
 // Dream Image Functions
 export const getDefaultImages = (token: string): Promise<{ success: boolean; data: DefaultImagesResponse; message: string }> => {
   console.log('🌐 [BACKEND-BRIDGE] Getting default images');
@@ -634,6 +653,85 @@ export const uploadDreamImage = async (file: any, dreamId: string, token: string
   }
 }
 
+// Celebrity & Dreamboard API
+export const getDefaultCelebrities = async (): Promise<{ success: boolean; data: { celebrities: CelebrityProfile[] } }> => {
+  const res = await fetch(`${API_BASE}/api/dreams/celebrities/default`, { method: 'GET' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export const generateCelebrityDreams = async (name: string, token?: string): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[] } }> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/api/dreams/celebrities/generate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ custom_name: name })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Onboarding version (unauthenticated)
+export const generateOnboardingCelebrityDreams = async (name: string): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[] } }> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const res = await fetch(`${API_BASE}/api/dreams/celebrities/generate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ custom_name: name })
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export const analyzeDreamboard = async (file: any, token?: string): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[]; image_url?: string } }> => {
+  const formData = new FormData();
+  // React Native style
+  if (file?.uri) {
+    formData.append('file', { uri: file.uri, type: file.type || 'image/jpeg', name: file.name || 'dreamboard.jpg' } as any);
+  } else {
+    formData.append('file', file);
+  }
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/api/dreams/dreamboard/analyze`, {
+    method: 'POST',
+    headers,
+    body: formData
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// Onboarding version (unauthenticated)
+export const analyzeOnboardingDreamboard = async (file: any): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[]; image_url?: string } }> => {
+  const formData = new FormData();
+  // React Native style
+  if (file?.uri) {
+    formData.append('file', { uri: file.uri, type: file.type || 'image/jpeg', name: file.name || 'dreamboard.jpg' } as any);
+  } else {
+    formData.append('file', file);
+  }
+  const headers: Record<string, string> = {};
+  const res = await fetch(`${API_BASE}/api/dreams/dreamboard/analyze`, {
+    method: 'POST',
+    headers,
+    body: formData
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export const getGeneratedDreams = async (token: string, sourceType?: 'celebrity' | 'dreamboard'): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[] } }> => {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const url = new URL(`${API_BASE}/api/dreams/generated`);
+  if (sourceType) url.searchParams.set('source_type', sourceType);
+  const res = await fetch(url.toString(), { method: 'GET', headers });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 // Audio Transcription Types
 export interface TranscribeAudioResponse {
   success: boolean
@@ -642,7 +740,7 @@ export interface TranscribeAudioResponse {
   error?: string
 }
 
-export const transcribeAudio = async (file: any, token: string): Promise<TranscribeAudioResponse> => {
+export const transcribeAudio = async (file: any, token?: string): Promise<TranscribeAudioResponse> => {
   const formData = new FormData()
   
   // Handle React Native file upload
@@ -661,7 +759,8 @@ export const transcribeAudio = async (file: any, token: string): Promise<Transcr
   console.log('🎤 [BACKEND-BRIDGE] Transcribing audio:', {
     fileName: file.name,
     fileSize: file.size,
-    fileType: file.type
+    fileType: file.type,
+    authenticated: !!token
   })
 
   const headers: Record<string, string> = {}

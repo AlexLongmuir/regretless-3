@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    borderRadius: theme.radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,

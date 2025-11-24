@@ -11,7 +11,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import type { Dream, DreamWithStats } from '../backend/database/types';
 
 
-const DreamsPage = ({ navigation }: { navigation?: any }) => {
+const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus } = useData();
   const { user, isAuthenticated, loading: authLoading } = useAuthContext();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -174,6 +174,7 @@ const DreamsPage = ({ navigation }: { navigation?: any }) => {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

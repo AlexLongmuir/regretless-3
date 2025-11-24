@@ -29,7 +29,7 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
     const popoverHeight = options.length * 44 + 12; // height calculation for options
     // Calculate width based on longest option text
     const longestText = Math.max(...options.map(opt => opt.title.length));
-    const popoverWidth = Math.min(Math.max(longestText * 8 + 60, 120), 160); // dynamic width with min/max bounds
+    const popoverWidth = Math.min(Math.max(longestText * 8 + 60, 120), 220); // dynamic width with min/max bounds
     const screenHeight = Dimensions.get('window').height;
     const screenWidth = Dimensions.get('window').width;
     const screenMargin = 16; // page side padding
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     minWidth: 120,
-    maxWidth: 160,
+    maxWidth: 220,
   },
   option: {
     flexDirection: 'row',

@@ -7,27 +7,12 @@ import { Button } from '../../components/Button'
 import { activateDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
-
-// Temporary function to test scheduling only
-const scheduleActionsOnly = async (dreamId: string, token: string) => {
-  const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/create/schedule-actions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ dream_id: dreamId })
-  })
-  
-  const result = await response.json()
-  return result
-}
+import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function ActionsConfirmStep() {
   const navigation = useNavigation<any>()
   const { areas, actions, dreamId } = useCreateDream()
   const [isActivating, setIsActivating] = useState(false)
-  const [isScheduling, setIsScheduling] = useState(false)
 
   const handleViewDream = async () => {
     if (!dreamId) {
@@ -66,46 +51,6 @@ export default function ActionsConfirmStep() {
       )
     } finally {
       setIsActivating(false)
-    }
-  }
-
-  const handleScheduleOnly = async () => {
-    if (!dreamId) {
-      Alert.alert('Error', 'No dream ID found')
-      return
-    }
-
-    setIsScheduling(true)
-    
-    try {
-      // Get auth token
-      const { data: { session } } = await supabaseClient.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No authentication token available')
-      }
-
-      // Only schedule actions (don't activate dream)
-      const result = await scheduleActionsOnly(dreamId, session.access_token)
-      
-      if (result.success) {
-        Alert.alert(
-          'Scheduling Complete!', 
-          `Successfully scheduled ${result.scheduled_count || 0} action occurrences. Check the terminal for detailed logs.`
-        )
-      } else {
-        Alert.alert(
-          'Scheduling Failed', 
-          result.error || 'There was an error scheduling actions. Check the terminal for details.'
-        )
-      }
-    } catch (error) {
-      console.error('Failed to schedule actions:', error)
-      Alert.alert(
-        'Scheduling Failed', 
-        'There was an error scheduling actions. Check the terminal for details.'
-      )
-    } finally {
-      setIsScheduling(false)
     }
   }
 
@@ -184,23 +129,15 @@ export default function ActionsConfirmStep() {
         left: 0, 
         right: 0, 
         padding: 16,
-        paddingBottom: 32,
+        paddingBottom: BOTTOM_NAV_PADDING,
         backgroundColor: theme.colors.pageBackground
       }}>
-        {/* Temporary Schedule button for testing */}
-        <Button 
-          title={isScheduling ? "Scheduling..." : "Schedule Actions (Test)"} 
-          variant="outline"
-          onPress={handleScheduleOnly}
-          disabled={isScheduling || isActivating}
-          style={{ marginBottom: 12 }}
-        />
-        
         <Button 
           title={isActivating ? "Activating Dream..." : "View Dream"} 
           variant="black"
           onPress={handleViewDream}
-          disabled={isActivating || isScheduling}
+          disabled={isActivating}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>

@@ -41,6 +41,27 @@ export interface Dream {
   updated_at: string;
 }
 
+export interface CelebrityProfile {
+  id: string;
+  name: string;
+  image_url?: string;
+  description?: string;
+  category?: string;
+  created_at: string;
+}
+
+export type AIGeneratedSourceType = 'celebrity' | 'dreamboard';
+
+export interface AIGeneratedDream {
+  id: string;
+  user_id: string;
+  title: string;
+  emoji?: string;
+  source_type: AIGeneratedSourceType;
+  source_data?: any;
+  created_at: string;
+}
+
 export interface Area {
   id: string;
   dream_id: string;
@@ -138,6 +159,16 @@ export interface Database {
         Row: Dream;
         Insert: Omit<Dream, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<Dream, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      celebrity_profiles: {
+        Row: CelebrityProfile;
+        Insert: Omit<CelebrityProfile, 'id' | 'created_at'>;
+        Update: Partial<Omit<CelebrityProfile, 'id' | 'created_at'>>;
+      };
+      ai_generated_dreams: {
+        Row: AIGeneratedDream;
+        Insert: Omit<AIGeneratedDream, 'id' | 'created_at'>;
+        Update: Partial<Omit<AIGeneratedDream, 'id' | 'created_at'>>;
       };
       areas: {
         Row: Area;

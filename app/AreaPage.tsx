@@ -9,7 +9,10 @@ import { OptionsPopover } from '../components/OptionsPopover';
 import { Input } from '../components/Input';
 import { AddActionModal } from '../components/ActionChipsList';
 import { useData } from '../contexts/DataContext';
+import { supabaseClient } from '../lib/supabaseClient';
+import { upsertActions } from '../frontend-services/backend-bridge';
 import type { Dream, Action, ActionOccurrence, Area } from '../backend/database/types';
+import { SheetHeader } from '../components/SheetHeader';
 
 interface AreaPageProps {
   route?: {
@@ -122,7 +125,6 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
   };
 
   const handleActionPress = (occurrenceId: string) => {
-    console.log('Action occurrence pressed:', occurrenceId);
     
     // Find the occurrence and action details
     const occurrence = actions.find(action => action.id === occurrenceId);
@@ -151,22 +153,158 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
   };
 
   const handleEditAction = (id: string, updatedAction: any) => {
-    console.log('Edit action occurrence:', id, updatedAction);
     // TODO: Update action occurrence in database
   };
 
   const handleRemoveAction = (id: string) => {
-    console.log('Remove action occurrence:', id);
     // TODO: Remove action occurrence from database
   };
 
-  const handleAddAction = (action: any) => {
-    console.log('Add action occurrence:', action);
-    // TODO: Add new action occurrence to database
+  const handleAddAction = async (action: any) => {
+    if (!dreamId || !areaId) {
+      Alert.alert('Error', 'Missing dream ID or area ID');
+      return;
+    }
+
+    try {
+      // Get user session
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        Alert.alert('Error', 'Not authenticated');
+        return;
+      }
+
+      // Get existing actions for this area to determine position and include them in the request
+      const dreamData = state.dreamDetail[dreamId];
+      const areaActions = dreamData?.actions?.filter((a: Action) => a.area_id === areaId) || [];
+      const nextPosition = areaActions.length;
+
+      // Prepare the new action
+      const newAction = {
+        user_id: session.user.id,
+        dream_id: dreamId,
+        area_id: areaId,
+        title: action.title,
+        est_minutes: action.est_minutes,
+        difficulty: action.difficulty,
+        repeat_every_days: action.repeat_every_days,
+        slice_count_target: action.slice_count_target,
+        acceptance_criteria: action.acceptance_criteria || [],
+        position: nextPosition,
+        is_active: true
+      } as Omit<Action, 'id' | 'created_at' | 'updated_at'>;
+
+      // Include all existing actions for this area + the new one
+      // This prevents the API from deleting existing actions
+      const allActions = [
+        ...areaActions.map((a: Action) => ({
+          id: a.id,
+          user_id: a.user_id,
+          dream_id: a.dream_id,
+          area_id: a.area_id,
+          title: a.title,
+          est_minutes: a.est_minutes,
+          difficulty: a.difficulty,
+          repeat_every_days: a.repeat_every_days,
+          slice_count_target: a.slice_count_target,
+          acceptance_criteria: a.acceptance_criteria,
+          position: a.position,
+          is_active: a.is_active
+        })),
+        newAction
+      ];
+
+      const actionData = {
+        dream_id: dreamId,
+        actions: allActions
+      };
+
+      // Call API to create action using backend-bridge
+      const result = await upsertActions(actionData as any, session.access_token);
+      
+      // Identify the newly created action by excluding pre-existing action IDs
+      const existingActionIds = new Set(areaActions.map((a: Action) => a.id));
+      const newlyCreatedCandidates = (result.actions as Action[])
+        .filter((a: Action) => a.area_id === (areaId as string) && !existingActionIds.has(a.id));
+      // Prefer the one with highest position among new candidates
+      const createdAction = newlyCreatedCandidates.sort((a, b) => (b.position || 0) - (a.position || 0))[0];
+
+      if (!createdAction) {
+        throw new Error('Failed to find the newly created action');
+      }
+
+      // Check if an occurrence already exists for this action
+      const { data: existingOccurrence } = await supabaseClient
+        .from('action_occurrences')
+        .select('id')
+        .eq('action_id', createdAction.id)
+        .eq('occurrence_no', 1)
+        .single();
+
+      // Create occurrences based on action type
+      if (action.slice_count_target && action.slice_count_target > 0) {
+        // Finite series: create N occurrences with initial planned/due date
+        // Skip single-occurrence creation; insert full series instead
+        const { data: existingAny } = await supabaseClient
+          .from('action_occurrences')
+          .select('id')
+          .eq('action_id', createdAction.id)
+          .limit(1);
+
+        if (!existingAny || existingAny.length === 0) {
+          const occurrences = Array.from({ length: action.slice_count_target }, (_, idx) => ({
+            action_id: createdAction.id,
+            dream_id: dreamId as string,
+            area_id: areaId as string,
+            user_id: session.user.id,
+            occurrence_no: idx + 1,
+            planned_due_on: action.due_on,
+            due_on: action.due_on,
+            defer_count: 0,
+            note: null
+          }));
+
+          const { error: seriesInsertError } = await supabaseClient
+            .from('action_occurrences')
+            .insert(occurrences);
+
+          if (seriesInsertError) {
+            throw new Error(`Failed to create series occurrences: ${seriesInsertError.message}`);
+          }
+        }
+      } else {
+        // One-off or repeating: only ensure first occurrence exists
+        if (!existingOccurrence) {
+          const { error: occurrenceError } = await supabaseClient
+            .from('action_occurrences')
+            .insert({
+              action_id: createdAction.id,
+              dream_id: dreamId,
+              area_id: areaId,
+              user_id: session.user.id,
+              occurrence_no: 1,
+              planned_due_on: action.due_on,
+              due_on: action.due_on,
+              defer_count: 0
+            });
+
+          if (occurrenceError) {
+            throw new Error(`Failed to create occurrence: ${occurrenceError.message}`);
+          }
+        }
+      }
+
+      // Refresh dream detail to show the new action
+      await getDreamDetail(dreamId, { force: true });
+
+      Alert.alert('Success', 'Action created successfully!');
+    } catch (error) {
+      console.error('Error adding action:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create action');
+    }
   };
 
   const handleReorderActions = (reorderedActions: any[]) => {
-    console.log('Reorder action occurrences:', reorderedActions);
     // TODO: Update action occurrence order in database
   };
 
@@ -360,7 +498,9 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           </View>
 
           {/* Dream Title */}
-          <Text style={styles.dreamTitle}>{dreamTitle}</Text>
+          <Pressable onPress={() => navigation?.navigate?.('Dream', { dreamId })}>
+            <Text style={styles.dreamTitle}>{dreamTitle}</Text>
+          </Pressable>
 
           {/* Area Title */}
           <Text style={styles.areaTitle}>{areaTitle}</Text>
@@ -394,6 +534,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
               onAdd={handleAddAction}
               onReorder={handleReorderActions}
               onPress={handleActionPress}
+              dreamEndDate={currentArea?.dream_id && state.dreamDetail[currentArea.dream_id]?.dream?.end_date}
             />
           </View>
         </ScrollView>
@@ -412,37 +553,21 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           presentationStyle="pageSheet"
         >
           <KeyboardAvoidingView 
-            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+            style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
             {/* Header */}
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: 16,
-              backgroundColor: 'white',
-              borderBottomWidth: 1,
-              borderBottomColor: '#E5E7EB'
-            }}>
-              <Pressable onPress={() => {
+            <SheetHeader
+              title="Edit Area"
+              onClose={() => {
                 Keyboard.dismiss();
                 setShowEditModal(false);
-              }}>
-                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-              </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Area</Text>
-              <Pressable onPress={handleSaveEdit} disabled={isEditing || !editTitle.trim()}>
-                <Text style={{ 
-                  fontSize: 16, 
-                  color: isEditing || !editTitle.trim() ? '#999' : '#000', 
-                  fontWeight: '600' 
-                }}>
-                  {isEditing ? "Saving..." : "Save"}
-                </Text>
-              </Pressable>
-            </View>
+              }}
+              onDone={handleSaveEdit}
+              doneDisabled={isEditing || !editTitle.trim()}
+              doneLoading={isEditing}
+            />
 
             <ScrollView 
               style={{ flex: 1 }} 

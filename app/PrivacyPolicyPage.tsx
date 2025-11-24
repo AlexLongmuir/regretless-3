@@ -30,86 +30,107 @@ const PrivacyPolicyPage = ({ navigation }: { navigation?: any }) => {
         </Text>
 
         {/* Content */}
-        <View style={styles.contentSection}>
-          <Text style={styles.sectionTitle}>1. Information We Collect</Text>
-          <Text style={styles.sectionText}>
-            We collect information you provide directly to us, such as when you create an account, use our services, or contact us for support.
-          </Text>
-          <Text style={styles.subsectionTitle}>Personal Information:</Text>
-          <Text style={styles.bulletPoint}>• Email address</Text>
-          <Text style={styles.bulletPoint}>• Name (if provided)</Text>
-          <Text style={styles.bulletPoint}>• Dream goals and progress data</Text>
-          <Text style={styles.bulletPoint}>• Action plans and completion records</Text>
+        <Text style={styles.sectionTitle}>0. Data Controller</Text>
+        <Text style={styles.sectionText}>
+          Dreamer (contact: alexlongmuir@icloud.com) is the data controller for your personal information. If you are in the EEA/UK, Dreamer acts as controller for the purposes of applicable data protection laws.
+        </Text>
+        <Text style={styles.sectionTitle}>1. Information We Collect</Text>
+        <Text style={styles.sectionText}>
+          We collect information you provide directly to us, such as when you create an account, use our services, or contact us for support.
+        </Text>
+        <Text style={styles.subsectionTitle}>Personal Information:</Text>
+        <Text style={styles.bulletPoint}>• Email address</Text>
+        <Text style={styles.bulletPoint}>• Name (if provided)</Text>
+        <Text style={styles.bulletPoint}>• Dream goals and progress data</Text>
+        <Text style={styles.bulletPoint}>• Action plans and completion records</Text>
+        <Text style={styles.bulletPoint}>• Photos and journal entries</Text>
+        <Text style={styles.bulletPoint}>• Voice recordings (if you use audio input features)</Text>
+        <Text style={styles.bulletPoint}>• AI interaction data and preferences</Text>
+        <Text style={styles.subsectionTitle}>Automatically Collected:</Text>
+        <Text style={styles.bulletPoint}>• Device identifiers (IDFA/AAID), IP address, device model, OS version</Text>
+        <Text style={styles.bulletPoint}>• App version, diagnostics, crash logs, performance and usage analytics</Text>
+        <Text style={styles.bulletPoint}>• Approximate location (if enabled by your device)</Text>
 
-          <Text style={styles.sectionTitle}>2. How We Use Your Information</Text>
-          <Text style={styles.sectionText}>
-            We use the information we collect to:
-          </Text>
-          <Text style={styles.bulletPoint}>• Provide, maintain, and improve our services</Text>
-          <Text style={styles.bulletPoint}>• Process transactions and send related information</Text>
-          <Text style={styles.bulletPoint}>• Send technical notices, updates, and support messages</Text>
-          <Text style={styles.bulletPoint}>• Respond to your comments and questions</Text>
-          <Text style={styles.bulletPoint}>• Provide personalized goal tracking and recommendations</Text>
+        <Text style={styles.sectionTitle}>2. How We Use Your Information</Text>
+        <Text style={styles.sectionText}>
+          We use the information we collect to:
+        </Text>
+        <Text style={styles.bulletPoint}>• Provide, maintain, and improve our services</Text>
+        <Text style={styles.bulletPoint}>• Process transactions and send related information</Text>
+        <Text style={styles.bulletPoint}>• Send technical notices, updates, and support messages</Text>
+        <Text style={styles.bulletPoint}>• Respond to your comments and questions</Text>
+        <Text style={styles.bulletPoint}>• Provide personalized goal tracking and AI-powered recommendations</Text>
+        <Text style={styles.bulletPoint}>• Generate AI-powered suggestions and improve app features and prompts (without using your content to train foundation models)</Text>
 
-          <Text style={styles.sectionTitle}>3. Information Sharing</Text>
-          <Text style={styles.sectionText}>
-            We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy.
-          </Text>
-          <Text style={styles.subsectionTitle}>We may share your information:</Text>
-          <Text style={styles.bulletPoint}>• With service providers who assist us in operating our app</Text>
-          <Text style={styles.bulletPoint}>• When required by law or to protect our rights</Text>
-          <Text style={styles.bulletPoint}>• In connection with a business transfer or acquisition</Text>
+        <Text style={styles.sectionTitle}>3. Information Sharing</Text>
+        <Text style={styles.sectionText}>
+          We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy.
+        </Text>
+        <Text style={styles.subsectionTitle}>We may share your information:</Text>
+        <Text style={styles.bulletPoint}>• With AI service providers (such as OpenAI or Anthropic) to process your requests and improve our AI features</Text>
+        <Text style={styles.bulletPoint}>• With payment processors (RevenueCat) to handle subscription transactions</Text>
+        <Text style={styles.bulletPoint}>• With service providers who assist us in operating our app</Text>
+        <Text style={styles.bulletPoint}>• When required by law or to protect our rights</Text>
+        <Text style={styles.bulletPoint}>• In connection with a business transfer or acquisition</Text>
 
-          <Text style={styles.sectionTitle}>4. Data Security</Text>
-          <Text style={styles.sectionText}>
-            We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure.
-          </Text>
+        <Text style={styles.sectionTitle}>4. AI and Data Processing</Text>
+        <Text style={styles.sectionText}>
+          Dreamer uses artificial intelligence to provide personalized coaching and recommendations. This means:
+        </Text>
+        <Text style={styles.bulletPoint}>• Your goals, actions, and progress data may be analyzed by AI models to generate personalized suggestions</Text>
+        <Text style={styles.bulletPoint}>• We do not use your content to train third-party foundation models; we may analyze aggregate patterns to improve prompts and features</Text>
+        <Text style={styles.bulletPoint}>• AI providers may process your data according to their own privacy policies</Text>
+        <Text style={styles.bulletPoint}>• We take steps to ensure your data is handled securely and in accordance with this policy</Text>
 
-          <Text style={styles.sectionTitle}>5. Data Retention</Text>
-          <Text style={styles.sectionText}>
-            We retain your personal information for as long as your account is active or as needed to provide you services. You may request deletion of your account and associated data at any time.
-          </Text>
+        <Text style={styles.sectionTitle}>5. Data Security</Text>
+        <Text style={styles.sectionText}>
+          We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure.
+        </Text>
 
-          <Text style={styles.sectionTitle}>6. Your Rights</Text>
-          <Text style={styles.sectionText}>
-            You have the right to:
-          </Text>
-          <Text style={styles.bulletPoint}>• Access your personal information</Text>
-          <Text style={styles.bulletPoint}>• Correct inaccurate information</Text>
-          <Text style={styles.bulletPoint}>• Delete your account and data</Text>
-          <Text style={styles.bulletPoint}>• Export your data</Text>
-          <Text style={styles.bulletPoint}>• Opt out of certain communications</Text>
+        <Text style={styles.sectionTitle}>6. Data Retention</Text>
+        <Text style={styles.sectionText}>
+          We retain your personal information for as long as your account is active or as needed to provide you services. You may request deletion of your account and associated data at any time.
+        </Text>
 
-          <Text style={styles.sectionTitle}>7. Cookies and Tracking</Text>
-          <Text style={styles.sectionText}>
-            We may use cookies and similar tracking technologies to collect and use personal information about you. You can control cookie settings through your device preferences.
-          </Text>
+        <Text style={styles.sectionTitle}>7. Your Rights</Text>
+        <Text style={styles.sectionText}>
+          You have the right to:
+        </Text>
+        <Text style={styles.bulletPoint}>• Access your personal information</Text>
+        <Text style={styles.bulletPoint}>• Correct inaccurate information</Text>
+        <Text style={styles.bulletPoint}>• Delete your account and data</Text>
+        <Text style={styles.bulletPoint}>• Export your data</Text>
+        <Text style={styles.bulletPoint}>• Opt out of certain communications</Text>
 
-          <Text style={styles.sectionTitle}>8. Third-Party Services</Text>
-          <Text style={styles.sectionText}>
-            Our app may contain links to third-party websites or services. We are not responsible for the privacy practices of these third parties. We encourage you to read their privacy policies.
-          </Text>
+        <Text style={styles.sectionTitle}>8. Cookies and Tracking</Text>
+        <Text style={styles.sectionText}>
+          We may use cookies and similar tracking technologies to collect and use personal information about you. You can control cookie settings through your device preferences.
+        </Text>
 
-          <Text style={styles.sectionTitle}>9. Children's Privacy</Text>
-          <Text style={styles.sectionText}>
-            Our services are not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.
-          </Text>
+        <Text style={styles.sectionTitle}>9. Third-Party Services and Payments</Text>
+        <Text style={styles.sectionText}>
+          Our app integrates with third-party services including AI providers (OpenAI, Anthropic), payment processors (RevenueCat), analytics, and cloud storage providers. Purchases are handled by Apple/Google via RevenueCat; we do not store your full payment card details. We are not responsible for the privacy practices of these third parties. We encourage you to read their privacy policies.
+        </Text>
 
-          <Text style={styles.sectionTitle}>10. International Users</Text>
-          <Text style={styles.sectionText}>
-            If you are accessing our services from outside the United States, please be aware that your information may be transferred to, stored, and processed in the United States.
-          </Text>
+        <Text style={styles.sectionTitle}>10. Children's Privacy</Text>
+        <Text style={styles.sectionText}>
+          Our services are not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.
+        </Text>
 
-          <Text style={styles.sectionTitle}>11. Changes to This Policy</Text>
-          <Text style={styles.sectionText}>
-            We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.
-          </Text>
+        <Text style={styles.sectionTitle}>11. International Users</Text>
+        <Text style={styles.sectionText}>
+          If you are accessing our services from outside the United States, please be aware that your information may be transferred to, stored, and processed in the United States.
+        </Text>
 
-          <Text style={styles.sectionTitle}>12. Contact Us</Text>
-          <Text style={styles.sectionText}>
-            If you have any questions about this Privacy Policy, please contact us at support@dreamer.app.
-          </Text>
-        </View>
+        <Text style={styles.sectionTitle}>12. Changes to This Policy</Text>
+        <Text style={styles.sectionText}>
+          We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page and updating the "Last updated" date.
+        </Text>
+
+        <Text style={styles.sectionTitle}>13. Contact Us</Text>
+        <Text style={styles.sectionText}>
+          If you have any questions about this Privacy Policy, please contact us at alexlongmuir@icloud.com.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,11 +172,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.caption1,
     color: theme.colors.grey[500],
-  },
-  contentSection: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: 10,
-    padding: theme.spacing.lg,
   },
   sectionTitle: {
     fontFamily: theme.typography.fontFamily.system,

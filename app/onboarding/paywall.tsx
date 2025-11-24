@@ -339,6 +339,7 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     marginBottom: theme.spacing.md,
+    borderRadius: theme.radius.xl,
   },
   restoreButton: {
     width: '100%',

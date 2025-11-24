@@ -34,6 +34,7 @@ import Constants from 'expo-constants';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
 import { EntitlementsProvider } from './contexts/EntitlementsContext';
+import { SessionProvider } from './contexts/SessionContext';
 import { ToastProvider } from './components/toast/ToastProvider';
 import { CreateDreamProvider } from './contexts/CreateDreamContext';
 import { DataProvider } from './contexts/DataContext';
@@ -78,14 +79,16 @@ export default function App() {
   return (
     <AuthProvider>
       <EntitlementsProvider>
-        <DataProvider>
-          <ToastProvider>
-            <CreateDreamProvider>
-              <Navigation />
-            </CreateDreamProvider>
-            <StatusBar style="auto" />
-          </ToastProvider>
-        </DataProvider>
+        <SessionProvider>
+          <DataProvider>
+            <ToastProvider>
+              <CreateDreamProvider>
+                <Navigation />
+              </CreateDreamProvider>
+              <StatusBar style="auto" />
+            </ToastProvider>
+          </DataProvider>
+        </SessionProvider>
       </EntitlementsProvider>
     </AuthProvider>
   );

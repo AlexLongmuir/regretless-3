@@ -12,6 +12,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { Area, Action } from '../backend/database/types';
+import type { DreamImage } from '../frontend-services/backend-bridge';
 
 interface OnboardingState {
   // User information
@@ -33,6 +34,9 @@ interface OnboardingState {
   // Navigation state
   currentStep: string;
   progress: number;
+  
+  // Preloaded images
+  preloadedDefaultImages: DreamImage[] | null;
 }
 
 interface OnboardingContextType {
@@ -47,6 +51,7 @@ interface OnboardingContextType {
   setCurrentStep: (step: string) => void;
   setProgress: (progress: number) => void;
   resetOnboarding: () => void;
+  setPreloadedDefaultImages: (images: DreamImage[] | null) => void;
 }
 
 const defaultState: OnboardingState = {
@@ -58,6 +63,7 @@ const defaultState: OnboardingState = {
   hasActiveSubscription: false,
   currentStep: 'Intro',
   progress: 0,
+  preloadedDefaultImages: null,
 };
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -115,6 +121,10 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     setState(defaultState);
   };
 
+  const setPreloadedDefaultImages = (images: DreamImage[] | null) => {
+    setState(prev => ({ ...prev, preloadedDefaultImages: images }));
+  };
+
   const value: OnboardingContextType = {
     state,
     updateName,
@@ -127,6 +137,7 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     setCurrentStep,
     setProgress,
     resetOnboarding,
+    setPreloadedDefaultImages,
   };
 
   return (

@@ -40,10 +40,12 @@ export default function GoalFeasibilityStep() {
 
   useFocusEffect(
     React.useCallback(() => {
-      // Initialize current values with original values
-      if (title && !currentGoal) {
+      // Initialize current values with context values when navigating back
+      if (title) {
         setCurrentGoal(title)
-        setOriginalGoal(title)
+        if (!originalGoal) {
+          setOriginalGoal(title)
+        }
       }
 
       // If we already have goal feasibility data, use it
@@ -337,6 +339,7 @@ export default function GoalFeasibilityStep() {
           title="Continue to Time Commitment"
           variant="black"
           onPress={handleContinue}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </KeyboardAvoidingView>

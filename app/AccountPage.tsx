@@ -8,7 +8,7 @@ import { notificationService } from '../lib/NotificationService';
 import { deleteAccount } from '../frontend-services/backend-bridge';
 import type { NotificationPreferences } from '../backend/database/types';
 
-const AccountPage = ({ navigation }: { navigation?: any }) => {
+const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { user, signOut, loading } = useAuthContext();
   const { state, getDreamsWithStats } = useData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -36,15 +36,12 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
   useEffect(() => {
     const loadNotificationPreferences = async () => {
       if (user?.id) {
-        console.log('Loading notification preferences for user:', user.id);
         const preferences = await notificationService.getNotificationPreferences(user.id);
-        console.log('Notification preferences loaded:', preferences);
         setNotificationPreferences(preferences);
         if (preferences) {
           setNotificationsEnabled(preferences.push_enabled);
         } else {
           // No preferences exist yet, use default value
-          console.log('No notification preferences found, using default: true');
           setNotificationsEnabled(true);
         }
       }
@@ -64,11 +61,9 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
 
   const handleNotificationToggle = async (enabled: boolean) => {
     if (!user?.id) {
-      console.log('No user ID available for notification toggle');
       return;
     }
     
-    console.log('Toggling notifications to:', enabled, 'for user:', user.id);
     setNotificationsEnabled(enabled);
     
     // If no preferences exist yet, create them with default values
@@ -83,8 +78,6 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
       };
     
     const success = await notificationService.updateNotificationPreferences(user.id, preferencesToUpdate);
-    
-    console.log('Notification preference update result:', success);
     
     if (!success) {
       // Revert on failure
@@ -183,7 +176,7 @@ const AccountPage = ({ navigation }: { navigation?: any }) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Account</Text>

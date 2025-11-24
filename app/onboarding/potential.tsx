@@ -71,6 +71,7 @@ const PotentialStep: React.FC = () => {
           onPress={handleContinue}
           variant="primary"
           size="lg"
+          style={styles.button}
         />
       </View>
     </View>
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
     color: theme.colors.grey[900],
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: theme.spacing['2xl'],
   },
   graphContainer: {
@@ -169,6 +170,10 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing['2xl'],
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

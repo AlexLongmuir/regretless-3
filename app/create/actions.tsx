@@ -78,7 +78,6 @@ export default function ActionsStep() {
         // Check if areas have real IDs (not temporary)
         const hasTemporaryAreaIds = areas.some(area => area.id.startsWith('temp_'))
         if (hasTemporaryAreaIds) {
-          console.log('Waiting for areas to be saved with real IDs...')
           // Wait a bit and try again
           setTimeout(() => {
             const stillHasTemporaryIds = areas.some(area => area.id.startsWith('temp_'))
@@ -557,17 +556,9 @@ export default function ActionsStep() {
                 )
                 const preservedAreaIds = areasToPreserve.map(area => area.id)
                 
-                console.log('🔍 Current area index:', currentAreaIndex)
-                console.log('🔍 Current area:', currentArea?.title, 'approved_at:', currentArea?.approved_at)
-                console.log('🔍 Areas to regenerate:', areasToRegenerate.map(a => `${a.title} (approved: ${!!a.approved_at})`))
-                console.log('🔍 Areas to preserve:', areasToPreserve.map(a => `${a.title} (approved: ${!!a.approved_at})`))
-                
                 const preservedActions = actions.filter(action => 
                   preservedAreaIds.includes(action.area_id)
                 )
-                
-                console.log('🔄 Regenerating actions for areas:', areasToRegenerate.map(a => a.title))
-                console.log('💾 Preserving actions from other areas:', preservedAreaIds.length)
                 
                 // Call the generateActions API to regenerate actions for current area only
                 const generatedActions = await generateActions({ 
@@ -617,7 +608,7 @@ export default function ActionsStep() {
               Keyboard.dismiss() // Close keyboard when continuing
               handleApproveArea()
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
           />
         </View>
       </View>

@@ -4,9 +4,9 @@
  * User enters their name to personalize the experience
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, TextInput, Keyboard } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -18,9 +18,18 @@ const cityImage = require('../../assets/images/onboarding/20250916_0840_Golden C
 
 const NameStep: React.FC = () => {
   const navigation = useNavigation();
-  const { updateName } = useOnboardingContext();
-  const [name, setName] = useState('');
+  const { state, updateName } = useOnboardingContext();
+  const [name, setName] = useState(state.name || '');
   const inputRef = useRef<TextInput>(null);
+
+  // Initialize from context when component mounts or when navigating back
+  useFocusEffect(
+    React.useCallback(() => {
+      if (state.name) {
+        setName(state.name);
+      }
+    }, [state.name])
+  );
 
   const handleContinue = () => {
     Keyboard.dismiss(); // Close keyboard when continuing
@@ -135,6 +144,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

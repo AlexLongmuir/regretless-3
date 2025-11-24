@@ -84,15 +84,23 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
 
     console.log('📝 Prompt being sent to AI:', prompt)
 
-    const { data, usage } = await generateJson({
-      system: AREAS_SYSTEM,
-      messages: [{ text: prompt }],
-      schema: AREAS_SCHEMA,
-      maxOutputTokens: 600,
-      modelId: GEMINI_MODEL // Using Flash Lite model without thinking
-    })
-
-    console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
+    let data, usage
+    try {
+      const result = await generateJson({
+        system: AREAS_SYSTEM,
+        messages: [{ text: prompt }],
+        schema: AREAS_SCHEMA,
+        maxOutputTokens: 600,
+        modelId: GEMINI_MODEL // Using Flash Lite model without thinking
+      })
+      data = result.data
+      usage = result.usage
+      console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
+    } catch (aiError) {
+      console.error('❌ AI generation failed:', aiError)
+      const aiErrorMessage = aiError instanceof Error ? aiError.message : String(aiError)
+      throw new Error(`AI generation failed: ${aiErrorMessage}`)
+    }
 
     const latencyMs = Date.now() - startTime
 
@@ -184,9 +192,12 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
     return NextResponse.json(savedAreas ?? [])
 
   } catch (error) {
-    console.error('Areas generation error:', error)
+    console.error('❌ Areas generation error:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('❌ Error details:', { message: errorMessage, stack: errorStack })
     return NextResponse.json(
-      { error: 'Failed to generate areas' }, 
+      { error: 'Failed to generate areas', details: errorMessage }, 
       { status: 500 }
     )
   }

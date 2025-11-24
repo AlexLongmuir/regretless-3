@@ -67,24 +67,20 @@ const ActionPage: React.FC<ActionPageProps> = ({ route, navigation }) => {
   };
 
   const handleTakePhoto = () => {
-    console.log('Take photo pressed');
     // TODO: Implement camera functionality
   };
 
   const handlePhotoLibrary = () => {
-    console.log('Photo library pressed');
     // TODO: Implement photo library functionality
   };
 
   const handleRemovePhotos = () => {
-    console.log('Remove photos pressed');
     setHasPhotos(false);
     // TODO: Implement remove photos functionality
   };
 
   const handleMarkDone = () => {
     // TODO: Implement mark as done functionality
-    console.log('Mark as done pressed');
   };
 
   const getFrequencyText = () => {

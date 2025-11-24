@@ -666,6 +666,7 @@ const styles = StyleSheet.create({
   trialButton: {
     width: '100%',
     marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.xl,
   },
   pricingText: {
     fontFamily: theme.typography.fontFamily.system,
@@ -803,6 +804,7 @@ const styles = StyleSheet.create({
   },
   claimButton: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
   dismissButton: {
     paddingVertical: theme.spacing.sm,

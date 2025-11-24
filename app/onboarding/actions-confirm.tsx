@@ -344,7 +344,7 @@ const ActionsConfirmStep: React.FC = () => {
               Keyboard.dismiss(); // Close keyboard when AI fix is triggered
               handleRegenerate();
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
             disabled={!feedback.trim()}
           />
           
@@ -356,7 +356,7 @@ const ActionsConfirmStep: React.FC = () => {
               Keyboard.dismiss(); // Close keyboard when continuing
               handleApproveArea();
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
           />
         </View>
       </View>

@@ -6,6 +6,9 @@ import { IconButton } from '../components/IconButton';
 import { ActionChipsList } from '../components/ActionChipsList';
 import { ActionChipSkeleton } from '../components/SkeletonLoader';
 import { useData } from '../contexts/DataContext';
+import { useSession } from '../contexts/SessionContext';
+import { supabaseClient } from '../lib/supabaseClient';
+import { upsertActions } from '../frontend-services/backend-bridge';
 import type { TodayAction, ActionOccurrenceStatus } from '../backend/database/types';
 
 interface ActionOccurrenceItem {
@@ -35,12 +38,18 @@ const inspirationalQuotes = [
   "Consistency is the mother of mastery."
 ];
 
-const TodayPage = ({ navigation }: { navigation?: any }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [fetchingDates, setFetchingDates] = useState<Set<string>>(new Set());
   const { state, getToday, completeOccurrence, deferOccurrence, onScreenFocus } = useData();
+  const { getSessionData, setSessionData } = useSession();
+  
+  // Initialize currentDate from session data or default to today
+  const [currentDate, setCurrentDate] = useState(() => {
+    const savedDate = getSessionData<string>('selectedDate');
+    return savedDate ? new Date(savedDate) : new Date();
+  });
   
   // Convert ActionOccurrenceStatus to ActionOccurrenceItem format for the UI
   // Filter occurrences by the current selected date
@@ -54,18 +63,6 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
   const isFetchingDate = fetchingDates.has(currentDateStr);
   // Show loading if: not current date AND (no cached data OR actively fetching) AND (loading in state OR local loading OR actively fetching)
   const isLoading = !isCurrentDate && (!hasCachedData || isFetchingDate) && (isDataLoading || showLoading || isFetchingDate);
-  
-  // Debug logging
-  console.log('TodayPage loading state:', {
-    currentDateStr,
-    isCurrentDate,
-    hasCachedData: !!hasCachedData,
-    isDataLoading,
-    showLoading,
-    isFetchingDate,
-    isLoading,
-    cachedOccurrences: todayData?.occurrences?.length || 0
-  });
   const actionOccurrences: ActionOccurrenceItem[] = (todayData?.occurrences || [])
     .map(occurrence => ({
       id: occurrence.id,
@@ -130,7 +127,6 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     
     // Prefetch in parallel without showing loading states
     if (datesToPrefetch.length > 0) {
-      console.log('Prefetching adjacent dates:', datesToPrefetch.map(d => d.dateStr));
       await Promise.all(
         datesToPrefetch.map(({ date }) => getToday({ date, force: false }))
       );
@@ -172,6 +168,9 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     const isNewDateCurrent = newDateStr === new Date().toISOString().slice(0, 10);
     
     setCurrentDate(newDate);
+    
+    // Save the new date to session data
+    setSessionData('selectedDate', newDateStr);
     
     // Mark this date as being fetched IMMEDIATELY to show loading state without delay
     if (!isNewDateCurrent && !state.todayByDate[newDateStr]) {
@@ -278,10 +277,154 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
     // For 'todo' status, we don't need to do anything as it's the default state
   };
 
+  // Ensure an Inbox dream+area exist and return their IDs
+  const ensureInbox = async (): Promise<{ dreamId: string; areaId: string }> => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.user) throw new Error('Not authenticated');
+    const userId = session.user.id;
+
+    // Ensure Inbox dream
+    const { data: foundDream } = await supabaseClient
+      .from('dreams')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('title', 'Inbox')
+      .is('archived_at', null)
+      .maybeSingle();
+    let dreamId = foundDream?.id as string | undefined;
+    if (!dreamId) {
+      const { data: newDream, error: dreamErr } = await supabaseClient
+        .from('dreams')
+        .insert({ user_id: userId, title: 'Inbox', start_date: new Date().toISOString().slice(0,10) })
+        .select('id')
+        .single();
+      if (dreamErr) throw dreamErr;
+      dreamId = newDream.id;
+    }
+
+    // Ensure Inbox area
+    const { data: foundArea } = await supabaseClient
+      .from('areas')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('dream_id', dreamId)
+      .eq('title', 'Inbox')
+      .is('deleted_at', null)
+      .maybeSingle();
+    let areaId = foundArea?.id as string | undefined;
+    if (!areaId) {
+      const { data: existingAreas } = await supabaseClient
+        .from('areas')
+        .select('position')
+        .eq('dream_id', dreamId)
+        .is('deleted_at', null);
+      const nextPos = (existingAreas?.length ? Math.max(...existingAreas.map(a => a.position)) : 0) + 1;
+      const { data: newArea, error: areaErr } = await supabaseClient
+        .from('areas')
+        .insert({ user_id: userId, dream_id: dreamId, title: 'Inbox', position: nextPos })
+        .select('id')
+        .single();
+      if (areaErr) throw areaErr;
+      areaId = newArea.id;
+    }
+    return { dreamId: dreamId!, areaId: areaId! };
+  };
+
+  // Handle quick add from ActionChipsList modal
+  const handleQuickAdd = async (newAction: any) => {
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token || !session.user) return;
+      const userId = session.user.id;
+
+      // Determine target based on optional linking hints
+      let dreamId: string | undefined = newAction.__linkMode === 'choose' ? newAction.__dreamId : undefined;
+      let areaId: string | undefined = newAction.__linkMode === 'choose' ? newAction.__areaId : undefined;
+      if (!dreamId || !areaId) {
+        const ensured = await ensureInbox();
+        dreamId = ensured.dreamId; areaId = ensured.areaId;
+      }
+
+      // Existing actions in the area
+      const { data: areaActions } = await supabaseClient
+        .from('actions')
+        .select('id, user_id, dream_id, area_id, title, est_minutes, difficulty, repeat_every_days, slice_count_target, acceptance_criteria, position, is_active')
+        .eq('area_id', areaId)
+        .is('deleted_at', null)
+        .order('position');
+      const existingIds = new Set((areaActions || []).map(a => a.id));
+      const nextPosition = (areaActions?.length || 0);
+
+      const toInsert = {
+        user_id: userId,
+        dream_id: dreamId,
+        area_id: areaId,
+        title: newAction.title,
+        est_minutes: newAction.est_minutes,
+        difficulty: newAction.difficulty || 'medium',
+        repeat_every_days: newAction.repeat_every_days ?? null,
+        slice_count_target: newAction.slice_count_target ?? null,
+        acceptance_criteria: newAction.acceptance_criteria || [],
+        position: nextPosition,
+        is_active: true
+      };
+
+      const allActions = [ ...(areaActions || []), toInsert ];
+      const payload = { dream_id: dreamId, actions: allActions } as any;
+      const result = await upsertActions(payload, session.access_token);
+      const created = result.actions.find((a: any) => !existingIds.has(a.id));
+      if (!created) throw new Error('Failed to locate newly created action');
+
+      const dueDate = newAction.due_on; // YYYY-MM-DD
+      if (created.slice_count_target && created.slice_count_target > 0) {
+        // Finite: insert N occurrences
+        const occurrences = Array.from({ length: created.slice_count_target }, (_, i) => ({
+          action_id: created.id,
+          dream_id: dreamId,
+          area_id: areaId,
+          user_id: userId,
+          occurrence_no: i + 1,
+          planned_due_on: dueDate,
+          due_on: dueDate,
+          defer_count: 0
+        }));
+        const { error: occErr } = await supabaseClient.from('action_occurrences').insert(occurrences);
+        if (occErr) throw occErr;
+      } else {
+        // One-off or repeating: ensure first occurrence exists
+        const { data: existingOcc } = await supabaseClient
+          .from('action_occurrences')
+          .select('id')
+          .eq('action_id', created.id)
+          .eq('occurrence_no', 1)
+          .maybeSingle();
+        if (!existingOcc) {
+          const { error: insErr } = await supabaseClient.from('action_occurrences').insert({
+            action_id: created.id,
+            dream_id: dreamId,
+            area_id: areaId,
+            user_id: userId,
+            occurrence_no: 1,
+            planned_due_on: dueDate,
+            due_on: dueDate,
+            defer_count: 0
+          });
+          if (insErr) throw insErr;
+        }
+      }
+
+      // Refresh today's list
+      await getToday({ date: currentDate, force: true });
+    } catch (e) {
+      console.error('Quick add failed:', e);
+    }
+  };
+
 
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -328,9 +471,10 @@ const TodayPage = ({ navigation }: { navigation?: any }) => {
                 actions={sortedActionOccurrences as any}
                 onEdit={() => {}} // No-op since we hide edit buttons
                 onRemove={() => {}} // No-op since we hide remove buttons
-                onAdd={() => {}} // No-op since we hide add functionality
+                onAdd={handleQuickAdd}
                 onReorder={() => {}} // No-op since we hide reorder buttons
                 onPress={handleActionPress} // Handle action occurrence clicks
+                showLinkToControls={true}
               />
               
               {actionOccurrences.length === 0 && !isLoading && (

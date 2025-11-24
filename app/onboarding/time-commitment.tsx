@@ -6,24 +6,68 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Button } from '../../components/Button';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+// Helper function to parse time string (e.g., "1h 30m", "30 min", "2 hours")
+const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
+  if (!timeStr) return { hours: 0, minutes: 30 };
+  
+  let hours = 0;
+  let minutes = 30; // default
+  
+  // Match patterns like "1h 30m", "2h", "30m", "2 hours", "30 min"
+  const hourMatch = timeStr.match(/(\d+)\s*h(?:our)?s?/i);
+  const minuteMatch = timeStr.match(/(\d+)\s*m(?:in)?s?/i);
+  
+  if (hourMatch) {
+    hours = parseInt(hourMatch[1], 10);
+  }
+  if (minuteMatch) {
+    minutes = parseInt(minuteMatch[1], 10);
+  }
+  
+  // If only minutes found and no hours, use minutes
+  if (!hourMatch && minuteMatch) {
+    hours = 0;
+    minutes = parseInt(minuteMatch[1], 10);
+  }
+  
+  return { hours, minutes };
+};
 
 const TimeCommitmentStep: React.FC = () => {
   const navigation = useNavigation();
-  const { updateAnswer } = useOnboardingContext();
+  const { state, updateAnswer } = useOnboardingContext();
   
-  const [selectedTime, setSelectedTime] = useState({ hours: 0, minutes: 30 });
+  // Initialize from context
+  const savedTimeStr = state.answers[3] || '';
+  const initialTime = savedTimeStr ? parseTimeString(savedTimeStr) : { hours: 0, minutes: 30 };
+  
+  const [selectedTime, setSelectedTime] = useState(initialTime);
   const [timePickerDate, setTimePickerDate] = useState(() => {
     const date = new Date();
-    date.setHours(0, 30, 0, 0);
+    date.setHours(initialTime.hours, initialTime.minutes, 0, 0);
     return date;
   });
+
+  // Initialize from context when component mounts or when navigating back
+  useFocusEffect(
+    React.useCallback(() => {
+      const answer = state.answers[3] || '';
+      if (answer) {
+        const parsedTime = parseTimeString(answer);
+        setSelectedTime(parsedTime);
+        const newDate = new Date();
+        newDate.setHours(parsedTime.hours, parsedTime.minutes, 0, 0);
+        setTimePickerDate(newDate);
+      }
+    }, [state.answers[3]])
+  );
 
 
   const handleTimePickerChange = (_event: any, selectedDate?: Date) => {
@@ -159,6 +203,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

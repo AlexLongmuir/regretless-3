@@ -22,8 +22,8 @@
  * - Stack Navigator: Manages screen transitions with a stack-like behavior
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Linking } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Linking, ScrollView } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -88,12 +88,70 @@ const AuthNavigator = () => (
  * 
  * How it works:
  * 1. State tracks which tab is active
- * 2. BottomNavigation component handles tab switching
- * 3. Screen content changes based on active tab
+ * 2. Screen content changes based on active tab
+ * 3. Bottom navigation is now handled by MainNavigator
  */
-const TabNavigator = ({ navigation, route }: any) => {
+const TabNavigator = ({ navigation, route, activeTab: propActiveTab, scrollToTopRef }: any) => {
   const [activeTab, setActiveTab] = useState('Dreams');
   const [showActionSuggestions, setShowActionSuggestions] = useState(false);
+  const prevPropActiveTab = useRef(propActiveTab);
+  
+  // Refs for scroll-to-top functionality
+  const dreamsScrollRef = useRef<ScrollView | null>(null);
+  const todayScrollRef = useRef<ScrollView | null>(null);
+  const progressScrollRef = useRef<ScrollView | null>(null);
+  const accountScrollRef = useRef<ScrollView | null>(null);
+
+  // Update activeTab when prop changes (from bottom nav)
+  useEffect(() => {
+    if (propActiveTab && propActiveTab !== prevPropActiveTab.current) {
+      setActiveTab(propActiveTab);
+      prevPropActiveTab.current = propActiveTab;
+    }
+  }, [propActiveTab]);
+
+  // Scroll to top function
+  const scrollToTop = useCallback(() => {
+    switch (activeTab) {
+      case 'Dreams':
+        dreamsScrollRef.current?.scrollTo({ y: 0, animated: true });
+        break;
+      case 'Today':
+        todayScrollRef.current?.scrollTo({ y: 0, animated: true });
+        break;
+      case 'Progress':
+        progressScrollRef.current?.scrollTo({ y: 0, animated: true });
+        break;
+      case 'Account':
+        accountScrollRef.current?.scrollTo({ y: 0, animated: true });
+        break;
+    }
+  }, [activeTab]);
+
+  // Expose scroll-to-top function via ref
+  useEffect(() => {
+    if (scrollToTopRef) {
+      scrollToTopRef.current = scrollToTop;
+    }
+  }, [scrollToTop, scrollToTopRef]);
+
+  // Render screen based on active tab
+  const renderScreen = () => {
+    const commonProps = { navigation };
+    
+    switch (activeTab) {
+      case 'Dreams':
+        return <DreamsPage {...commonProps} scrollRef={dreamsScrollRef} />;
+      case 'Today':
+        return <TodayPage {...commonProps} scrollRef={todayScrollRef} />;
+      case 'Progress':
+        return <ProgressPage {...commonProps} scrollRef={progressScrollRef} />;
+      case 'Account':
+        return <AccountPage {...commonProps} scrollRef={accountScrollRef} />;
+      default:
+        return <DreamsPage {...commonProps} scrollRef={dreamsScrollRef} />;
+    }
+  };
 
   // Listen for navigation events to show action suggestions and handle tab changes
   useEffect(() => {
@@ -115,13 +173,7 @@ const TabNavigator = ({ navigation, route }: any) => {
     return unsubscribe;
   }, [navigation, route?.params?.showActionSuggestions, route?.params?.activeTab]);
 
-  /**
-   * Handle tab press events
-   * Updates the active tab state, which triggers re-render with new screen
-   */
-  const handleTabPress = (tabKey: string) => {
-    setActiveTab(tabKey);
-  };
+  // No need to notify parent since parent controls the active tab directly
 
   /**
    * Handle action suggestion approval
@@ -141,38 +193,12 @@ const TabNavigator = ({ navigation, route }: any) => {
     navigation.navigate('CreateFlow', { phase: 'feedback' });
   };
 
-  /**
-   * Render screen component with navigation prop
-   */
-  const renderScreen = () => {
-    const commonProps = { navigation };
-    
-    switch (activeTab) {
-      case 'Dreams':
-        return <DreamsPage {...commonProps} />;
-      case 'Today':
-        return <TodayPage {...commonProps} />;
-      case 'Progress':
-        return <ProgressPage {...commonProps} />;
-      case 'Account':
-        return <AccountPage {...commonProps} />;
-      default:
-        return <DreamsPage {...commonProps} />;
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Main content area - renders the active tab's screen */}
       <View style={styles.screenContainer}>
         {renderScreen()}
       </View>
-      
-      {/* Bottom navigation - always visible for authenticated users */}
-      <BottomNavigation
-        activeTab={activeTab}
-        onTabPress={handleTabPress}
-      />
       
       {/* Sticky action suggestions overlay - positioned on top of everything */}
       <StickyActionSuggestions
@@ -184,28 +210,65 @@ const TabNavigator = ({ navigation, route }: any) => {
   );
 };
 
+// ScreenWrapper removed - was just a pass-through component
+
 /**
  * MainNavigator - Stack navigation for authenticated users
  * 
  * This navigator handles the main app navigation with stack-based routing.
  * It includes the main tab-based interface and modal/detail screens.
+ * Now includes bottom navigation for all screens except CreateFlow.
  */
-const MainNavigator = () => (
-  <MainStack.Navigator screenOptions={{ headerShown: false }}>
-    <MainStack.Screen name="Tabs" component={TabNavigator} />
-    <MainStack.Screen name="Action" component={ActionPage} />
-    <MainStack.Screen name="ActionOccurrence" component={ActionOccurrencePage} />
-    <MainStack.Screen name="ArtifactSubmitted" component={ArtifactSubmittedPage} />
-    <MainStack.Screen name="DreamCompleted" component={DreamCompletedPage} />
-    <MainStack.Screen name="Dream" component={DreamPage} />
-    <MainStack.Screen name="Area" component={AreaPage} />
-    <MainStack.Screen name="Progress" component={ProgressPage} />
-    <MainStack.Screen name="ContactUs" component={ContactUsPage} />
-    <MainStack.Screen name="TermsOfService" component={TermsOfServicePage} />
-    <MainStack.Screen name="PrivacyPolicy" component={PrivacyPolicyPage} />
-    <MainStack.Screen name="CreateFlow" component={CreateNavigator} />
-  </MainStack.Navigator>
-);
+const MainNavigator = ({ 
+  activeTab, 
+  onTabPress, 
+  onRouteChange,
+  scrollToTopRef
+}: { 
+  activeTab: string; 
+  onTabPress: (tabKey: string) => void;
+  onRouteChange: (route: string) => void;
+  scrollToTopRef: React.MutableRefObject<(() => void) | null>;
+}) => {
+
+  return (
+    <View style={styles.container}>
+      {/* Main content area - this will animate during transitions */}
+      <View style={styles.navigatorContainer}>
+        <MainStack.Navigator 
+          screenOptions={{ headerShown: false }}
+          screenListeners={{
+            state: (e) => {
+              // Notify parent of route changes
+              const state = e.data.state;
+              if (state) {
+                const routeName = state.routes[state.index]?.name;
+                if (routeName) {
+                  onRouteChange(routeName);
+                }
+              }
+            },
+          }}
+        >
+        <MainStack.Screen name="Tabs">
+          {(props) => <TabNavigator {...props} activeTab={activeTab} scrollToTopRef={scrollToTopRef} />}
+        </MainStack.Screen>
+        <MainStack.Screen name="Action" component={ActionPage} />
+        <MainStack.Screen name="ActionOccurrence" component={ActionOccurrencePage} />
+        <MainStack.Screen name="ArtifactSubmitted" component={ArtifactSubmittedPage} />
+        <MainStack.Screen name="DreamCompleted" component={DreamCompletedPage} />
+        <MainStack.Screen name="Dream" component={DreamPage} />
+        <MainStack.Screen name="Area" component={AreaPage} />
+        <MainStack.Screen name="Progress" component={ProgressPage} />
+        <MainStack.Screen name="ContactUs" component={ContactUsPage} />
+        <MainStack.Screen name="TermsOfService" component={TermsOfServicePage} />
+        <MainStack.Screen name="PrivacyPolicy" component={PrivacyPolicyPage} />
+        <MainStack.Screen name="CreateFlow" component={CreateNavigator} />
+      </MainStack.Navigator>
+      </View>
+    </View>
+  );
+};
 
 /**
  * AppNavigator - Main app navigation logic
@@ -224,6 +287,30 @@ const AppNavigator = () => {
   // Get authentication state from context
   const { isAuthenticated, loading, handleAuthRedirect } = useAuthContext();
   const { hasProAccess, loading: entitlementsLoading } = useEntitlementsContext();
+  
+  // Bottom navigation state - moved to top level for instant rendering
+  const [activeTab, setActiveTab] = useState('Dreams');
+  const [currentRoute, setCurrentRoute] = useState('Tabs');
+  
+  // Ref to trigger scroll to top
+  const scrollToTopRef = useRef<(() => void) | null>(null);
+
+  // Handle tab press from bottom navigation
+  const handleTabPress = useCallback((tabKey: string) => {
+    if (tabKey === activeTab) {
+      // If same tab is pressed, trigger scroll to top
+      if (scrollToTopRef.current) {
+        scrollToTopRef.current();
+      }
+      return;
+    }
+    setActiveTab(tabKey);
+  }, [activeTab]);
+
+  // Handle route changes from MainNavigator
+  const handleRouteChange = useCallback((route: string) => {
+    setCurrentRoute(route);
+  }, []);
 
   /**
    * Handle deep linking for authentication
@@ -292,10 +379,13 @@ const AppNavigator = () => {
 
   // Show appropriate navigation stack based on authentication status and entitlements
   return (
+    <View style={styles.container}>
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
         // User is logged in - show main app
-        <MainStack.Screen name="Main" component={MainNavigator} />
+                <MainStack.Screen name="Main">
+                  {(props) => <MainNavigator {...props} activeTab={activeTab} onTabPress={handleTabPress} onRouteChange={handleRouteChange} scrollToTopRef={scrollToTopRef} />}
+                </MainStack.Screen>
       ) : hasProAccess ? (
         // User has pro access but no auth - show PostPurchaseSignIn
         <MainStack.Screen name="PostPurchaseSignIn" component={PostPurchaseSignInStep} />
@@ -304,6 +394,17 @@ const AppNavigator = () => {
         <MainStack.Screen name="Auth" component={AuthNavigator} />
       )}
     </MainStack.Navigator>
+      
+      {/* Bottom navigation - always render but hide when in CreateFlow */}
+      {isAuthenticated && (
+        <View style={currentRoute === 'CreateFlow' ? styles.hidden : styles.visible}>
+          <BottomNavigation
+            activeTab={activeTab}
+            onTabPress={handleTabPress}
+          />
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -314,8 +415,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  navigatorContainer: {
+    flex: 1,
+  },
   screenContainer: {
     flex: 1,
+  },
+  visible: {
+    // Normal visibility
+  },
+  hidden: {
+    position: 'absolute',
+    top: -1000, // Move off-screen instead of hiding
+    left: 0,
+    right: 0,
   },
 });
 

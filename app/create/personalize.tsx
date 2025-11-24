@@ -13,9 +13,10 @@ import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function AreasStep() {
   const navigation = useNavigation<any>()
-  const { dreamId, title, start_date, end_date, image_url, setField } = useCreateDream()
+  const { dreamId, title, start_date, end_date, image_url, setField, preloadedDefaultImages } = useCreateDream()
   const [defaultImages, setDefaultImages] = useState<DreamImage[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(image_url || null)
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
 
   // Update selectedImage when image_url changes from context
   useEffect(() => {
@@ -28,6 +29,16 @@ export default function AreasStep() {
 
   // Load default images on component mount
   useEffect(() => {
+    // Check if images are already preloaded
+    if (preloadedDefaultImages !== null && preloadedDefaultImages !== undefined && Array.isArray(preloadedDefaultImages)) {
+      setDefaultImages(preloadedDefaultImages)
+      setIsLoading(false)
+      // Since images are prefetched, they should load instantly - mark them as ready
+      // We'll still track individual loads to ensure smooth rendering
+      return
+    }
+
+    // Fallback to fetching if not preloaded
     const loadDefaultImages = async () => {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
@@ -61,7 +72,7 @@ export default function AreasStep() {
     }
 
     loadDefaultImages()
-  }, [])
+  }, [preloadedDefaultImages])
 
   const handleImageSelect = (imageUrl: string) => {
     setSelectedImage(imageUrl)
@@ -152,9 +163,16 @@ export default function AreasStep() {
     }
   }
 
+  const handleImageLoad = (imageUrl: string) => {
+    setLoadedImages(prev => new Set(prev).add(imageUrl))
+  }
+
   const renderImageItem = ({ item, index }: { item: DreamImage; index: number }) => {
     const isSelected = selectedImage === item.signed_url
     const isFirstItem = index === 0
+    // If images are preloaded, assume they're ready (prefetched = cached = instant load)
+    const isPreloaded = preloadedDefaultImages !== null && preloadedDefaultImages !== undefined
+    const isLoaded = isPreloaded || loadedImages.has(item.signed_url)
     
     if (isFirstItem) {
       // First item is the upload button
@@ -192,6 +210,8 @@ export default function AreasStep() {
           source={{ uri: item.signed_url }}
           style={styles.image}
           resizeMode="cover"
+          onLoad={() => handleImageLoad(item.signed_url)}
+          fadeDuration={isPreloaded ? 0 : 200}
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>

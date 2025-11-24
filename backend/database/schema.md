@@ -128,6 +128,40 @@ AI usage tracking and telemetry for monitoring costs and performance.
 | total_tokens | integer | Total tokens used | |
 | latency_ms | integer | Request latency in milliseconds | |
 | created_at | timestamptz | When event was recorded | NOT NULL, DEFAULT now() |
+### celebrity_profiles
+Default catalog of celebrities for inspiration.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
+| name | text | Celebrity name | NOT NULL |
+| image_url | text | Storage path or absolute URL | |
+| description | text | Optional description | |
+| category | text | Category like "Athlete", "Entrepreneur" | |
+| created_at | timestamptz | Created timestamp | NOT NULL, DEFAULT now() |
+
+RLS: Public SELECT policy to allow read by anyone.
+
+### ai_generated_dreams
+AI-generated dream suggestions per user, grouped per search via `search_id`.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
+| user_id | uuid | Owner user id | NOT NULL, FK auth.users(id) |
+| search_id | uuid | Group id for a single generation/search | NOT NULL |
+| title | text | Dream title | NOT NULL |
+| emoji | text | Optional emoji | |
+| source_type | text | 'celebrity' or 'dreamboard' | NOT NULL, CHECK |
+| source_data | jsonb | Context payload (e.g., {"query_label":"Leo"} or {"image_url":"..."}) | |
+| created_at | timestamptz | Created timestamp | NOT NULL, DEFAULT now() |
+
+RLS: Users can SELECT/INSERT only their own rows.
+
+Indexes:
+ - `(user_id, created_at DESC)` for recency queries
+ - `(source_type)` for filtering
+ - `(search_id)` for grouping
 
 ### notification_preferences
 User notification settings and preferences.

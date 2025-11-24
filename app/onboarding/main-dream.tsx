@@ -6,12 +6,15 @@
 
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Keyboard, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { OnboardingHeader } from '../../components/onboarding';
 import { EmojiListRow } from '../../components';
+import { DreamInputActions } from '../../components/DreamInputActions';
+import { CelebritySelector, preloadCelebrities, preloadCelebrityDreams } from '../../components/CelebritySelector';
+import { DreamboardUpload } from '../../components/DreamboardUpload';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 
 const dreamPresets = [
@@ -32,10 +35,50 @@ const MainDreamStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, updateAnswer } = useOnboardingContext();
   
-  const [customDream, setCustomDream] = useState('');
-  const [selectedAnswer, setSelectedAnswer] = useState(''); // Local state for selected answer
+  // Initialize from context - check if answer matches a preset
+  const savedAnswer = state.answers[2] || '';
+  const matchingPreset = dreamPresets.find(preset => preset.text === savedAnswer);
+  
+  const [customDream, setCustomDream] = useState(matchingPreset ? '' : savedAnswer);
+  const [selectedAnswer, setSelectedAnswer] = useState(matchingPreset ? savedAnswer : ''); // Local state for selected answer
   const inputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [showCelebs, setShowCelebs] = useState(false);
+  const [showDreamboard, setShowDreamboard] = useState(false);
+  const [personalized, setPersonalized] = useState<{ title: string; emoji?: string }[]>([]);
+
+  // Preload celebrities and dreams when component mounts
+  React.useEffect(() => {
+    const preload = async () => {
+      try {
+        await preloadCelebrities()
+        // Preload dreams (will skip if no auth - handled internally)
+        await preloadCelebrityDreams().catch(e => {
+          // Silently fail - dreams will be fetched when needed
+        });
+      } catch (e) {
+        console.log('Failed to preload celebrities:', e);
+      }
+    };
+    preload();
+  }, []);
+
+  // Initialize from context when component mounts or when navigating back
+  useFocusEffect(
+    React.useCallback(() => {
+      const answer = state.answers[2] || '';
+      if (answer) {
+        const matchingPreset = dreamPresets.find(preset => preset.text === answer);
+        if (matchingPreset) {
+          setSelectedAnswer(answer);
+          setCustomDream(answer);
+        } else {
+          setSelectedAnswer('');
+          setCustomDream(answer);
+        }
+      }
+    }, [state.answers[2]])
+  );
 
   const handlePresetSelect = (text: string) => {
     setSelectedAnswer(text);
@@ -60,6 +103,19 @@ const MainDreamStep: React.FC = () => {
     if (selectedAnswer || customDream.trim()) {
       navigation.navigate('RealisticGoal' as never);
     }
+  };
+
+  const handleGenerated = (dreams: { title: string; emoji?: string }[]) => {
+    setPersonalized(prev => {
+      // merge unique by title
+      const map = new Map<string, { title: string; emoji?: string }>();
+      [...prev, ...dreams].forEach(d => map.set(d.title, d));
+      return Array.from(map.values());
+    });
+    // scroll to personalized section
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   const handleBack = () => {
@@ -96,6 +152,14 @@ const MainDreamStep: React.FC = () => {
           style={styles.input}
         />
 
+        <DreamInputActions
+          title="Need inspiration?"
+          onOpenCelebrities={() => setShowCelebs(true)}
+          onOpenDreamboard={() => setShowDreamboard(true)}
+        />
+
+        {/* Personalized suggestions now live inside the bottom sheets (not on base page) */}
+
         <Text style={styles.optionsLabel}>Frequently chosen goals</Text>
         <View style={styles.optionsContainer}>
           {dreamPresets.map((preset, index) => (
@@ -123,6 +187,19 @@ const MainDreamStep: React.FC = () => {
           disabled={!selectedAnswer && !customDream.trim()}
         />
       </View>
+
+      <CelebritySelector
+        visible={showCelebs}
+        onClose={() => setShowCelebs(false)}
+        onGenerated={handleGenerated}
+        onSelectTitle={handlePresetSelect}
+      />
+      <DreamboardUpload
+        visible={showDreamboard}
+        onClose={() => setShowDreamboard(false)}
+        onGenerated={handleGenerated}
+        onSelectTitle={handlePresetSelect}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -156,7 +233,7 @@ const styles = StyleSheet.create({
   optionsLabel: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
-    fontWeight: theme.typography.fontWeight.normal as any,
+    fontWeight: theme.typography.fontWeight.regular as any,
     color: theme.colors.grey[600],
     marginBottom: theme.spacing.md,
   },
@@ -173,6 +250,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

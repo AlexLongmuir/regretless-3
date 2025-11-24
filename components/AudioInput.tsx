@@ -120,14 +120,12 @@ export const AudioInput: React.FC<AudioInputProps> = ({
 
       console.log('[AudioInput] Recording stopped, transcribing...', audioFile);
 
-      // Get auth token
+      // Get auth token if available (optional - allows transcription during onboarding)
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Not authenticated');
-      }
+      const token = session?.access_token;
 
       // Transcribe audio
-      const result = await transcribeAudio(audioFile, session.access_token);
+      const result = await transcribeAudio(audioFile, token);
 
       if (result.success && result.data?.text) {
         console.log('[AudioInput] Transcription successful:', result.data.text);

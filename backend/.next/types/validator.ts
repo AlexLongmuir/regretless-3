@@ -162,6 +162,18 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   handler satisfies RouteHandlerConfig<"/api/cron/subscription-lifecycle">
 }
 
+// Validate ../../app/api/dreams/celebrities/default/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/celebrities/default/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/celebrities/default">
+}
+
+// Validate ../../app/api/dreams/celebrities/generate/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/celebrities/generate/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/celebrities/generate">
+}
+
 // Validate ../../app/api/dreams/default-images-public/route.ts
 {
   const handler = {} as typeof import("../../app/api/dreams/default-images-public/route.js")
@@ -172,6 +184,18 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   const handler = {} as typeof import("../../app/api/dreams/default-images/route.js")
   handler satisfies RouteHandlerConfig<"/api/dreams/default-images">
+}
+
+// Validate ../../app/api/dreams/dreamboard/analyze/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/dreamboard/analyze/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/dreamboard/analyze">
+}
+
+// Validate ../../app/api/dreams/generated/route.ts
+{
+  const handler = {} as typeof import("../../app/api/dreams/generated/route.js")
+  handler satisfies RouteHandlerConfig<"/api/dreams/generated">
 }
 
 // Validate ../../app/api/dreams/route.ts

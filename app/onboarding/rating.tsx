@@ -4,8 +4,9 @@
  * Shows user rating interface with stars and testimonial
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import * as StoreReview from 'expo-store-review';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -13,6 +14,21 @@ import { OnboardingHeader } from '../../components/onboarding';
 
 const RatingStep: React.FC = () => {
   const navigation = useNavigation();
+
+  useEffect(() => {
+    const promptForReview = async () => {
+      try {
+        const isAvailable = await StoreReview.isAvailableAsync();
+        if (isAvailable) {
+          await StoreReview.requestReview();
+        }
+      } catch (error) {
+        console.log('Store review prompt unavailable', error);
+      }
+    };
+
+    promptForReview();
+  }, []);
 
   const handleContinue = () => {
     navigation.navigate('Generating' as never);
@@ -131,6 +147,7 @@ const RatingStep: React.FC = () => {
           onPress={handleContinue}
           variant="primary"
           size="lg"
+          style={styles.button}
         />
       </View>
     </View>
@@ -251,6 +268,10 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing['2xl'],
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Button } from '../components/Button'
 import { AIRatingRing } from '../components'
 import { theme } from '../utils/theme'
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation'
 import { useData } from '../contexts/DataContext'
 import { supabaseClient } from '../lib/supabaseClient'
 import type { Artifact } from '../frontend-services/backend-bridge'
@@ -247,7 +248,8 @@ export default function ArtifactSubmittedPage() {
         <Button 
           title="Done" 
           variant="black"
-          onPress={handleDone} 
+          onPress={handleDone}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>
@@ -420,7 +422,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: BOTTOM_NAV_PADDING,
     backgroundColor: theme.colors.pageBackground,
   },
 })

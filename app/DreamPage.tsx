@@ -16,6 +16,7 @@ import { useData } from '../contexts/DataContext';
 import { upsertDream, rescheduleActions, upsertAreas, getDefaultImages, uploadDreamImage, type DreamImage } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
+import { SheetHeader } from '../components/SheetHeader';
 
 // Popular emojis for area icons
 const POPULAR_EMOJIS = [
@@ -156,12 +157,12 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     
     if (endDate) {
       const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const currentDay = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       return { current: Math.max(1, currentDay), total: totalDays };
     }
     
     // If no end date, calculate days since start
-    const daysSinceStart = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return { current: Math.max(1, daysSinceStart), total: null };
   };
 
@@ -297,7 +298,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       const { data: { session } } = await supabaseClient.auth.getSession();
       
       if (!session?.access_token) {
-        console.log('❌ [DREAM PAGE] No session token available');
         setIsLoadingImages(false);
         return;
       }
@@ -305,10 +305,8 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       const response = await getDefaultImages(session.access_token);
       
       if (response.success && response.data?.images) {
-        console.log('✅ [DREAM PAGE] Successfully loaded', response.data.images.length, 'default images');
         setDefaultImages(response.data.images);
       } else {
-        console.log('⚠️ [DREAM PAGE] API call succeeded but no images found');
         setDefaultImages([]);
       }
     } catch (error) {
@@ -393,14 +391,9 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         updateData.time_commitment = editTimeCommitment;
         
         // Only include end_date if it has a value
-        console.log('📝 [DREAM PAGE] editEndDate:', editEndDate);
         const formattedEndDate = editEndDate ? formatDateForAPI(editEndDate) : null;
-        console.log('📝 [DREAM PAGE] formattedEndDate:', formattedEndDate);
         if (formattedEndDate && formattedEndDate !== '') {
           updateData.end_date = formattedEndDate;
-          console.log('📝 [DREAM PAGE] Added end_date to update data:', formattedEndDate);
-        } else {
-          console.log('📝 [DREAM PAGE] Skipping end_date (empty or invalid)');
         }
 
         // Only include these fields if the dream is not activated
@@ -410,8 +403,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           updateData.enjoyment = dreamData?.enjoyment || null;
         }
 
-        console.log('📝 [DREAM PAGE] Sending update data:', JSON.stringify(updateData, null, 2));
-        console.log('📝 [DREAM PAGE] Dream is activated:', isActivated);
         await upsertDream(updateData, session.access_token);
 
         // Refresh the data
@@ -584,7 +575,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     // Parse the date string "13 December 2025" manually
     const parts = dateString.split(' ');
     if (parts.length !== 3) {
-      console.log('Invalid date format:', dateString);
       return '';
     }
     
@@ -600,14 +590,12 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     
     const month = monthMap[monthName];
     if (month === undefined) {
-      console.log('Invalid month name:', monthName);
       return '';
     }
     
     // Create date using explicit month, day, year to avoid timezone issues
     const date = new Date(year, month, day);
     if (isNaN(date.getTime())) {
-      console.log('Date parsing failed for:', dateString);
       return '';
     }
     
@@ -741,16 +729,13 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         if (formattedEndDate && formattedEndDate !== originalEndDate) {
           if (new Date(formattedEndDate) > new Date(originalEndDate || '')) {
             options.extendEndDate = formattedEndDate;
-            console.log('📝 [DREAM PAGE] Extending end date to:', formattedEndDate);
           } else {
             options.contractEndDate = formattedEndDate;
-            console.log('📝 [DREAM PAGE] Contracting end date to:', formattedEndDate);
           }
         }
         
         // Always pass the current time commitment from the edit state
         options.timeCommitment = editTimeCommitment;
-        console.log('📝 [DREAM PAGE] Using time commitment:', editTimeCommitment);
         
         const result = await rescheduleActions(dreamId, session.access_token, options);
         if (result.success) {
@@ -1120,37 +1105,21 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           presentationStyle="pageSheet"
         >
           <KeyboardAvoidingView 
-            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+            style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
             {/* Header */}
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: 16,
-              backgroundColor: 'white',
-              borderBottomWidth: 1,
-              borderBottomColor: '#E5E7EB'
-            }}>
-              <Pressable onPress={() => {
+            <SheetHeader
+              title="Edit Dream"
+              onClose={() => {
                 Keyboard.dismiss();
                 setShowEditModal(false);
-              }}>
-                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-              </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Dream</Text>
-              <Pressable onPress={handleSaveEdit} disabled={isEditing || !editTitle.trim()}>
-                <Text style={{ 
-                  fontSize: 16, 
-                  color: isEditing || !editTitle.trim() ? '#999' : '#000', 
-                  fontWeight: '600' 
-                }}>
-                  {isEditing ? "Saving..." : "Save"}
-                </Text>
-              </Pressable>
-            </View>
+              }}
+              onDone={handleSaveEdit}
+              doneDisabled={isEditing || !editTitle.trim()}
+              doneLoading={isEditing}
+            />
 
             <ScrollView 
               style={{ flex: 1 }} 
@@ -1451,37 +1420,21 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
           presentationStyle="pageSheet"
         >
           <KeyboardAvoidingView 
-            style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+            style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
             {/* Header */}
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: 16,
-              backgroundColor: 'white',
-              borderBottomWidth: 1,
-              borderBottomColor: '#E5E7EB'
-            }}>
-              <Pressable onPress={() => {
+            <SheetHeader
+              title="Create Area"
+              onClose={() => {
                 Keyboard.dismiss();
                 setShowCreateAreaModal(false);
-              }}>
-                <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-              </Pressable>
-              <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Create Area</Text>
-              <Pressable onPress={handleSaveNewArea} disabled={isCreatingArea || !newAreaTitle.trim()}>
-                <Text style={{ 
-                  fontSize: 16, 
-                  color: isCreatingArea || !newAreaTitle.trim() ? '#999' : '#000', 
-                  fontWeight: '600' 
-                }}>
-                  {isCreatingArea ? "Creating..." : "Create"}
-                </Text>
-              </Pressable>
-            </View>
+              }}
+              onDone={handleSaveNewArea}
+              doneDisabled={isCreatingArea || !newAreaTitle.trim()}
+              doneLoading={isCreatingArea}
+            />
 
             <ScrollView 
               style={{ flex: 1 }} 

@@ -77,7 +77,8 @@ export default function AreasConfirmStep() {
         <Button 
           title="Create Goal" 
           variant="black"
-          onPress={handleCreateGoal} 
+          onPress={handleCreateGoal}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>

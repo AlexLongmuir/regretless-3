@@ -25,6 +25,7 @@ export const OnboardingImage: React.FC<OnboardingImageProps> = ({
         source={source}
         style={[styles.image, { borderRadius }, style]}
         resizeMode="contain"
+        fadeDuration={0}
       />
     </View>
   );

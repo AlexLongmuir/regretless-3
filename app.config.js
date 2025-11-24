@@ -16,14 +16,30 @@ export default {
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreamerapp.app",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "chatgpt"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.dreamer.app.dev"
+      "package": "com.dreamer.app.dev",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "chatgpt"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

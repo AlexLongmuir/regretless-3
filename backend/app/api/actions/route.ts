@@ -128,6 +128,7 @@ export async function POST(req: Request) {
               est_minutes: action.est_minutes || null,
               difficulty: action.difficulty || 'medium',
               repeat_every_days: action.repeat_every_days || null,
+              slice_count_target: action.slice_count_target || null,
               acceptance_criteria: action.acceptance_criteria || null,
               position: newPosition,
               is_active: action.is_active !== undefined ? action.is_active : true
@@ -165,6 +166,7 @@ export async function POST(req: Request) {
             est_minutes: action.est_minutes || null,
             difficulty: action.difficulty || 'medium',
             repeat_every_days: action.repeat_every_days || null,
+            slice_count_target: action.slice_count_target || null,
             acceptance_criteria: action.acceptance_criteria || null,
             position: -1, // Temporary negative position
             is_active: action.is_active !== undefined ? action.is_active : true,

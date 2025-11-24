@@ -109,6 +109,7 @@ export default function QuestionsStep() {
           title="Continue"
           variant={"black" as any}
           onPress={handleContinue}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </KeyboardAvoidingView>

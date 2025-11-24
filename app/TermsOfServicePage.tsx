@@ -30,70 +30,104 @@ const TermsOfServicePage = ({ navigation }: { navigation?: any }) => {
         </Text>
 
         {/* Content */}
-        <View style={styles.contentSection}>
-          <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
-          <Text style={styles.sectionText}>
-            By accessing and using the Dreamer app, you accept and agree to be bound by the terms and provision of this agreement.
-          </Text>
+        <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
+        <Text style={styles.sectionText}>
+          By accessing and using the Dreamer app, you accept and agree to be bound by the terms and provision of this agreement.
+        </Text>
 
-          <Text style={styles.sectionTitle}>2. Use License</Text>
-          <Text style={styles.sectionText}>
-            Permission is granted to temporarily download one copy of Dreamer for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
-          </Text>
-          <Text style={styles.bulletPoint}>• modify or copy the materials</Text>
-          <Text style={styles.bulletPoint}>• use the materials for any commercial purpose or for any public display</Text>
-          <Text style={styles.bulletPoint}>• attempt to reverse engineer any software contained in the app</Text>
-          <Text style={styles.bulletPoint}>• remove any copyright or other proprietary notations from the materials</Text>
+        <Text style={styles.sectionTitle}>2. Use License</Text>
+        <Text style={styles.sectionText}>
+          Permission is granted to use Dreamer for personal goal-tracking and dream achievement purposes. This is the grant of a license, not a transfer of title, and under this license you may not:
+        </Text>
+        <Text style={styles.bulletPoint}>• modify or copy the materials</Text>
+        <Text style={styles.bulletPoint}>• use the materials for any commercial purpose or for any public display</Text>
+        <Text style={styles.bulletPoint}>• attempt to reverse engineer any software contained in the app</Text>
+        <Text style={styles.bulletPoint}>• remove any copyright or other proprietary notations from the materials</Text>
 
-          <Text style={styles.sectionTitle}>3. User Accounts</Text>
-          <Text style={styles.sectionText}>
-            When you create an account with us, you must provide information that is accurate, complete, and current at all times. You are responsible for safeguarding the password and for all activities that occur under your account.
-          </Text>
+        <Text style={styles.sectionTitle}>3. User Accounts</Text>
+        <Text style={styles.sectionText}>
+          When you create an account with us, you must provide information that is accurate, complete, and current at all times. You are responsible for safeguarding your account credentials and for all activities that occur under your account.
+        </Text>
 
-          <Text style={styles.sectionTitle}>4. Privacy Policy</Text>
-          <Text style={styles.sectionText}>
-            Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the app, to understand our practices.
-          </Text>
+        <Text style={styles.sectionTitle}>4. Privacy Policy</Text>
+        <Text style={styles.sectionText}>
+          Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the app, to understand our practices.
+        </Text>
 
-          <Text style={styles.sectionTitle}>5. Prohibited Uses</Text>
-          <Text style={styles.sectionText}>
-            You may not use our app:
-          </Text>
-          <Text style={styles.bulletPoint}>• For any unlawful purpose or to solicit others to perform unlawful acts</Text>
-          <Text style={styles.bulletPoint}>• To violate any international, federal, provincial, or state regulations, rules, laws, or local ordinances</Text>
-          <Text style={styles.bulletPoint}>• To infringe upon or violate our intellectual property rights or the intellectual property rights of others</Text>
-          <Text style={styles.bulletPoint}>• To harass, abuse, insult, harm, defame, slander, disparage, intimidate, or discriminate</Text>
+        <Text style={styles.sectionTitle}>5. Prohibited Uses</Text>
+        <Text style={styles.sectionText}>
+          You may not use our app:
+        </Text>
+        <Text style={styles.bulletPoint}>• For any unlawful purpose or to solicit others to perform unlawful acts</Text>
+        <Text style={styles.bulletPoint}>• To violate any international, federal, provincial, or state regulations, rules, laws, or local ordinances</Text>
+        <Text style={styles.bulletPoint}>• To infringe upon or violate our intellectual property rights or the intellectual property rights of others</Text>
+        <Text style={styles.bulletPoint}>• To harass, abuse, insult, harm, defame, slander, disparage, intimidate, or discriminate</Text>
 
-          <Text style={styles.sectionTitle}>6. Content</Text>
-          <Text style={styles.sectionText}>
-            Our app allows you to post, link, store, share and otherwise make available certain information, text, graphics, videos, or other material. You are responsible for the content that you post to the app, including its legality, reliability, and appropriateness.
-          </Text>
+        <Text style={styles.sectionTitle}>6. Content</Text>
+        <Text style={styles.sectionText}>
+          Our app allows you to create, store, and share your dreams, goals, action plans, photos, journal entries, and progress updates. You are responsible for the content that you post to the app, including its legality, reliability, and appropriateness. You retain ownership of your content but grant us a license to use it to provide and improve our services.
+        </Text>
 
-          <Text style={styles.sectionTitle}>7. Termination</Text>
-          <Text style={styles.sectionText}>
-            We may terminate or suspend your account and bar access to the app immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.
-          </Text>
+        <Text style={styles.sectionTitle}>7. AI-Powered Features</Text>
+        <Text style={styles.sectionText}>
+          Dreamer uses artificial intelligence to provide personalized coaching, goal recommendations, and progress insights. You acknowledge that:
+        </Text>
+        <Text style={styles.bulletPoint}>• AI suggestions are generated by machine learning models and may not always be accurate or appropriate</Text>
+        <Text style={styles.bulletPoint}>• AI recommendations are not professional advice and should not replace consultation with qualified professionals</Text>
+        <Text style={styles.bulletPoint}>• We are not liable for any outcomes resulting from following AI-generated suggestions</Text>
+        <Text style={styles.bulletPoint}>• We do not use your content to train AI models; we may use aggregate analytics to refine prompts and features</Text>
 
-          <Text style={styles.sectionTitle}>8. Disclaimer</Text>
-          <Text style={styles.sectionText}>
-            The information on this app is provided on an "as is" basis. To the fullest extent permitted by law, this Company excludes all representations, warranties, conditions and terms relating to our app and the use of this app.
-          </Text>
+        <Text style={styles.sectionTitle}>8. Subscription and Payments</Text>
+        <Text style={styles.sectionText}>
+          Dreamer offers subscription-based access to premium features. By subscribing, you agree to:
+        </Text>
+        <Text style={styles.bulletPoint}>• Pay the subscription fee as displayed at the time of purchase</Text>
+        <Text style={styles.bulletPoint}>• Automatic renewal of your subscription unless cancelled at least 24 hours before the end of the current period</Text>
+        <Text style={styles.bulletPoint}>• Charges being processed through your App Store or Google Play account</Text>
+        <Text style={styles.bulletPoint}>• No refunds for partial subscription periods or unused portions of your subscription</Text>
+        <Text style={styles.sectionText}>
+          You can manage your subscription and turn off auto-renewal in your device settings.
+        </Text>
 
-          <Text style={styles.sectionTitle}>9. Governing Law</Text>
-          <Text style={styles.sectionText}>
-            These Terms shall be interpreted and governed by the laws of the United States, without regard to its conflict of law provisions.
-          </Text>
+        <Text style={styles.sectionTitle}>9. Termination</Text>
+        <Text style={styles.sectionText}>
+          We may terminate or suspend your account and bar access to the app immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.
+        </Text>
 
-          <Text style={styles.sectionTitle}>10. Changes</Text>
-          <Text style={styles.sectionText}>
-            We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect.
-          </Text>
+        <Text style={styles.sectionTitle}>10. Disclaimer</Text>
+        <Text style={styles.sectionText}>
+          The information on this app is provided on an "as is" basis. To the fullest extent permitted by law, this Company excludes all representations, warranties, conditions and terms relating to our app and the use of this app. We do not guarantee that the app will be available at all times or that it will be free from errors or defects.
+        </Text>
 
-          <Text style={styles.sectionTitle}>11. Contact Information</Text>
-          <Text style={styles.sectionText}>
-            If you have any questions about these Terms of Service, please contact us at support@dreamer.app.
-          </Text>
-        </View>
+        <Text style={styles.sectionTitle}>11. Governing Law</Text>
+        <Text style={styles.sectionText}>
+          These Terms shall be interpreted and governed by the laws of the United States, without regard to its conflict of law provisions.
+        </Text>
+
+        <Text style={styles.sectionTitle}>12. Changes</Text>
+        <Text style={styles.sectionText}>
+          We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days notice prior to any new terms taking effect.
+        </Text>
+
+        <Text style={styles.sectionTitle}>13. Contact Information</Text>
+        <Text style={styles.sectionText}>
+          If you have any questions about these Terms of Service, please contact us at alexlongmuir@icloud.com.
+        </Text>
+        
+        <Text style={styles.sectionTitle}>14. Age Requirements</Text>
+        <Text style={styles.sectionText}>
+          You must be at least 13 years old to use Dreamer. If you are under the age of majority in your jurisdiction, you may use the app only with the consent of a parent or legal guardian.
+        </Text>
+
+        <Text style={styles.sectionTitle}>15. Indemnification</Text>
+        <Text style={styles.sectionText}>
+          You agree to indemnify, defend, and hold harmless Dreamer and its affiliates, officers, directors, employees, and agents from and against any and all claims, liabilities, damages, losses, and expenses (including reasonable attorneys’ fees) arising out of or in any way connected with: (a) your access to or use of the app; (b) your content; or (c) your violation of these Terms or applicable law.
+        </Text>
+
+        <Text style={styles.sectionTitle}>16. Limitation of Liability</Text>
+        <Text style={styles.sectionText}>
+          To the maximum extent permitted by law, Dreamer and its affiliates will not be liable for any indirect, incidental, special, consequential, exemplary, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses, resulting from (a) your use of or inability to use the app; (b) any conduct or content of any third party; or (c) unauthorized access, use, or alteration of your content. In no event will our aggregate liability for all claims relating to the app exceed the greater of one hundred U.S. dollars (US$100) or the amounts you paid to us, if any, in the twelve (12) months preceding the claim.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,11 +169,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.caption1,
     color: theme.colors.grey[500],
-  },
-  contentSection: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: 10,
-    padding: theme.spacing.lg,
   },
   sectionTitle: {
     fontFamily: theme.typography.fontFamily.system,

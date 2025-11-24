@@ -143,4 +143,46 @@ export const AI_REVIEW_SCHEMA = {
   },
   required: ["rating", "feedback"]
 };
+
+export const CELEBRITY_DREAMS_SCHEMA = {
+  type: "object",
+  properties: {
+    dreams: {
+      type: "array",
+      minItems: 6,
+      maxItems: 6,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", maxLength: 80 },
+          emoji: { type: "string", maxLength: 4 },
+          reasoning: { type: "string" }
+        },
+        required: ["title", "emoji", "reasoning"]
+      }
+    }
+  },
+  required: ["dreams"]
+};
+
+export const DREAMBOARD_ANALYSIS_SCHEMA = {
+  type: "object",
+  properties: {
+    dreams: {
+      type: "array",
+      minItems: 5,
+      maxItems: 10,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string", maxLength: 80 },
+          emoji: { type: "string", maxLength: 4 },
+          interpretation: { type: "string" }
+        },
+        required: ["title", "emoji", "interpretation"]
+      }
+    }
+  },
+  required: ["dreams"]
+};
   

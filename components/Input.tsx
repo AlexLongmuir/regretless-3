@@ -177,12 +177,11 @@ export const Input = forwardRef<TextInput, InputProps>(({
       setIsTranscribing(true);
       const audioFile: AudioRecording = await audioRecorder.stopRecording();
 
+      // Get auth token if available (optional - allows transcription during onboarding)
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Not authenticated');
-      }
+      const token = session?.access_token;
 
-      const result = await transcribeAudio(audioFile, session.access_token);
+      const result = await transcribeAudio(audioFile, token);
 
       if (result.success && result.data?.text) {
         // Append transcribed text to existing value

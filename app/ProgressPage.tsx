@@ -11,7 +11,7 @@ import {
 } from '../components';
 import { useData } from '../contexts/DataContext';
 
-const ProgressPage = ({ navigation }: { navigation?: any }) => {
+const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const { state, getDreamsWithStats, getProgress, onScreenFocus } = useData();
@@ -56,13 +56,13 @@ const ProgressPage = ({ navigation }: { navigation?: any }) => {
   }
   
   const weeklyProgress = progress?.weeklyProgress || {
-    monday: 'inactive' as const,
-    tuesday: 'inactive' as const,
-    wednesday: 'inactive' as const,
-    thursday: 'inactive' as const,
-    friday: 'inactive' as const,
-    saturday: 'inactive' as const,
-    sunday: 'inactive' as const,
+    monday: 'future' as const,
+    tuesday: 'future' as const,
+    wednesday: 'future' as const,
+    thursday: 'future' as const,
+    friday: 'future' as const,
+    saturday: 'future' as const,
+    sunday: 'future' as const,
   };
   const thisWeekStats = progress?.thisWeekStats || {
     actionsPlanned: 0,
@@ -102,6 +102,7 @@ const ProgressPage = ({ navigation }: { navigation?: any }) => {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -137,10 +138,10 @@ const ProgressPage = ({ navigation }: { navigation?: any }) => {
           
           if (endDate) {
             totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-            currentDay = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             currentDay = Math.max(1, Math.min(currentDay, totalDays));
           } else {
-            currentDay = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             currentDay = Math.max(1, currentDay);
           }
 

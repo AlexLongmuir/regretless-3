@@ -6,7 +6,7 @@
 
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Keyboard, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -18,12 +18,22 @@ const CurrentProgressStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, updateAnswer } = useOnboardingContext();
   
-  const [customProgress, setCustomProgress] = useState('');
+  const [customProgress, setCustomProgress] = useState(state.answers[4] || '');
   const selectedAnswer = state.answers[4]; // Question ID 4 for current progress
   const inputRef = useRef<TextInput>(null);
   
   // Get the user's dream from the context (question ID 2)
   const userDream = state.answers[2] || 'your dream';
+
+  // Initialize from context when component mounts or when navigating back
+  useFocusEffect(
+    React.useCallback(() => {
+      const answer = state.answers[4] || '';
+      if (answer) {
+        setCustomProgress(answer);
+      }
+    }, [state.answers[4]])
+  );
 
 
   const handleCustomInput = (text: string) => {
@@ -174,6 +184,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

@@ -238,6 +238,7 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

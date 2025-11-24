@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
   },
   claimButton: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
   backButton: {
     backgroundColor: 'white',

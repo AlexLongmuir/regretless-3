@@ -326,21 +326,21 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
 
     // Generate weekly progress array
     const weeklyProgress: {
-      monday: 'active' | 'current' | 'inactive';
-      tuesday: 'active' | 'current' | 'inactive';
-      wednesday: 'active' | 'current' | 'inactive';
-      thursday: 'active' | 'current' | 'inactive';
-      friday: 'active' | 'current' | 'inactive';
-      saturday: 'active' | 'current' | 'inactive';
-      sunday: 'active' | 'current' | 'inactive';
+      monday: 'active' | 'current' | 'missed' | 'future';
+      tuesday: 'active' | 'current' | 'missed' | 'future';
+      wednesday: 'active' | 'current' | 'missed' | 'future';
+      thursday: 'active' | 'current' | 'missed' | 'future';
+      friday: 'active' | 'current' | 'missed' | 'future';
+      saturday: 'active' | 'current' | 'missed' | 'future';
+      sunday: 'active' | 'current' | 'missed' | 'future';
     } = {
-      monday: 'inactive',
-      tuesday: 'inactive',
-      wednesday: 'inactive',
-      thursday: 'inactive',
-      friday: 'inactive',
-      saturday: 'inactive',
-      sunday: 'inactive',
+      monday: 'future',
+      tuesday: 'future',
+      wednesday: 'future',
+      thursday: 'future',
+      friday: 'future',
+      saturday: 'future',
+      sunday: 'future',
     };
 
     // Mark active days
@@ -354,8 +354,21 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
 
     // Mark current day
     const currentDayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][today.getDay()] as keyof typeof weeklyProgress;
-    if (weeklyProgress[currentDayName] === 'inactive') {
+    if (weeklyProgress[currentDayName] === 'future') {
       weeklyProgress[currentDayName] = 'current';
+    }
+
+    // Mark missed days (past days that weren't completed)
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(startOfWeek);
+      dayDate.setDate(startOfWeek.getDate() + i);
+      const dayName = dayNames[dayDate.getDay()] as keyof typeof weeklyProgress;
+      
+      // If the day is in the past and not active, mark it as missed
+      if (dayDate < today && weeklyProgress[dayName] === 'future') {
+        weeklyProgress[dayName] = 'missed';
+      }
     }
 
     // Calculate this week stats
@@ -485,13 +498,13 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
     // Return default structure instead of undefined
     return {
       weeklyProgress: {
-        monday: 'inactive' as const,
-        tuesday: 'inactive' as const,
-        wednesday: 'inactive' as const,
-        thursday: 'inactive' as const,
-        friday: 'inactive' as const,
-        saturday: 'inactive' as const,
-        sunday: 'inactive' as const,
+        monday: 'future' as const,
+        tuesday: 'future' as const,
+        wednesday: 'future' as const,
+        thursday: 'future' as const,
+        friday: 'future' as const,
+        saturday: 'future' as const,
+        sunday: 'future' as const,
       },
       thisWeekStats: {
         actionsPlanned: 0,

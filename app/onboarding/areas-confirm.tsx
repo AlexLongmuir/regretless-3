@@ -245,9 +245,20 @@ const AreasConfirmStep: React.FC = () => {
           lineHeight: 18,
           color: theme.colors.grey[600],
           textAlign: 'left',
+          marginBottom: 8,
+        }}>
+          We've organised your goal "{state.answers[2] || 'Your Dream'}" into {state.generatedAreas.length} focus areas.
+        </Text>
+
+        <Text style={{ 
+          fontSize: 14,
+          fontWeight: theme.typography.fontWeight.regular as any,
+          lineHeight: 18,
+          color: theme.colors.grey[600],
+          textAlign: 'left',
           marginBottom: theme.spacing.xl,
         }}>
-          We've organized your goal "{state.answers[2] || 'Your Dream'}" into {state.generatedAreas.length} focus areas below. Review and customize them, then we'll create specific action steps for each area on the next page.
+          Make sure you're happy with them and then we'll create steps within each of them on the next page.
         </Text>
 
         {/* Area Grid */}
@@ -256,7 +267,10 @@ const AreasConfirmStep: React.FC = () => {
           onEdit={handleAreaEdit}
           onRemove={handleRemoveArea}
           onAdd={handleAddArea}
-          onReorder={handleReorderAreas}
+          showAddButton={false}
+          showEditButtons={false}
+          showRemoveButtons={false}
+          title=""
         />
 
       </ScrollView>
@@ -274,7 +288,7 @@ const AreasConfirmStep: React.FC = () => {
           marginBottom: 12,
           lineHeight: 20
         }}>
-          Use the edit buttons on each area to customize them, or provide feedback to our AI below.
+          Change the areas by providing feedback to our AI below.
         </Text>
 
         {/* Feedback Input */}
@@ -303,7 +317,7 @@ const AreasConfirmStep: React.FC = () => {
               Keyboard.dismiss(); // Close keyboard when AI fix is triggered
               handleRegenerate();
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
             disabled={!feedback.trim()}
           />
           <Button 
@@ -313,176 +327,10 @@ const AreasConfirmStep: React.FC = () => {
               Keyboard.dismiss(); // Close keyboard when continuing
               handleContinue();
             }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
           />
         </View>
       </View>
-
-      {/* Edit Modal */}
-      <Modal
-        visible={editingArea !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleCancelEdit}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20
-        }}>
-          <View style={{
-            backgroundColor: theme.colors.pageBackground,
-            borderRadius: 16,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400
-          }}>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#000',
-              marginBottom: 20,
-              textAlign: 'center'
-            }}>
-              {editingArea === 'new' ? 'Add New Area' : 'Edit Area'}
-            </Text>
-
-            <Text style={{
-              fontSize: 14,
-              fontWeight: '600',
-              color: '#000',
-              marginBottom: 8
-            }}>
-              Emoji:
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowEmojiPicker(true)}
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 16,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 16,
-                minHeight: 60
-              }}
-            >
-              <Text style={{ fontSize: 32 }}>
-                {newAreaEmoji}
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={{
-              fontSize: 14,
-              fontWeight: '600',
-              color: '#000',
-              marginBottom: 8
-            }}>
-              Title:
-            </Text>
-            <TextInput
-              value={newAreaTitle}
-              onChangeText={setNewAreaTitle}
-              placeholder="Enter area title"
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 16,
-                fontSize: 16,
-                marginBottom: 24
-              }}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={handleCancelEdit}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title={editingArea === 'new' ? 'Add' : 'Save'}
-                variant="black"
-                onPress={editingArea === 'new' ? handleSaveNewArea : handleSaveEdit}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Emoji Picker Modal */}
-      <Modal
-        visible={showEmojiPicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowEmojiPicker(false)}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20
-        }}>
-          <View style={{
-            backgroundColor: theme.colors.pageBackground,
-            borderRadius: 16,
-            padding: 24,
-            width: '100%',
-            maxWidth: 350
-          }}>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#000',
-              marginBottom: 20,
-              textAlign: 'center'
-            }}>
-              Choose Emoji
-            </Text>
-
-            <View style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: 12
-            }}>
-              {emojiOptions.map((emoji, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => {
-                    setNewAreaEmoji(emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                  style={{
-                    backgroundColor: 'white',
-                    borderRadius: 12,
-                    padding: 16,
-                    minWidth: 60,
-                    minHeight: 60,
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ fontSize: 24 }}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={{ marginTop: 20 }}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setShowEmojiPicker(false)}
-                style={{ width: '100%' }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 };

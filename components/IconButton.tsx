@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { TouchableOpacity, StyleSheet, ViewStyle, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { theme } from '../utils/theme';
 import { Icon } from './Icon';
 
@@ -11,6 +12,8 @@ interface IconButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   iconColor?: string;
+  iconSize?: number; // Custom icon size override
+  iconWrapperStyle?: ViewStyle; // Style for wrapper around icon (e.g., marginLeft: -1)
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
@@ -21,64 +24,80 @@ export const IconButton: React.FC<IconButtonProps> = ({
   disabled = false,
   style,
   iconColor: customIconColor,
+  iconSize: customIconSize,
+  iconWrapperStyle,
 }) => {
-  const iconSize = size === 'sm' ? 18 : size === 'lg' ? 28 : 24;
+  const iconSize = customIconSize || (size === 'sm' ? 18 : size === 'lg' ? 28 : 24);
+  const buttonSize = size === 'sm' ? 32 : size === 'lg' ? 44 : 40;
+  const borderRadius = buttonSize / 2;
+  
   const iconColor = customIconColor || (variant === 'ghost' 
     ? theme.colors.grey[700] 
     : variant === 'secondary'
     ? theme.colors.grey[800]
-    : theme.colors.surface[50]);
+    : variant === 'primary'
+    ? theme.colors.grey[900]
+    : theme.colors.grey[900]);
+
+  const iconElement = (
+    <Icon 
+      name={icon} 
+      size={iconSize} 
+      color={disabled ? theme.colors.grey[400] : iconColor}
+    />
+  );
 
   return (
-    <Pressable
-      style={[
-        styles.base,
-        styles[size],
-        styles[variant],
-        disabled && styles.disabled,
-        style,
-      ]}
+    <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
+      style={[
+        styles.glassButtonWrapper,
+        { width: buttonSize, height: buttonSize, borderRadius },
+        style,
+      ]}
     >
-      <Icon 
-        name={icon} 
-        size={iconSize} 
-        color={iconColor}
-      />
-    </Pressable>
+      <BlurView 
+        intensity={100} 
+        tint="light" 
+        style={[
+          styles.glassButton,
+          { width: buttonSize, height: buttonSize, borderRadius },
+          disabled && styles.disabled,
+        ]}
+      >
+        {iconWrapperStyle ? (
+          <View style={iconWrapperStyle}>
+            {iconElement}
+          </View>
+        ) : (
+          iconElement
+        )}
+      </BlurView>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  base: {
+  glassButtonWrapper: {
+    overflow: 'hidden',
+  },
+  glassButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.radius.md,
-  },
-  sm: {
-    width: 32,
-    height: 32,
-  },
-  md: {
-    width: 40,
-    height: 40,
-  },
-  lg: {
-    width: 44,
-    height: 44,
-  },
-  primary: {
-    backgroundColor: theme.colors.primary[600],
-  },
-  secondary: {
-    backgroundColor: theme.colors.surface[50], // White background
-  },
-  ghost: {
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   disabled: {
-    backgroundColor: theme.colors.grey[300],
     opacity: 0.6,
   },
 });

@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
   continueButton: {
     width: '100%',
     marginBottom: theme.spacing.sm,
+    borderRadius: theme.radius.xl,
   },
   pricingText: {
     fontFamily: theme.typography.fontFamily.system,

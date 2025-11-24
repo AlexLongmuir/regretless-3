@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../utils/theme';
 import { Button } from './Button';
+import { SheetHeader } from './SheetHeader';
 
 interface AIQuestionsProps {
   context: string;
@@ -90,12 +91,10 @@ export const AIQuestions: React.FC<AIQuestionsProps> = ({ context, actionTitle, 
         presentationStyle="pageSheet"
       >
         <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>ChatGPT</Text>
-            <Pressable onPress={closeWebView} style={styles.closeButton}>
-              <Icon name="close" size={24} color={theme.colors.grey[800]} />
-            </Pressable>
-          </View>
+          <SheetHeader
+            title="ChatGPT"
+            onClose={closeWebView}
+          />
           <WebView
             source={{ uri: currentUrl }}
             style={styles.webView}
@@ -143,25 +142,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: theme.colors.surface[50],
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.grey[200],
-    backgroundColor: theme.colors.surface[50],
-  },
-  modalTitle: {
-    fontSize: theme.typography.fontSize.headline,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[900],
-  },
-  closeButton: {
-    padding: theme.spacing.xs,
+    backgroundColor: theme.colors.pageBackground,
   },
   webView: {
     flex: 1,

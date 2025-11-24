@@ -47,12 +47,12 @@ const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
     
     if (endDate) {
       const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const currentDay = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       return { current: Math.max(1, currentDay), total: totalDays };
     }
     
     // If no end date, calculate days since start
-    const daysSinceStart = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return { current: Math.max(1, daysSinceStart), total: null };
   };
 

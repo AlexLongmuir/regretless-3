@@ -13,16 +13,16 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    // Get and verify auth token
+    // Get auth token (optional - allows unauthenticated transcription for onboarding)
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify user
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let userId: string | null = null;
+    
+    // If token is provided, verify user (but don't require it)
+    if (token) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      if (!userError && user) {
+        userId = user.id;
+      }
     }
 
     // Extract audio file from FormData
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[TRANSCRIBE] Processing audio file for user ${user.id}:`, {
+    console.log(`[TRANSCRIBE] Processing audio file${userId ? ` for user ${userId}` : ' (unauthenticated)'}:`, {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       response_format: 'text',
     });
 
-    console.log(`[TRANSCRIBE] Transcription successful for user ${user.id}`);
+    console.log(`[TRANSCRIBE] Transcription successful${userId ? ` for user ${userId}` : ' (unauthenticated)'}`);
 
     return NextResponse.json({
       success: true,

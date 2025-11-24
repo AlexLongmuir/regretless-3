@@ -69,11 +69,12 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
       <View style={styles.topRow}>
         {showBackButton && (
           <IconButton
-            icon="arrow_left"
+            icon="chevron_left_rounded"
             onPress={onBack || (() => {})}
             variant="ghost"
-            size="md"
-            style={styles.whiteButton}
+            size="lg"
+            iconSize={42}
+            iconWrapperStyle={{ marginLeft: -1 }}
           />
         )}
         
@@ -97,7 +98,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
             onPress={() => {}}
             variant="ghost"
             size="md"
-            style={StyleSheet.flatten([styles.whiteButton, styles.invisibleButton])}
+            style={styles.invisibleButton}
           />
         </View>
       </View>
@@ -136,13 +137,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   rightSpacer: {
-    width: 40, // Same width as the back button
+    width: 44, // Same width as the back button (lg size)
   },
   invisibleButton: {
     opacity: 0,
-  },
-  whiteButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
   },
 });

@@ -43,6 +43,7 @@ const GeneratingStep: React.FC = () => {
           onPress={() => navigation.navigate('Progress' as never)}
           variant="primary"
           size="lg"
+          style={styles.button}
         />
       </View>
     </View>
@@ -79,6 +80,10 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing['2xl'],
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

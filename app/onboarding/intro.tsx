@@ -4,13 +4,14 @@
  * Shows what the app looks like with sample dreams before onboarding
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { BottomNavigation } from '../../components/BottomNavigation';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { preloadOnboardingImages } from '../../utils/preloadOnboardingImages';
 
 // Sample dream data for the mockup
 const sampleDreams = [
@@ -54,6 +55,12 @@ const sampleDreams = [
 
 const IntroStep: React.FC = () => {
   const navigation = useNavigation();
+
+  // Preload all onboarding images when this screen mounts
+  // This ensures images are ready instantly when users navigate through onboarding
+  useEffect(() => {
+    preloadOnboardingImages();
+  }, []);
 
   const handleContinue = () => {
     navigation.navigate('Welcome' as never);
@@ -117,6 +124,7 @@ const IntroStep: React.FC = () => {
             title="Continue"
             onPress={handleContinue}
             variant="black"
+            style={styles.button}
             style={styles.button}
           />
           
@@ -293,6 +301,7 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     marginBottom: theme.spacing.lg,
+    borderRadius: theme.radius.xl,
   },
   testButton: {
     marginBottom: theme.spacing.md,

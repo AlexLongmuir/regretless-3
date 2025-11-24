@@ -44,13 +44,13 @@ export type DreamDetailPayload = {
 // Comprehensive progress data including weekly stats, history, and photos
 export type ProgressPayload = {
   weeklyProgress: {
-    monday: 'active' | 'current' | 'inactive';
-    tuesday: 'active' | 'current' | 'inactive';
-    wednesday: 'active' | 'current' | 'inactive';
-    thursday: 'active' | 'current' | 'inactive';
-    friday: 'active' | 'current' | 'inactive';
-    saturday: 'active' | 'current' | 'inactive';
-    sunday: 'active' | 'current' | 'inactive';
+    monday: 'active' | 'current' | 'missed' | 'future';
+    tuesday: 'active' | 'current' | 'missed' | 'future';
+    wednesday: 'active' | 'current' | 'missed' | 'future';
+    thursday: 'active' | 'current' | 'missed' | 'future';
+    friday: 'active' | 'current' | 'missed' | 'future';
+    saturday: 'active' | 'current' | 'missed' | 'future';
+    sunday: 'active' | 'current' | 'missed' | 'future';
   };
   thisWeekStats: {
     actionsPlanned: number;

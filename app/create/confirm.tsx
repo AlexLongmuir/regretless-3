@@ -77,7 +77,8 @@ export default function ConfirmStep() {
         <Button 
           title="Next" 
           variant="black"
-          onPress={handleNext} 
+          onPress={handleNext}
+          style={{ borderRadius: theme.radius.xl }}
         />
       </View>
     </View>

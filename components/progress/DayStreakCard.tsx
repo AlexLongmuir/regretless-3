@@ -5,13 +5,13 @@ import { theme } from '../../utils/theme';
 interface DayStreakCardProps {
   streakCount: number;
   weeklyProgress: {
-    monday: 'active' | 'current' | 'inactive';
-    tuesday: 'active' | 'current' | 'inactive';
-    wednesday: 'active' | 'current' | 'inactive';
-    thursday: 'active' | 'current' | 'inactive';
-    friday: 'active' | 'current' | 'inactive';
-    saturday: 'active' | 'current' | 'inactive';
-    sunday: 'active' | 'current' | 'inactive';
+    monday: 'active' | 'current' | 'missed' | 'future';
+    tuesday: 'active' | 'current' | 'missed' | 'future';
+    wednesday: 'active' | 'current' | 'missed' | 'future';
+    thursday: 'active' | 'current' | 'missed' | 'future';
+    friday: 'active' | 'current' | 'missed' | 'future';
+    saturday: 'active' | 'current' | 'missed' | 'future';
+    sunday: 'active' | 'current' | 'missed' | 'future';
   };
 }
 
@@ -19,16 +19,18 @@ const DayStreakCard: React.FC<DayStreakCardProps> = ({
   streakCount, 
   weeklyProgress 
 }) => {
-  const getDayStyle = (status: 'active' | 'current' | 'inactive') => {
+  const getDayStyle = (status: 'active' | 'current' | 'missed' | 'future') => {
     switch (status) {
       case 'active':
         return [styles.dayCircle, styles.activeDay];
       case 'current':
         return [styles.dayCircle, styles.currentDay];
-      case 'inactive':
-        return [styles.dayCircle, styles.inactiveDay];
+      case 'missed':
+        return [styles.dayCircle, styles.missedDay];
+      case 'future':
+        return [styles.dayCircle, styles.futureDay];
       default:
-        return [styles.dayCircle, styles.inactiveDay];
+        return [styles.dayCircle, styles.futureDay];
     }
   };
 
@@ -122,7 +124,10 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: 'transparent',
   },
-  inactiveDay: {
+  missedDay: {
+    backgroundColor: 'transparent',
+  },
+  futureDay: {
     backgroundColor: theme.colors.grey[200],
   },
   dayText: {

@@ -1,8 +1,12 @@
-import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, Alert, Modal, TextInput, ScrollView, Image } from 'react-native'
+import React, { useState, useRef } from 'react'
+import { View, Text, TouchableOpacity, Alert, Modal, TextInput, ScrollView, Image, Platform, Keyboard } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { Button } from './Button'
 import { Input } from './Input'
+import { useData } from '../contexts/DataContext'
+import { theme } from '../utils/theme'
+import { SheetHeader } from './SheetHeader'
 
 interface ActionCard {
   id: string
@@ -51,6 +55,8 @@ interface ActionChipsListProps {
   onReorder?: (reorderedActions: ActionCard[]) => void
   onPress?: (id: string) => void
   style?: any
+  dreamEndDate?: string
+  showLinkToControls?: boolean
 }
 
 export function ActionChip({
@@ -510,25 +516,13 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
         {/* Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: 16,
-          backgroundColor: 'white',
-          borderBottomWidth: 1,
-          borderBottomColor: '#E5E7EB'
-        }}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Action</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={{ fontSize: 16, color: '#000', fontWeight: '600' }}>Save</Text>
-          </TouchableOpacity>
-        </View>
+        <SheetHeader
+          title="Edit Action"
+          onClose={onClose}
+          onDone={handleSave}
+        />
 
         <ScrollView 
           style={{ flex: 1 }} 
@@ -543,28 +537,32 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
+              placeholderTextColor="#999"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: '#000'
               }}
             />
           </View>
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes) *</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: '#000'
               }}
             />
           </View>
@@ -634,21 +632,23 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
           {/* Slice Count Target */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Series Parts (optional)</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps (optional)</Text>
             <TextInput
               value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
-              placeholder="Number of parts in series (3-12)"
+              placeholder="How many times will you do this?"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: '#000'
               }}
             />
             <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-              For finite series actions only. Leave empty for one-off or repeating actions.
+              For actions you'll complete a specific number of times (e.g., "Do this 5 times"). Leave empty for one-off or repeating actions.
             </Text>
           </View>
 
@@ -692,9 +692,11 @@ interface AddActionModalProps {
   visible: boolean
   onClose: () => void
   onSave: (action: ActionCard) => void
+  dreamEndDate?: string
+  showLinkToControls?: boolean
 }
 
-export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps) {
+export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLinkToControls }: AddActionModalProps) {
   const [formData, setFormData] = useState<ActionCard>({
     id: '',
     title: '',
@@ -706,8 +708,31 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
     dream_image: '',
     occurrence_no: 1
   })
+  const [dueDate, setDueDate] = useState<Date>(new Date())
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [focusedCriterionIndex, setFocusedCriterionIndex] = useState<number | null>(null)
+  const scrollViewRef = useRef<ScrollView>(null)
+  const [actionType, setActionType] = useState<'one-off' | 'repeating' | 'finite'>('one-off')
+  const [linkMode, setLinkMode] = useState<'inbox' | 'choose'>('inbox')
+  const [selectedDreamId, setSelectedDreamId] = useState<string | null>(null)
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
+  const { state, getDreamsSummary, getDreamDetail } = useData()
 
-  const handleSave = () => {
+  React.useEffect(() => {
+    if (showLinkToControls && visible && !state.dreamsSummary) {
+      getDreamsSummary({ force: true })
+    }
+  }, [showLinkToControls, visible])
+
+  const areasForSelectedDream = React.useMemo(() => {
+    if (!selectedDreamId) return [] as { id: string; title: string }[]
+    const dd = state.dreamDetail[selectedDreamId]
+    return (dd?.areas || []).map(a => ({ id: a.id as any, title: (a as any).title }))
+  }, [selectedDreamId, state.dreamDetail])
+
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a title for the action')
       return
@@ -718,10 +743,20 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
     }
     const newAction = {
       ...formData,
-      id: Date.now().toString() // Generate unique ID
+      id: Date.now().toString(), // Generate unique ID
+      due_on: dueDate.toISOString().split('T')[0],
+      // Pass optional linking hints for TodayPage handler
+      __linkMode: showLinkToControls ? linkMode : undefined,
+      __dreamId: showLinkToControls ? selectedDreamId : undefined,
+      __areaId: showLinkToControls ? selectedAreaId : undefined
     }
-    onSave(newAction)
-    onClose()
+    try {
+      setIsSaving(true)
+      await Promise.resolve(onSave(newAction))
+      onClose()
+    } finally {
+      setIsSaving(false)
+    }
     // Reset form
     setFormData({
       id: '',
@@ -734,13 +769,21 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
       dream_image: '',
       occurrence_no: 1
     })
+    setDueDate(new Date())
+    setFocusedCriterionIndex(null)
   }
 
   const addCriterion = () => {
+    const newIndex = (formData.acceptance_criteria || []).length
     setFormData(prev => ({
       ...prev,
       acceptance_criteria: [...(prev.acceptance_criteria || []), '']
     }))
+    setFocusedCriterionIndex(newIndex)
+    // Scroll to bottom after a brief delay to show the new input
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true })
+    }, 300)
   }
 
   const updateCriterion = (index: number, value: string) => {
@@ -759,32 +802,97 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
         {/* Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: 16,
-          backgroundColor: 'white',
-          borderBottomWidth: 1,
-          borderBottomColor: '#E5E7EB'
-        }}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Add Action</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={{ fontSize: 16, color: '#000', fontWeight: '600' }}>Save</Text>
-          </TouchableOpacity>
-        </View>
+        <SheetHeader
+          title="Add Action"
+          onClose={onClose}
+          onDone={handleSave}
+          doneDisabled={isSaving}
+          doneLoading={isSaving}
+        />
 
         <ScrollView 
+          ref={scrollViewRef}
           style={{ flex: 1 }} 
           contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {showLinkToControls && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Link To</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                {(['inbox','choose'] as const).map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    onPress={() => setLinkMode(opt)}
+                    style={{ flex: 1, padding: 12, backgroundColor: linkMode === opt ? '#000' : 'white', borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: linkMode === opt ? 'white' : '#000', fontWeight: '600' }}>
+                      {opt === 'inbox' ? 'Inbox' : 'Choose Goal'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {linkMode === 'choose' && (
+                <>
+                  <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 6 }}>Dream</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                    {(state.dreamsSummary?.dreams || []).map(d => (
+                      <TouchableOpacity
+                        key={d.id}
+                        onPress={async () => {
+                          setSelectedDreamId(d.id)
+                          setSelectedAreaId(null)
+                          if (!state.dreamDetail[d.id]) {
+                            await getDreamDetail(d.id, { force: true })
+                          }
+                        }}
+                        style={{
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          backgroundColor: selectedDreamId === d.id ? '#000' : 'white',
+                          borderRadius: 8,
+                          marginRight: 8,
+                          borderWidth: 1,
+                          borderColor: selectedDreamId === d.id ? '#000' : '#E5E7EB'
+                        }}
+                      >
+                        <Text style={{ color: selectedDreamId === d.id ? 'white' : '#000' }}>{(d as any).title}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {selectedDreamId && (
+                    <>
+                      <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 6 }}>Area</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {areasForSelectedDream.map(a => (
+                          <TouchableOpacity
+                            key={a.id}
+                            onPress={() => setSelectedAreaId(a.id)}
+                            style={{
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              backgroundColor: selectedAreaId === a.id ? '#000' : 'white',
+                              borderRadius: 8,
+                              marginRight: 8,
+                              borderWidth: 1,
+                              borderColor: selectedAreaId === a.id ? '#000' : '#E5E7EB'
+                            }}
+                          >
+                            <Text style={{ color: selectedAreaId === a.id ? 'white' : '#000' }}>{a.title}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+          )}
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
@@ -792,31 +900,233 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
+              placeholderTextColor="#999"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: '#000'
               }}
             />
           </View>
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes) *</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
+              placeholderTextColor="#999"
               keyboardType="numeric"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: '#000'
               }}
             />
           </View>
+
+          {/* Due Date */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Due Date</Text>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowDatePicker(true);
+              }}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 8,
+                padding: 12
+              }}
+            >
+              <Text style={{ fontSize: 16, color: '#000' }}>
+                {dueDate.toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <View>
+                <DateTimePicker
+                  value={dueDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (selectedDate) {
+                      setDueDate(selectedDate);
+                    }
+                  }}
+                  minimumDate={new Date()}
+                  maximumDate={dreamEndDate ? new Date(dreamEndDate) : undefined}
+                  themeVariant="light"
+                />
+                {Platform.OS === 'ios' && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        backgroundColor: '#000',
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 8
+                      }}
+                    >
+                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Acceptance Criteria */}
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
+              <TouchableOpacity onPress={addCriterion}>
+                <Text style={{ color: '#000', fontWeight: '600' }}>+ Add</Text>
+              </TouchableOpacity>
+            </View>
+            {(formData.acceptance_criteria || []).map((criterion, index) => (
+              <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+                <TextInput
+                  value={criterion}
+                  onChangeText={(text) => updateCriterion(index, text)}
+                  placeholder={`Criterion ${index + 1}`}
+                  placeholderTextColor="#999"
+                  autoFocus={focusedCriterionIndex === index}
+                  onFocus={() => setFocusedCriterionIndex(index)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'white',
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 16,
+                    marginRight: 8,
+                    color: '#000'
+                  }}
+                />
+                <TouchableOpacity onPress={() => removeCriterion(index)}>
+                  <Ionicons name="close-circle" size={24} color="#F44336" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+
+          {/* Action Type */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Action Type</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[
+                { value: 'one-off' as const, label: 'One-off' },
+                { value: 'repeating' as const, label: 'Repeating' },
+                { value: 'finite' as const, label: 'Finite' }
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => {
+                    setActionType(option.value);
+                    if (option.value === 'one-off') {
+                      setFormData(prev => ({ ...prev, repeat_every_days: undefined, slice_count_target: undefined }));
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    backgroundColor: actionType === option.value ? '#000' : 'white',
+                    borderRadius: 8,
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ 
+                    color: actionType === option.value ? 'white' : '#000',
+                    fontWeight: '600',
+                    fontSize: 14
+                  }}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Repeat Every Days - shown only when repeating */}
+          {actionType === 'repeating' && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[
+                  { value: 1, label: '1 day' },
+                  { value: 2, label: '2 days' },
+                  { value: 3, label: '3 days' }
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setFormData(prev => ({ 
+                      ...prev, 
+                      repeat_every_days: option.value as 1 | 2 | 3
+                    }))}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
+                      borderRadius: 8,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text style={{ 
+                      color: formData.repeat_every_days === option.value ? 'white' : '#000',
+                      fontWeight: '600',
+                      fontSize: 14
+                    }}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Total Steps - shown only when finite */}
+          {actionType === 'finite' && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps</Text>
+              <TextInput
+                value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
+                onChangeText={(text) => {
+                  const num = text ? parseInt(text) : undefined;
+                  // Validate: must be between 1 and 32767 (smallint max)
+                  if (num !== undefined && (num < 1 || num > 32767)) {
+                    Alert.alert('Invalid Value', 'Total steps must be between 1 and 32767');
+                    return;
+                  }
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    slice_count_target: num
+                  }));
+                }}
+                placeholder="How many times will you do this?"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                style={{
+                  backgroundColor: 'white',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: '#000'
+                }}
+              />
+              <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                For actions you'll complete a specific number of times (e.g., "Do this 5 times")
+              </Text>
+            </View>
+          )}
 
           {/* Difficulty */}
           <View style={{ marginBottom: 16 }}>
@@ -844,92 +1154,6 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
               ))}
             </View>
           </View>
-
-
-          {/* Repeat Every Days */}
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[
-                { value: undefined, label: 'None' },
-                { value: 1, label: '1 day' },
-                { value: 2, label: '2 days' },
-                { value: 3, label: '3 days' }
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.label}
-                  onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: formData.repeat_every_days === option.value ? '#000' : '#E5E7EB'
-                  }}
-                >
-                  <Text style={{ 
-                    color: formData.repeat_every_days === option.value ? 'white' : '#000',
-                    fontWeight: '600',
-                    fontSize: 14
-                  }}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Slice Count Target */}
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Series Parts (optional)</Text>
-            <TextInput
-              value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
-              placeholder="Number of parts in series (3-12)"
-              keyboardType="numeric"
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16
-              }}
-            />
-            <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-              For finite series actions only. Leave empty for one-off or repeating actions.
-            </Text>
-          </View>
-
-          {/* Acceptance Criteria */}
-          <View style={{ marginBottom: 16 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
-              <TouchableOpacity onPress={addCriterion}>
-                <Text style={{ color: '#000', fontWeight: '600' }}>+ Add</Text>
-              </TouchableOpacity>
-            </View>
-            {(formData.acceptance_criteria || []).map((criterion, index) => (
-              <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
-                <TextInput
-                  value={criterion}
-                  onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Criterion ${index + 1}`}
-                  style={{
-                    flex: 1,
-                    backgroundColor: 'white',
-                    borderRadius: 8,
-                    padding: 12,
-                    fontSize: 16,
-                    marginRight: 8
-                  }}
-                />
-                <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color="#F44336" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -937,7 +1161,7 @@ export function AddActionModal({ visible, onClose, onSave }: AddActionModalProps
 }
 
 // Main ActionChipsList component
-export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style }: ActionChipsListProps) {
+export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style, dreamEndDate }: ActionChipsListProps) {
   const [editingAction, setEditingAction] = useState<ActionCard | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -1016,6 +1240,7 @@ export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, o
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSave={handleSaveAdd}
+        dreamEndDate={dreamEndDate}
       />
     </View>
   )

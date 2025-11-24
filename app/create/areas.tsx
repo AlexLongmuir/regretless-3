@@ -60,7 +60,6 @@ export default function AreasStep() {
       const loadAreas = async () => {
         // If we already have areas data, use it
         if (areasAnalyzed && areas.length > 0) {
-          console.log('🔍 Using existing areas data from context')
           setIsLoading(false)
           return
         }
@@ -76,7 +75,6 @@ export default function AreasStep() {
         }
 
         const runAnalysis = async () => {
-          console.log('🔍 Running areas analysis for the first time')
           
           try {
             // Get auth token
@@ -326,20 +324,19 @@ export default function AreasStep() {
         <Text style={{ 
           fontSize: 16, 
           color: '#000', 
+          marginBottom: 8,
+          lineHeight: 22
+        }}>
+          We've organised your goal {title || '[Dream Name]'} into {areas.length} focus areas.
+        </Text>
+
+        <Text style={{ 
+          fontSize: 16, 
+          color: '#000', 
           marginBottom: 16,
           lineHeight: 22
         }}>
-          These are the area's we think maximise your chance of success.
-        </Text>
-
-        {/* Reorder Instructions */}
-        <Text style={{ 
-          fontSize: 14, 
-          color: '#666', 
-          marginBottom: 16,
-          lineHeight: 20
-        }}>
-          Use the up/down arrows to reorder areas
+          Make sure you're happy with them and then we'll create steps within each of them on the next page.
         </Text>
 
         {/* Area Grid */}
@@ -348,7 +345,10 @@ export default function AreasStep() {
           onEdit={handleAreaEdit}
           onRemove={handleRemoveArea}
           onAdd={handleAddArea}
-          onReorder={handleReorderAreas}
+          showAddButton={false}
+          showEditButtons={false}
+          showRemoveButtons={false}
+          title=""
         />
 
       </ScrollView>
@@ -366,7 +366,7 @@ export default function AreasStep() {
           marginBottom: 12,
           lineHeight: 20
         }}>
-          Use the edit buttons on each area to customize them, or provide feedback to our AI below.
+          Change the areas by providing feedback to our AI below.
         </Text>
 
         {/* Feedback Input */}
@@ -448,176 +448,10 @@ export default function AreasStep() {
               handleSaveAreas()
             }}
             disabled={isSaving}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: theme.radius.xl }}
           />
         </View>
       </View>
-
-      {/* Edit Modal */}
-      <Modal
-        visible={editingArea !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleCancelEdit}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20
-        }}>
-          <View style={{
-            backgroundColor: theme.colors.pageBackground,
-            borderRadius: 16,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400
-          }}>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#000',
-              marginBottom: 20,
-              textAlign: 'center'
-            }}>
-              {editingArea === 'new' ? 'Add New Area' : 'Edit Area'}
-            </Text>
-
-            <Text style={{
-              fontSize: 14,
-              fontWeight: '600',
-              color: '#000',
-              marginBottom: 8
-            }}>
-              Emoji:
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowEmojiPicker(true)}
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 16,
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginBottom: 16,
-                minHeight: 60
-              }}
-            >
-              <Text style={{ fontSize: 32 }}>
-                {newAreaEmoji}
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={{
-              fontSize: 14,
-              fontWeight: '600',
-              color: '#000',
-              marginBottom: 8
-            }}>
-              Title:
-            </Text>
-            <TextInput
-              value={newAreaTitle}
-              onChangeText={setNewAreaTitle}
-              placeholder="Enter area title"
-              style={{
-                backgroundColor: 'white',
-                borderRadius: 12,
-                padding: 16,
-                fontSize: 16,
-                marginBottom: 24
-              }}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={handleCancelEdit}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title={editingArea === 'new' ? 'Add' : 'Save'}
-                variant="black"
-                onPress={editingArea === 'new' ? handleSaveNewArea : handleSaveEdit}
-                style={{ flex: 1 }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Emoji Picker Modal */}
-      <Modal
-        visible={showEmojiPicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowEmojiPicker(false)}
-      >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20
-        }}>
-          <View style={{
-            backgroundColor: theme.colors.pageBackground,
-            borderRadius: 16,
-            padding: 24,
-            width: '100%',
-            maxWidth: 350
-          }}>
-            <Text style={{
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: '#000',
-              marginBottom: 20,
-              textAlign: 'center'
-            }}>
-              Choose Emoji
-            </Text>
-
-            <View style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: 12
-            }}>
-              {emojiOptions.map((emoji, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => {
-                    setNewAreaEmoji(emoji)
-                    setShowEmojiPicker(false)
-                  }}
-                  style={{
-                    backgroundColor: 'white',
-                    borderRadius: 12,
-                    padding: 16,
-                    minWidth: 60,
-                    minHeight: 60,
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ fontSize: 24 }}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={{ marginTop: 20 }}>
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => setShowEmojiPicker(false)}
-                style={{ width: '100%' }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   )
 }

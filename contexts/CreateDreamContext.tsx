@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useCallback, useState } from 'react'
 import type { Dream, Area, Action, ActionWithDueDate } from '../backend/database/types'
-import type { FeasibilityResponse, GoalFeasibilityResponse, TimelineFeasibilityResponse } from '../frontend-services/backend-bridge'
+import type { FeasibilityResponse, GoalFeasibilityResponse, TimelineFeasibilityResponse, DreamImage } from '../frontend-services/backend-bridge'
 
 // Create dream state types
 export interface CreateDreamState {
@@ -34,6 +34,9 @@ export interface CreateDreamState {
   // Generated content
   areas: Area[]
   actions: ActionWithDueDate[]
+  
+  // Preloaded images
+  preloadedDefaultImages: DreamImage[] | null
 }
 
 export interface CreateDreamActions {
@@ -63,6 +66,9 @@ export interface CreateDreamActions {
   
   // Areas analysis
   setAreasAnalyzed: (analyzed: boolean) => void
+  
+  // Preloaded images
+  setPreloadedDefaultImages: (images: DreamImage[] | null) => void
 }
 
 type CreateDreamContextType = CreateDreamState & CreateDreamActions
@@ -70,7 +76,8 @@ type CreateDreamContextType = CreateDreamState & CreateDreamActions
 const initialState: CreateDreamState = {
   title: '',
   areas: [],
-  actions: []
+  actions: [],
+  preloadedDefaultImages: null
 }
 
 const CreateDreamContext = createContext<CreateDreamContextType | null>(null)
@@ -160,6 +167,10 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setState(prev => ({ ...prev, areasAnalyzed: analyzed }))
   }, [])
 
+  const setPreloadedDefaultImages = useCallback((images: DreamImage[] | null) => {
+    setState(prev => ({ ...prev, preloadedDefaultImages: images }))
+  }, [])
+
   const value = useMemo(() => ({
     ...state,
     setField,
@@ -175,7 +186,8 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setGoalFeasibilityAnalyzed,
     setTimelineFeasibilityAnalyzed,
     setFeasibilityAnalyzed,
-    setAreasAnalyzed
+    setAreasAnalyzed,
+    setPreloadedDefaultImages
   }), [
     state,
     setField,
@@ -191,7 +203,8 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setGoalFeasibilityAnalyzed,
     setTimelineFeasibilityAnalyzed,
     setFeasibilityAnalyzed,
-    setAreasAnalyzed
+    setAreasAnalyzed,
+    setPreloadedDefaultImages
   ])
 
   return (

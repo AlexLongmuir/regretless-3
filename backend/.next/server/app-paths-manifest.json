@@ -1,1 +1,3 @@
-{}
+{
+  "/api/dreams/default-images-public/route": "app/api/dreams/default-images-public/route.js"
+}

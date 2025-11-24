@@ -36,6 +36,7 @@
     "expo-notifications": "~0.32.12",
     "expo-speech": "~14.0.7",
     "expo-status-bar": "~3.0.8",
+    "expo-store-review": "^9.0.8",
     "expo-web-browser": "~15.0.8",
     "fs": "^0.0.1-security",
     "openai": "^5.9.0",

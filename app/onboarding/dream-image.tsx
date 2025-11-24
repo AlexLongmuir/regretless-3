@@ -25,6 +25,7 @@ const DreamImageStep: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(state.dreamImageUrl || null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
   // Update selectedImage when dreamImageUrl changes from context
   useEffect(() => {
@@ -35,6 +36,14 @@ const DreamImageStep: React.FC = () => {
 
   // Load default images on component mount
   useEffect(() => {
+    // Check if images are already preloaded
+    if (state.preloadedDefaultImages !== null && state.preloadedDefaultImages !== undefined && Array.isArray(state.preloadedDefaultImages)) {
+      setDefaultImages(state.preloadedDefaultImages);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fallback to fetching if not preloaded
     const loadDefaultImages = async () => {
       try {
         console.log('🖼️ [DREAM-IMAGE] Starting to load default images...');
@@ -79,7 +88,7 @@ const DreamImageStep: React.FC = () => {
     };
 
     loadDefaultImages();
-  }, []);
+  }, [state.preloadedDefaultImages]);
 
   const handleImageSelect = (imageUrl: string) => {
     setSelectedImage(imageUrl);
@@ -159,9 +168,15 @@ const DreamImageStep: React.FC = () => {
     navigation.goBack();
   };
 
+  const handleImageLoad = (imageUrl: string) => {
+    setLoadedImages(prev => new Set(prev).add(imageUrl));
+  };
+
   const renderImageItem = ({ item, index }: { item: DreamImage; index: number }) => {
     const isSelected = selectedImage === item.signed_url;
     const isFirstItem = index === 0;
+    // If images are preloaded, assume they're ready (prefetched = cached = instant load)
+    const isPreloaded = state.preloadedDefaultImages !== null && state.preloadedDefaultImages !== undefined;
     
     if (isFirstItem) {
       // First item is the upload button
@@ -199,6 +214,8 @@ const DreamImageStep: React.FC = () => {
           source={{ uri: item.signed_url }}
           style={styles.image as any}
           resizeMode="cover"
+          onLoad={() => handleImageLoad(item.signed_url)}
+          fadeDuration={isPreloaded ? 0 : 200}
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>
@@ -353,6 +370,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+    borderRadius: theme.radius.xl,
   },
 });
 

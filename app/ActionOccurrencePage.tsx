@@ -11,19 +11,24 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
-  Keyboard
+  Keyboard,
+  Linking,
+  Pressable
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../utils/theme';
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { OptionsPopover } from '../components/OptionsPopover';
 import { AIRatingRing } from '../components';
 import { useToast } from '../components/toast/ToastProvider';
+import { SheetHeader } from '../components/SheetHeader';
 import { useData } from '../contexts/DataContext';
 import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArtifact, getArtifacts, deleteArtifact, completeOccurrence, generateAIReview, type Artifact } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
@@ -35,9 +40,10 @@ interface EditActionModalProps {
   action: any | null;
   onClose: () => void;
   onSave: (updatedAction: any) => void;
+  dreamEndDate?: string;
 }
 
-function EditActionModal({ visible, action, onClose, onSave }: EditActionModalProps) {
+function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: EditActionModalProps) {
   const [formData, setFormData] = useState({
     id: '',
     title: '',
@@ -49,14 +55,32 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
     dream_image: '',
     occurrence_no: 1
   });
+  const [actionType, setActionType] = useState<'one-off' | 'repeating' | 'finite'>('one-off');
+  const [focusedCriterionIndex, setFocusedCriterionIndex] = useState<number | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dueDate, setDueDate] = useState<Date>(new Date());
 
   React.useEffect(() => {
     if (action) {
       setFormData(action);
+      // Initialize actionType from incoming values
+      if (action.slice_count_target && action.slice_count_target > 0) {
+        setActionType('finite');
+      } else if (action.repeat_every_days) {
+        setActionType('repeating');
+      } else {
+        setActionType('one-off');
+      }
+      // Initialize due date from current occurrence if provided
+      if (action.due_on) {
+        setDueDate(new Date(action.due_on));
+      }
     }
   }, [action]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     Keyboard.dismiss(); // Close keyboard when saving
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Please enter a title for the action');
@@ -66,15 +90,44 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
       Alert.alert('Error', 'Please enter a valid duration in minutes');
       return;
     }
-    onSave(formData);
-    onClose();
+    // Apply actionType semantics to payload
+    const payload = { ...formData } as any;
+    if (actionType === 'one-off') {
+      payload.repeat_every_days = null;
+      payload.slice_count_target = null;
+    } else if (actionType === 'repeating') {
+      // default to 1 if not selected yet
+      payload.repeat_every_days = payload.repeat_every_days ?? 1;
+      payload.slice_count_target = null;
+    } else if (actionType === 'finite') {
+      // validate total steps
+      if (!payload.slice_count_target || payload.slice_count_target < 1 || payload.slice_count_target > 32767) {
+        Alert.alert('Invalid Value', 'Total steps must be between 1 and 32767');
+        return;
+      }
+      payload.repeat_every_days = null;
+    }
+    // Include possibly updated due date for the current occurrence
+    payload.due_on = dueDate.toISOString().split('T')[0];
+    try {
+      setIsSaving(true);
+      await Promise.resolve(onSave(payload));
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addCriterion = () => {
+    const newIndex = (formData.acceptance_criteria || []).length;
     setFormData(prev => ({
       ...prev,
       acceptance_criteria: [...(prev.acceptance_criteria || []), '']
     }));
+    setFocusedCriterionIndex(newIndex);
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 200);
   };
 
   const updateCriterion = (index: number, value: string) => {
@@ -94,33 +147,24 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <KeyboardAvoidingView 
-        style={{ flex: 1, backgroundColor: '#F3F4F6' }}
+        style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         {/* Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: 16,
-          backgroundColor: 'white',
-          borderBottomWidth: 1,
-          borderBottomColor: '#E5E7EB'
-        }}>
-          <TouchableOpacity onPress={() => {
+        <SheetHeader
+          title="Edit Action"
+          onClose={() => {
             Keyboard.dismiss();
             onClose();
-          }}>
-            <Text style={{ fontSize: 16, color: '#666' }}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Edit Action</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={{ fontSize: 16, color: '#000', fontWeight: '600' }}>Save</Text>
-          </TouchableOpacity>
-        </View>
+          }}
+          onDone={handleSave}
+          doneDisabled={isSaving}
+          doneLoading={isSaving}
+        />
 
         <ScrollView 
+          ref={scrollRef}
           style={{ flex: 1 }} 
           contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
           keyboardShouldPersistTaps="handled"
@@ -133,112 +177,89 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
+              placeholderTextColor={theme.colors.grey[500]}
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: theme.colors.black
               }}
             />
           </View>
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes) *</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
+              placeholderTextColor={theme.colors.grey[500]}
               keyboardType="numeric"
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
                 padding: 12,
-                fontSize: 16
+                fontSize: 16,
+                color: theme.colors.black
               }}
             />
           </View>
 
-          {/* Difficulty */}
+          {/* Due Date (edit current occurrence) */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Difficulty</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {(['easy', 'medium', 'hard'] as const).map((diff) => (
-                <TouchableOpacity
-                  key={diff}
-                  onPress={() => setFormData(prev => ({ ...prev, difficulty: diff }))}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.difficulty === diff ? '#000' : 'white',
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
-                >
-                  <Text style={{ 
-                    color: formData.difficulty === diff ? 'white' : '#000',
-                    fontWeight: '600'
-                  }}>
-                    {diff.charAt(0).toUpperCase() + diff.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Repeat Every Days */}
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[
-                { value: undefined, label: 'None' },
-                { value: 1, label: '1 day' },
-                { value: 2, label: '2 days' },
-                { value: 3, label: '3 days' }
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.label}
-                  onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: formData.repeat_every_days === option.value ? '#000' : '#E5E7EB'
-                  }}
-                >
-                  <Text style={{ 
-                    color: formData.repeat_every_days === option.value ? 'white' : '#000',
-                    fontWeight: '600',
-                    fontSize: 14
-                  }}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Slice Count Target */}
-          <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Series Parts (optional)</Text>
-            <TextInput
-              value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
-              placeholder="Number of parts in series (3-12)"
-              keyboardType="numeric"
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Due Date</Text>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowDatePicker(true);
+              }}
               style={{
                 backgroundColor: 'white',
                 borderRadius: 8,
-                padding: 12,
-                fontSize: 16
+                padding: 12
               }}
-            />
-            <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-              For finite series actions only. Leave empty for one-off or repeating actions.
-            </Text>
+            >
+              <Text style={{ fontSize: 16, color: theme.colors.black }}>
+                {dueDate.toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <View>
+                <DateTimePicker
+                  value={dueDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    if (Platform.OS === 'android') {
+                      setShowDatePicker(false);
+                    }
+                    if (selectedDate) {
+                      setDueDate(selectedDate);
+                    }
+                  }}
+                  minimumDate={new Date()}
+                  maximumDate={dreamEndDate ? new Date(dreamEndDate) : undefined}
+                  themeVariant="light"
+                />
+                {Platform.OS === 'ios' && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        backgroundColor: '#000',
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 8
+                      }}
+                    >
+                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Acceptance Criteria */}
@@ -255,13 +276,17 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   value={criterion}
                   onChangeText={(text) => updateCriterion(index, text)}
                   placeholder={`Criterion ${index + 1}`}
+                  placeholderTextColor={theme.colors.grey[500]}
+                  autoFocus={focusedCriterionIndex === index}
+                  onFocus={() => setFocusedCriterionIndex(index)}
                   style={{
                     flex: 1,
                     backgroundColor: 'white',
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
-                    marginRight: 8
+                    marginRight: 8,
+                    color: theme.colors.black
                   }}
                 />
                 <TouchableOpacity onPress={() => removeCriterion(index)}>
@@ -269,6 +294,112 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                 </TouchableOpacity>
               </View>
             ))}
+          </View>
+
+          {/* Action Type Segmented */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Action Type</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {([
+                { value: 'one-off' as const, label: 'One-off' },
+                { value: 'repeating' as const, label: 'Repeating' },
+                { value: 'finite' as const, label: 'Finite' }
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => setActionType(opt.value)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    backgroundColor: actionType === opt.value ? '#000' : 'white',
+                    borderRadius: 8,
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ color: actionType === opt.value ? 'white' : '#000', fontWeight: '600' }}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Repeating options */}
+          {actionType === 'repeating' && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {[
+                  { value: 1, label: '1 day' },
+                  { value: 2, label: '2 days' },
+                  { value: 3, label: '3 days' }
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
+                      borderRadius: 8,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Text style={{ color: formData.repeat_every_days === option.value ? 'white' : '#000', fontWeight: '600', fontSize: 14 }}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Finite total steps */}
+          {actionType === 'finite' && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps</Text>
+              <TextInput
+                value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
+                onChangeText={(text) => {
+                  const num = text ? parseInt(text) : undefined;
+                  if (num !== undefined && (num < 1 || num > 32767)) {
+                    Alert.alert('Invalid Value', 'Total steps must be between 1 and 32767');
+                    return;
+                  }
+                  setFormData(prev => ({ ...prev, slice_count_target: num }));
+                }}
+                placeholder="How many times will you do this?"
+                placeholderTextColor={theme.colors.grey[500]}
+                keyboardType="numeric"
+                style={{
+                  backgroundColor: 'white',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.black
+                }}
+              />
+            </View>
+          )}
+
+          {/* Difficulty (moved to bottom) */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Difficulty</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['easy', 'medium', 'hard'] as const).map((diff) => (
+                <TouchableOpacity
+                  key={diff}
+                  onPress={() => setFormData(prev => ({ ...prev, difficulty: diff }))}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    backgroundColor: formData.difficulty === diff ? '#000' : 'white',
+                    borderRadius: 8,
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ color: formData.difficulty === diff ? 'white' : '#000', fontWeight: '600' }}>
+                    {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -305,19 +436,13 @@ const ActionOccurrencePage = () => {
   
   // Find the actual occurrence data from DataContext
   const occurrenceData = useMemo(() => {
-    console.log('🔍 occurrenceData useMemo - params:', params);
-    console.log('🔍 occurrenceData useMemo - state.today:', state.today);
-    console.log('🔍 occurrenceData useMemo - state.dreamDetail:', state.dreamDetail);
-    
     if (!params?.occurrenceId) {
-      console.log('🔍 No occurrenceId in params');
       return null;
     }
     
     // First try to find in today's data
     const todayOccurrence = state.today?.occurrences.find(occ => occ.id === params.occurrenceId);
     if (todayOccurrence) {
-      console.log('🔍 Found occurrence in today:', todayOccurrence);
       return todayOccurrence;
     }
     
@@ -327,7 +452,6 @@ const ActionOccurrencePage = () => {
       if (dreamDetail) {
         const occurrence = dreamDetail.occurrences.find(occ => occ.id === params.occurrenceId);
         if (occurrence) {
-          console.log('🔍 Found occurrence in dreamDetail:', occurrence);
           // We need to get the action data too, but it's not directly available in dream detail
           // For now, we'll use the occurrence data and fall back to params for action details
           return occurrence;
@@ -335,7 +459,6 @@ const ActionOccurrencePage = () => {
       }
     }
     
-    console.log('🔍 No occurrence found');
     return null;
   }, [params?.occurrenceId, state.today?.occurrences, state.dreamDetail]);
   
@@ -650,19 +773,15 @@ const ActionOccurrencePage = () => {
 
   // Get action data from the occurrence (if it's from today's data)
   const actionData = useMemo(() => {
-    console.log('🔍 actionData useMemo - occurrenceData:', occurrenceData);
     if (occurrenceData && 'actions' in occurrenceData) {
       const actions = (occurrenceData as any).actions;
-      console.log('🔍 actionData extracted:', actions);
       
       // Ensure the action has an ID - it should be in the occurrence's action_id field
-      console.log('🔍 occurrenceData.action_id:', occurrenceData.action_id);
       if (actions && occurrenceData.action_id) {
         const actionWithId = {
           ...actions,
           id: occurrenceData.action_id
         };
-        console.log('🔍 actionData with ID:', actionWithId);
         return actionWithId;
       }
       
@@ -676,14 +795,12 @@ const ActionOccurrencePage = () => {
         if (dreamDetail) {
           const action = dreamDetail.actions.find(a => a.id === occurrenceData.action_id);
           if (action) {
-            console.log('🔍 Found action in dreamDetail:', action);
             return action;
           }
         }
       }
     }
     
-    console.log('🔍 No actionData found');
     return null;
   }, [occurrenceData, state.dreamDetail]);
 
@@ -759,17 +876,27 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       // Copy to clipboard
       await Clipboard.setStringAsync(prompt);
       
-      // Show confirmation toast
-      showToast('Prompt copied', 'If the chat isn\'t prefilled, just paste.');
-      
-      // Open ChatGPT with pre-filled text
       const encodedPrompt = encodeURIComponent(prompt);
-      const chatgptUrl = `https://chatgpt.com/?q=${encodedPrompt}`;
       
-      await WebBrowser.openBrowserAsync(chatgptUrl, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
-        controlsColor: theme.colors.grey[900],
-      });
+      // Try to open ChatGPT app first
+      const chatgptAppUrl = `chatgpt://chat?q=${encodedPrompt}`;
+      
+      // Check if the app can be opened
+      const canOpen = await Linking.canOpenURL(chatgptAppUrl);
+      
+      if (canOpen) {
+        // App is installed, open it
+        await Linking.openURL(chatgptAppUrl);
+      } else {
+        // App not installed, open in in-app browser
+        const chatgptWebUrl = `https://chatgpt.com/?q=${encodedPrompt}`;
+        await WebBrowser.openBrowserAsync(chatgptWebUrl, {
+          presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+          controlsColor: theme.colors.grey[900],
+          enableBarCollapsing: false,
+          showTitle: true,
+        });
+      }
     } catch (error) {
       console.error('Error opening AI discussion:', error);
       showToast('Error', 'Failed to open ChatGPT. Please try again.');
@@ -816,13 +943,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
   };
 
   const handleEditAction = () => {
-    console.log('🔍 handleEditAction called');
-    console.log('🔍 actionData:', actionData);
-    console.log('🔍 occurrenceData:', occurrenceData);
-    console.log('🔍 dreamAreaData:', dreamAreaData);
-    
     if (!actionData) {
-      console.log('❌ No actionData available');
       showToast('Error', 'No action data available.');
       return;
     }
@@ -840,19 +961,13 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       occurrence_no: occurrenceData?.occurrence_no || 1
     };
 
-    console.log('🔍 actionForEdit:', actionForEdit);
     setEditingAction(actionForEdit);
     setShowEditModal(true);
   };
 
   const handleSaveEdit = async (updatedAction: any) => {
-    console.log('🔍 handleSaveEdit called');
-    console.log('🔍 updatedAction:', updatedAction);
-    console.log('🔍 actionData:', actionData);
-    
     try {
       if (!actionData?.id) {
-        console.log('❌ No actionData.id available');
         showToast('Error', 'No action to edit.');
         return;
       }
@@ -906,14 +1021,12 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           onPress: async () => {
             try {
               if (!params?.occurrenceId) {
-                showToast('Error', 'No action to delete.');
                 return;
               }
 
               // Get auth token
               const { data: { session } } = await supabaseClient.auth.getSession();
               if (!session?.access_token) {
-                showToast('Error', 'Please log in to delete actions.');
                 return;
               }
 
@@ -922,12 +1035,10 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               // Update the DataContext optimistically
               await deleteActionOccurrenceInContext(params.occurrenceId);
               
-              showToast('Action Deleted', 'The action has been removed.');
               // Navigate back after deletion
               navigation.goBack();
             } catch (error) {
               console.error('Error deleting action:', error);
-              showToast('Error', 'Failed to delete action. Please try again.');
             }
           }
         }
@@ -1004,17 +1115,51 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           </View>
           
           <View style={styles.heroContent}>
-            <Text style={styles.dreamTitle}>{dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream'}</Text>
-            <Text style={styles.areaTitle}>{dreamAreaData?.areaName || params?.areaName || 'Area'}</Text>
+            {dreamAreaData?.dreamTitle && (
+              <Pressable onPress={() => {
+                // Navigate to dream page - we need to get the dream ID from the action data
+                const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                if (dreamId) {
+                  (navigation as any).navigate('Dream', { dreamId });
+                }
+              }}>
+                <Text style={styles.dreamTitle}>{dreamAreaData.dreamTitle}</Text>
+              </Pressable>
+            )}
+            {dreamAreaData?.areaName && (
+              <Pressable onPress={() => {
+                // Navigate to area page - we need to get the area ID from the action data
+                const areaId = actionData?.areas?.id || actionData?.area_id;
+                const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                if (areaId && dreamId) {
+                  (navigation as any).navigate('Area', { 
+                    areaId, 
+                    areaTitle: dreamAreaData.areaName,
+                    areaEmoji: dreamAreaData.areaEmoji,
+                    dreamId,
+                    dreamTitle: dreamAreaData.dreamTitle
+                  });
+                }
+              }}>
+                <Text style={styles.areaTitle}>{dreamAreaData.areaName}</Text>
+              </Pressable>
+            )}
             <Text style={styles.actionTitle}>{actionData?.title || params?.actionTitle || 'Action'}</Text>
             
             {/* Due Date or Completed Date */}
-            <Text style={styles.detailLabel}>
-              {isCompleted 
-                ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
-                : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
-              }
-            </Text>
+            <View style={styles.dueDateRow}>
+              <Text style={styles.detailLabel}>
+                {isCompleted 
+                  ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
+                  : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
+                }
+              </Text>
+              {!isCompleted && (
+                <TouchableOpacity onPress={handleDefer} style={{ marginLeft: 'auto' }}>
+                  <Text style={styles.deferLink}>Defer +1 Day</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             {/* Details Row */}
             <View style={styles.detailRow}>
@@ -1040,9 +1185,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               )}
             </View>
             
-            <TouchableOpacity style={styles.aiDiscussionLink} onPress={handleAIDiscussion}>
-              <Text style={styles.aiDiscussionText}>Discuss with AI Agent How to Best Do This</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -1060,6 +1202,16 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               <Text style={styles.criteriaItem}>No specific criteria defined</Text>
             )}
           </View>
+        </View>
+
+        {/* AI Help Button */}
+        <View style={styles.aiHelpSection}>
+          <Button
+            title="Plan with AI"
+            onPress={handleAIDiscussion}
+            variant="secondary"
+            size="md"
+          />
         </View>
 
         {/* AI Review Section */}
@@ -1083,25 +1235,9 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
       {/* Bottom Section */}
       <View style={styles.bottomSection}>
-        {/* Upload Button and Images Row */}
-        <View style={styles.uploadAndImagesRow}>
-          <TouchableOpacity 
-            style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
-            onPress={handleImagePicker}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
-            ) : (
-              <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
-            )}
-            <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-              {isUploading ? 'Uploading...' : 'Upload Photo'}
-            </Text>
-          </TouchableOpacity>
-          
-          {/* Uploaded Images */}
-          {artifacts.length > 0 && (
+        {/* Uploaded Images Row */}
+        {artifacts.length > 0 && (
+          <View style={styles.uploadedImagesRow}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
               {artifacts.map((artifact) => (
                 <View key={artifact.id} style={styles.artifactImageContainer}>
@@ -1119,39 +1255,48 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 </View>
               ))}
             </ScrollView>
-          )}
-        </View>
+          </View>
+        )}
 
-        {/* Full Width Text Input */}
-        <TextInput
-          style={styles.fullWidthTextInput}
-          placeholder="Add a note about your progress..."
-          placeholderTextColor={theme.colors.grey[500]}
-          multiline
-          value={note}
-          onChangeText={setNote}
-        />
+        {/* Upload Button and Text Input Row */}
+        <View style={styles.inputRow}>
+          <TouchableOpacity 
+            style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
+            onPress={handleImagePicker}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+            ) : (
+              <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+            )}
+            <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
+              {isUploading ? 'Uploading...' : 'Upload Photo'}
+            </Text>
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.textInputInRow}
+            placeholder="Add a note about your progress..."
+            placeholderTextColor={theme.colors.grey[500]}
+            multiline
+            value={note}
+            onChangeText={setNote}
+          />
+        </View>
         
         <View style={styles.actionButtons}>
-          {!isCompleted && (
-            <Button
-              title="Defer +1 Day"
-              variant="secondary"
-              onPress={handleDefer}
-              style={styles.deferButton}
-            />
-          )}
-            <Button
-              title={
-                isSubmitting 
-                  ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
-                  : (isCompleted ? "Re-submit" : "Mark as Done")
-              }
-              variant="primary"
-              onPress={handleComplete}
-              style={styles.completeButton}
-              disabled={isSubmitting}
-            />
+          <Button
+            title={
+              isSubmitting 
+                ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
+                : (isCompleted ? "Re-submit" : "Mark as Done")
+            }
+            variant="black"
+            onPress={handleComplete}
+            disabled={isSubmitting}
+            style={{ borderRadius: theme.radius.xl }}
+          />
         </View>
       </View>
 
@@ -1169,6 +1314,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         action={editingAction}
         onClose={() => setShowEditModal(false)}
         onSave={handleSaveEdit}
+        dreamEndDate={undefined}
       />
 
     </KeyboardAvoidingView>
@@ -1285,17 +1431,26 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
+  dueDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+    width: '100%',
+  },
+  deferLink: {
+    fontSize: 14,
+    color: theme.colors.grey[600],
+    fontWeight: '500',
+    marginLeft: 'auto',
+  },
   detailValue: {
     fontSize: 14,
     color: theme.colors.grey[600],
   },
-  aiDiscussionLink: {
-    marginTop: 12,
-  },
-  aiDiscussionText: {
-    fontSize: 16,
-    color: theme.colors.grey[900],
-    textDecorationLine: 'underline',
+  aiHelpSection: {
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   acceptanceSection: {
     padding: 24,
@@ -1335,18 +1490,16 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: BOTTOM_NAV_PADDING,
   },
-  uploadAndImagesRow: {
+  uploadedImagesRow: {
+    marginBottom: 16,
+  },
+  inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
     gap: 12,
-  },
-  inputSection: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
   },
   uploadButton: {
     backgroundColor: theme.colors.surface[50],
@@ -1358,11 +1511,12 @@ const styles = StyleSheet.create({
     height: 80,
   },
   uploadText: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.grey[900],
     marginTop: 4,
+    textAlign: 'center',
   },
-  textInput: {
+  textInputInRow: {
     flex: 1,
     backgroundColor: theme.colors.surface[50],
     borderRadius: 12,
@@ -1370,25 +1524,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  fullWidthTextInput: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-    marginBottom: 16,
   },
   actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  deferButton: {
-    flex: 1,
-  },
-  completeButton: {
-    flex: 1,
+    width: '100%',
   },
   imagesSection: {
     marginBottom: 16,

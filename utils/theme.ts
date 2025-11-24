@@ -172,6 +172,10 @@ export const theme = {
       library: 'MaterialIcons' as const,
       name: 'keyboard-arrow-left'
     },
+    chevron_left_rounded: {
+      library: 'MaterialIcons' as const,
+      name: 'chevron-left'
+    },
     chevron_right: {
       library: 'MaterialIcons' as const,
       name: 'keyboard-arrow-right'
