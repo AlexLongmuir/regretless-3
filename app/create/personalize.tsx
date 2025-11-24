@@ -9,6 +9,7 @@ import { Button } from '../../components/Button'
 import { upsertDream, getDefaultImages, uploadDreamImage, type DreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
+import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function AreasStep() {
   const navigation = useNavigation<any>()
@@ -29,17 +30,13 @@ export default function AreasStep() {
   useEffect(() => {
     const loadDefaultImages = async () => {
       try {
-        console.log('🖼️ [PERSONALIZE] Starting to load default images...')
         const { data: { session } } = await supabaseClient.auth.getSession()
         
         if (!session?.access_token) {
-          console.log('❌ [PERSONALIZE] No session token available')
           setIsLoading(false)
           return
         }
 
-        console.log('🖼️ [PERSONALIZE] Making API call to get default images...')
-        
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Request timeout')), 10000)
@@ -50,17 +47,13 @@ export default function AreasStep() {
           timeoutPromise
         ]) as any
         
-        console.log('🖼️ [PERSONALIZE] API response:', response)
-        
         if (response.success && response.data?.images) {
-          console.log('✅ [PERSONALIZE] Successfully loaded', response.data.images.length, 'default images')
           setDefaultImages(response.data.images)
         } else {
-          console.log('⚠️ [PERSONALIZE] API call succeeded but no images found:', response)
           setDefaultImages([]) // Set empty array to show upload option only
         }
       } catch (error) {
-        console.error('❌ [PERSONALIZE] Error loading default images:', error)
+        console.error('Error loading default images:', error)
         setDefaultImages([]) // Set empty array on error to show upload option
       } finally {
         setIsLoading(false)
@@ -265,7 +258,7 @@ export default function AreasStep() {
         left: 0, 
         right: 0, 
         padding: 16,
-        paddingBottom: 32
+        paddingBottom: BOTTOM_NAV_PADDING
       }}>
         <Button 
           title="Continue"
