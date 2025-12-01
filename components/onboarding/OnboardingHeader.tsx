@@ -5,7 +5,7 @@
  * Automatically calculates progress based on current screen in the onboarding flow
  */
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
@@ -48,6 +48,7 @@ interface OnboardingHeaderProps {
   showProgress?: boolean;
   progress?: number; // 0-1 - if not provided, will be calculated automatically
   showBackButton?: boolean;
+  rightElement?: ReactNode; // Optional element to show on the right side (e.g., Restore button)
 }
 
 export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
@@ -55,6 +56,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
   showProgress = false,
   progress, // No default value - will be calculated if not provided
   showBackButton = true,
+  rightElement,
 }) => {
   const route = useRoute();
   
@@ -91,16 +93,20 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
           </View>
         )}
         
-        {/* Invisible icon button on the right for balance */}
-        <View style={styles.rightSpacer}>
-          <IconButton
-            icon="arrow_left"
-            onPress={() => {}}
-            variant="ghost"
-            size="md"
-            style={styles.invisibleButton}
-          />
-        </View>
+        {/* Right side element or spacer for balance */}
+        {rightElement ? (
+          rightElement
+        ) : (
+          <View style={styles.rightSpacer}>
+            <IconButton
+              icon="arrow_left"
+              onPress={() => {}}
+              variant="ghost"
+              size="md"
+              style={styles.invisibleButton}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -120,6 +126,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
   },
   progressContainer: {
     flex: 1,
@@ -138,6 +145,7 @@ const styles = StyleSheet.create({
   },
   rightSpacer: {
     width: 44, // Same width as the back button (lg size)
+    alignItems: 'flex-end',
   },
   invisibleButton: {
     opacity: 0,

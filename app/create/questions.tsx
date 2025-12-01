@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -41,24 +41,18 @@ export default function QuestionsStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <CreateScreenHeader step="questions" />
       <ScrollView 
-        style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: 'bold', 
-          color: '#000', 
-          marginBottom: 32,
-          lineHeight: 24
-        }}>
+        <Text style={styles.title}>
           Tell us about your journey so far
         </Text>
 
@@ -70,7 +64,7 @@ export default function QuestionsStep() {
           label="What's your current progress"
           multiline
           variant="borderless"
-          style={{ marginBottom: 32 }}
+          style={styles.input}
           showMicButton={true}
         />
 
@@ -82,7 +76,7 @@ export default function QuestionsStep() {
           label="What's most likely going to cause you not to achieve this?"
           multiline
           variant="borderless"
-          style={{ marginBottom: 32 }}
+          style={styles.input}
           showMicButton={true}
         />
 
@@ -94,24 +88,56 @@ export default function QuestionsStep() {
           label="What's most likely to cause you to enjoy the journey?"
           multiline
           variant="borderless"
-          style={{ marginBottom: 32 }}
+          style={styles.input}
           showMicButton={true}
         />
       </ScrollView>
       
       {/* Footer with button */}
-      <View style={{ 
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
+      <View style={styles.footer}>
         <Button 
           title="Continue"
           variant={"black" as any}
           onPress={handleContinue}
-          style={{ borderRadius: theme.radius.xl }}
+          style={styles.button}
         />
       </View>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing['2xl'],
+    paddingBottom: 400,
+  },
+  title: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    lineHeight: theme.typography.lineHeight.title2,
+    color: theme.colors.grey[900],
+    textAlign: 'left',
+    marginBottom: theme.spacing['2xl'],
+  },
+  input: {
+    marginBottom: 32,
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    borderRadius: theme.radius.xl,
+    width: '100%',
+  },
+})

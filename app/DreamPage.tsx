@@ -53,7 +53,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const params = route?.params || {};
   const { dreamId, title = 'Sample Dream' } = params;
   
-  const { state, getDreamDetail, getDreamsWithStats, getProgress, deleteDream, archiveDream, onScreenFocus } = useData();
+  const { state, getDreamDetail, getDreamsWithStats, getProgress, deleteDream, archiveDream, onScreenFocus, isScreenshotMode } = useData();
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [optionsTriggerPosition, setOptionsTriggerPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -153,10 +153,11 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     
     const startDate = new Date(dreamData.start_date);
     const endDate = dreamData.end_date ? new Date(dreamData.end_date) : null;
-    const today = new Date();
+    // Use mocked date for screenshot mode (Jan 1, 2026), otherwise real date
+    const today = isScreenshotMode ? new Date('2026-01-01') : new Date();
     
     if (endDate) {
-      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       return { current: Math.max(1, currentDay), total: totalDays };
     }

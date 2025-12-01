@@ -14,7 +14,7 @@ import { Image } from 'react-native';
  * All onboarding images that need to be preloaded
  * Organized by screen for easy reference
  */
-const onboardingImages = {
+export const onboardingImages = {
   // Welcome screen
   individualityImage: require('../assets/images/onboarding/20250916_0844_Individuality Amidst Motion_simple_compose_01k58qptvqfr5awmazzyd181js.png'),
   

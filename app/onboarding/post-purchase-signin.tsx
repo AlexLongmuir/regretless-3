@@ -11,9 +11,9 @@ import { View, Text, StyleSheet, Alert, Platform, TouchableOpacity } from 'react
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { BlurView } from 'expo-blur';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
-import { IconButton } from '../../components/IconButton';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
@@ -378,38 +378,53 @@ const PostPurchaseSignInStep: React.FC = () => {
     }
   };
 
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
+  // Create Restore button matching IconButton style
+  const restoreButton = (
+    <TouchableOpacity
+      onPress={handleRestore}
+      style={styles.restoreButtonWrapper}
+    >
+      <BlurView 
+        intensity={100} 
+        tint="light" 
+        style={styles.restoreButton}
+      >
+        <Text style={styles.restoreText}>Restore</Text>
+      </BlurView>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow_left"
-          onPress={() => navigation.navigate('Intro' as never)}
-          variant="ghost"
-          size="md"
-          style={styles.backButton}
-        />
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreText}>Restore</Text>
-        </TouchableOpacity>
-      </View>
+      <OnboardingHeader onBack={handleBack} rightElement={restoreButton} />
       
       <View style={styles.content}>
-        <Text style={styles.title}>Almost There!</Text>
+        <Text style={styles.title}>Sign In</Text>
         <Text style={styles.subtitle}>
-          Sign in to save your progress and sync across devices
+          Log in to save your progress and sync across devices
         </Text>
+
+        <Button
+          title="Continue with Apple"
+          icon="apple"
+          onPress={handleAppleSignIn}
+          variant="secondary"
+          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
+          style={styles.button}
+        />
         
-        <View style={styles.benefitsContainer}>
-          <View style={styles.benefit}>
-            <Text style={styles.benefitText}>✓ Sync your dreams across devices</Text>
-          </View>
-          <View style={styles.benefit}>
-            <Text style={styles.benefitText}>✓ Backup your progress automatically</Text>
-          </View>
-          <View style={styles.benefit}>
-            <Text style={styles.benefitText}>✓ Access premium features</Text>
-          </View>
-        </View>
+        <Button
+          title="Continue with Google"
+          icon="google"
+          onPress={handleGoogleSignIn}
+          variant="secondary"
+          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
+          style={styles.button}
+        />
 
         {hasProAccess && (
           <View style={styles.subscriptionStatus}>
@@ -427,28 +442,6 @@ const PostPurchaseSignInStep: React.FC = () => {
           </View>
         )}
       </View>
-
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={handleAppleSignIn}
-          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
-          style={[styles.appleButton, (authLoading || linking || entitlementsLoading || isCreatingDream) && styles.buttonDisabled]}
-        >
-          <View style={styles.buttonContent}>
-            <Text style={styles.appleButtonText}>Continue with Apple</Text>
-          </View>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={handleGoogleSignIn}
-          disabled={authLoading || linking || entitlementsLoading || isCreatingDream}
-          style={[styles.googleButton, (authLoading || linking || entitlementsLoading || isCreatingDream) && styles.buttonDisabled]}
-        >
-          <View style={styles.buttonContent}>
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -461,8 +454,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: 100 + theme.spacing.xl, // Add top padding to account for fixed header
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
   },
   title: {
@@ -471,7 +463,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.largeTitle,
     color: theme.colors.grey[900],
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: theme.spacing.sm,
   },
   subtitle: {
@@ -480,22 +472,8 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
     color: theme.colors.grey[600],
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: theme.spacing.xl,
-  },
-  benefitsContainer: {
-    marginBottom: theme.spacing.xl,
-    width: '100%',
-  },
-  benefit: {
-    marginBottom: theme.spacing.sm,
-  },
-  benefitText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[700],
-    textAlign: 'center',
   },
   subscriptionStatus: {
     backgroundColor: theme.colors.success[50],
@@ -510,87 +488,40 @@ const styles = StyleSheet.create({
     color: theme.colors.success[700],
     textAlign: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['3xl'],
-    paddingBottom: theme.spacing.md,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+  restoreButtonWrapper: {
+    width: 80,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
   restoreButton: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
   },
   restoreText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.grey[700],
   },
-  footer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-  },
-  appleButton: {
+  button: {
     width: '100%',
-    height: 50,
-    backgroundColor: '#000000',
-    borderRadius: 8,
-    marginBottom: theme.spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-    elevation: 3,
-  },
-  googleButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginBottom: theme.spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DADCE0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: theme.typography.fontFamily.system,
-  },
-  googleButtonText: {
-    color: '#3C4043',
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: theme.typography.fontFamily.system,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
+    marginBottom: theme.spacing.lg,
+    borderRadius: theme.radius.xl,
   },
   dreamCreationStatus: {
     backgroundColor: theme.colors.primary[50],

@@ -147,11 +147,15 @@ const PaywallStep: React.FC = () => {
     },
   ];
 
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
   return (
     <View style={styles.container}>
       <OnboardingHeader 
+        onBack={handleBack}
         showProgress={true}
-        showBackButton={false} // Can't go back from paywall
       />
       
       <View style={styles.content}>

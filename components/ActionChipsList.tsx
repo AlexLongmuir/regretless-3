@@ -57,6 +57,7 @@ interface ActionChipsListProps {
   style?: any
   dreamEndDate?: string
   showLinkToControls?: boolean
+  showAddButton?: boolean
 }
 
 export function ActionChip({
@@ -1161,7 +1162,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
 }
 
 // Main ActionChipsList component
-export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style, dreamEndDate }: ActionChipsListProps) {
+export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style, dreamEndDate, showAddButton = true }: ActionChipsListProps) {
   const [editingAction, setEditingAction] = useState<ActionCard | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -1225,7 +1226,7 @@ export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, o
         />
       ))}
       
-      <AddActionChip onPress={handleAdd} />
+      {showAddButton && <AddActionChip onPress={handleAdd} />}
 
       {/* Edit Modal */}
       <EditActionModal

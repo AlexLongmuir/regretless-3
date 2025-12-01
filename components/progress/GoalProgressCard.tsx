@@ -123,7 +123,7 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
             <Text style={styles.dayProgress}>
               {getDayDisplay()}
             </Text>
-            <Text style={styles.streakText}>🔥 {streakCount}</Text>
+            {streakCount > 0 && <Text style={styles.streakText}>🔥 {streakCount}</Text>}
           </View>
           
           <Text style={styles.title} numberOfLines={2}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -42,7 +42,6 @@ export default function AreasStep() {
   const [editingArea, setEditingArea] = useState<string | null>(null)
   const [newAreaTitle, setNewAreaTitle] = useState('')
   const [newAreaEmoji, setNewAreaEmoji] = useState('🚀')
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   
   // Convert areas from context to local UI format, sorted by position
   const areaSuggestions: AreaSuggestion[] = areas
@@ -52,8 +51,6 @@ export default function AreasStep() {
       title: area.title,
       emoji: area.icon || '🚀'
     }))
-
-  const emojiOptions = ['🚀', '✍️', '🔧', '📢', '📚', '💡', '🎯', '⚡', '🔥', '💪', '🎨', '📈', '🌟', '🎉', '💎', '🏆']
 
   useFocusEffect(
     React.useCallback(() => {
@@ -75,9 +72,7 @@ export default function AreasStep() {
         }
 
         const runAnalysis = async () => {
-          
           try {
-            // Get auth token
             const { data: { session } } = await supabaseClient.auth.getSession()
             if (!session?.access_token) {
               throw new Error('No authentication token available')
@@ -94,32 +89,22 @@ export default function AreasStep() {
             }, session.access_token)
             
             if (generatedAreas && generatedAreas.length > 0) {
-              // Store the full Area objects in context
               setAreas(generatedAreas)
             }
             
-            // Mark as analyzed
             setAreasAnalyzed(true)
-            
-            // Simulate minimum loading time for UX
-            setTimeout(() => {
-              setIsLoading(false)
-            }, 2000)
+            setTimeout(() => setIsLoading(false), 2000)
           } catch (error) {
             console.error('Areas analysis failed:', error)
-            // Mark as analyzed even if failed to prevent retries
             setAreasAnalyzed(true)
             
-            // Fallback to default areas if AI fails
             const defaultAreas = [
               { id: 'temp_1', dream_id: dreamId, title: 'Planning', icon: '📋', position: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
               { id: 'temp_2', dream_id: dreamId, title: 'Developing', icon: '🔧', position: 2, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
               { id: 'temp_3', dream_id: dreamId, title: 'Launching', icon: '🚀', position: 3, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
             ]
             setAreas(defaultAreas)
-            setTimeout(() => {
-              setIsLoading(false)
-            }, 1000)
+            setTimeout(() => setIsLoading(false), 1000)
           }
         }
 
@@ -139,81 +124,23 @@ export default function AreasStep() {
     }
   }
 
-  const handleSaveEdit = () => {
-    if (editingArea && newAreaTitle.trim() && newAreaEmoji.trim()) {
-      // Update the area in context - this will update live
-      updateArea(editingArea, {
-        title: newAreaTitle.trim(),
-        icon: newAreaEmoji.trim()
-      })
-      setEditingArea(null)
-      setNewAreaTitle('')
-      setNewAreaEmoji('')
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditingArea(null)
-    setNewAreaTitle('')
-    setNewAreaEmoji('')
-  }
-
   const handleAddArea = () => {
     setEditingArea('new')
     setNewAreaTitle('')
     setNewAreaEmoji('🚀')
   }
 
-  const handleSaveNewArea = () => {
-    if (newAreaTitle.trim() && newAreaEmoji.trim() && dreamId) {
-      const newId = `temp_${Date.now()}` // Temporary ID until saved to backend
-      const newArea: Area = {
-        id: newId,
-        dream_id: dreamId,
-        title: newAreaTitle.trim(),
-        icon: newAreaEmoji.trim(),
-        position: areas.length, // Add at the end
-        deleted_at: undefined,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      
-      // Add to context - this will update live
-      addArea(newArea)
-      setEditingArea(null)
-      setNewAreaTitle('')
-      setNewAreaEmoji('')
-    }
-  }
-
   const handleRemoveArea = (areaId: string) => {
-    // Remove from context - this will update live and also remove related actions
     removeArea(areaId)
   }
-
-  const handleReorderAreas = (reorderedAreas: AreaSuggestion[]) => {
-    // Update positions based on new order
-    const updatedAreas = reorderedAreas.map((area, index) => {
-      const originalArea = areas.find(a => a.id === area.id)
-      if (originalArea) {
-        return { ...originalArea, position: index }
-      }
-      return originalArea
-    }).filter(Boolean) as Area[]
-    
-    setAreas(updatedAreas)
-  }
-
 
   const handleSaveAreas = async () => {
     setIsSaving(true)
     
-    // Save areas to backend first, then navigate
     if (dreamId) {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
         if (session?.access_token) {
-          // Remove temporary IDs for new areas and ensure positions are set
           const areasToSend = areas.map((area, index) => {
             const { id, ...areaWithoutId } = area
             const areaToSend = area.id?.startsWith('temp_') ? areaWithoutId : area
@@ -228,29 +155,23 @@ export default function AreasStep() {
             areas: areasToSend
           }, session.access_token)
           
-          // Update context with real IDs from backend BEFORE navigating
           if (response.areas) {
             setAreas(response.areas)
-            // Navigate after successful save and context update
-            navigation.navigate('AreasConfirm')
+            navigation.navigate('Actions')
           } else {
-            // If no response, still navigate
-            navigation.navigate('AreasConfirm')
+            navigation.navigate('Actions')
           }
         } else {
-          // If no session, just navigate
-          navigation.navigate('AreasConfirm')
+          navigation.navigate('Actions')
         }
       } catch (error) {
         console.error('Failed to save areas:', error)
-        // Still navigate even if save fails
-        navigation.navigate('AreasConfirm')
+        navigation.navigate('Actions')
       } finally {
         setIsSaving(false)
       }
     } else {
-      // If no dreamId, just navigate
-      navigation.navigate('AreasConfirm')
+      navigation.navigate('Actions')
       setIsSaving(false)
     }
   }
@@ -259,37 +180,14 @@ export default function AreasStep() {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
-          {/* Rocket Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
-          
-          {/* Title */}
-          <Text style={{ 
-            fontSize: 18, 
-            fontWeight: 'bold', 
-            color: '#000', 
-            marginBottom: 16,
-            lineHeight: 24
-          }}>
+          <Text style={styles.loadingTitle}>
             Creating Areas
           </Text>
-          
-          {/* Description */}
-          <Text style={{ 
-            fontSize: 16, 
-            color: '#000', 
-            textAlign: 'center',
-            paddingHorizontal: 32,
-            lineHeight: 22
-          }}>
+          <Text style={styles.loadingDescription}>
             This segments your goal into well defined chunks to make it easy for you to check off goals quicker & see success
           </Text>
-          
-          {/* Loading indicator */}
-          <ActivityIndicator 
-            size="large" 
-            color="#000" 
-            style={{ marginTop: 32 }} 
-          />
+          <ActivityIndicator size="large" color="#000" style={{ marginTop: 32 }} />
         </View>
       </View>
     )
@@ -297,49 +195,30 @@ export default function AreasStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <CreateScreenHeader step="areas" />
       
       <ScrollView 
-        style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Dream Title */}
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: 'bold', 
-          color: '#000', 
-          marginBottom: 24,
-          lineHeight: 24
-        }}>
-          {title || '[Dream Name]'}
+        <Text style={styles.title}>
+          Congratulations, your plan is created
         </Text>
 
-        {/* Intro Text */}
-        <Text style={{ 
-          fontSize: 16, 
-          color: '#000', 
-          marginBottom: 8,
-          lineHeight: 22
-        }}>
-          We've organised your goal {title || '[Dream Name]'} into {areas.length} focus areas.
+        <Text style={styles.description}>
+          We've organised your goal "{title || 'Your Dream'}" into {areas.length} focus areas.
         </Text>
 
-        <Text style={{ 
-          fontSize: 16, 
-          color: '#000', 
-          marginBottom: 16,
-          lineHeight: 22
-        }}>
+        <Text style={styles.subDescription}>
           Make sure you're happy with them and then we'll create steps within each of them on the next page.
         </Text>
 
-        {/* Area Grid */}
         <AreaGrid
           areas={areaSuggestions}
           onEdit={handleAreaEdit}
@@ -353,60 +232,33 @@ export default function AreasStep() {
 
       </ScrollView>
       
-      {/* Footer section */}
-      <View style={{ 
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
-        {/* Instructional Text */}
-        <Text style={{ 
-          fontSize: 14, 
-          color: '#000', 
-          marginBottom: 12,
-          lineHeight: 20
-        }}>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
           Change the areas by providing feedback to our AI below.
         </Text>
 
-        {/* Feedback Input */}
         <TextInput
           value={feedback}
           onChangeText={setFeedback}
           placeholder="Provide detailed feedback here for AI to adjust your areas accordingly.."
           multiline
-          style={{ 
-            minHeight: 60,
-            backgroundColor: 'white',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 12,
-            fontSize: 16,
-            textAlignVertical: 'top'
-          }}
+          style={styles.feedbackInput}
         />
         
-        {/* Buttons */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={styles.buttonContainer}>
           <Button 
             title="Fix with AI" 
             variant="secondary"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               
-              Keyboard.dismiss() // Close keyboard when AI fix is triggered
-              
-              // Trigger loading page
+              Keyboard.dismiss()
               setIsLoading(true)
               
               try {
-                // Get auth token
                 const { data: { session } } = await supabaseClient.auth.getSession()
-                if (!session?.access_token) {
-                  throw new Error('No authentication token available')
-                }
+                if (!session?.access_token) throw new Error('No authentication token available')
 
-                // Call the generateAreas API to regenerate areas
                 const generatedAreas = await generateAreas({ 
                   dream_id: dreamId,
                   title,
@@ -420,38 +272,112 @@ export default function AreasStep() {
                 }, session.access_token)
                 
                 if (generatedAreas && generatedAreas.length > 0) {
-                  // Store the new areas in context
                   setAreas(generatedAreas)
-                  // Clear feedback after successful regeneration
                   setFeedback('')
                 }
                 
-                // Simulate minimum loading time for UX
-                setTimeout(() => {
-                  setIsLoading(false)
-                }, 2000)
+                setTimeout(() => setIsLoading(false), 2000)
               } catch (error) {
                 console.error('Failed to regenerate areas with AI:', error)
-                setTimeout(() => {
-                  setIsLoading(false)
-                }, 1000)
+                setTimeout(() => setIsLoading(false), 1000)
               }
             }}
-            style={{ flex: 1 }}
+            style={styles.flexButton}
             disabled={!feedback.trim()}
           />
           <Button 
             title={isSaving ? "Saving..." : "Looks Good"}
             variant="black"
             onPress={() => {
-              Keyboard.dismiss() // Close keyboard when continuing
+              Keyboard.dismiss()
               handleSaveAreas()
             }}
             disabled={isSaving}
-            style={{ flex: 1, borderRadius: theme.radius.xl }}
+            style={styles.flexButton}
           />
         </View>
       </View>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 400,
+  },
+  title: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    lineHeight: theme.typography.lineHeight.title2,
+    color: theme.colors.grey[900],
+    textAlign: 'left',
+    marginBottom: theme.spacing.sm,
+  },
+  description: {
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: 18,
+    color: theme.colors.grey[600],
+    textAlign: 'left',
+    marginBottom: 8,
+  },
+  subDescription: {
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: 18,
+    color: theme.colors.grey[600],
+    textAlign: 'left',
+    marginBottom: theme.spacing.xl,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+    lineHeight: 24
+  },
+  loadingDescription: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 22
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#000',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  feedbackInput: {
+    minHeight: 60,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  flexButton: {
+    flex: 1,
+    borderRadius: theme.radius.xl,
+  },
+})

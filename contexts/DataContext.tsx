@@ -43,6 +43,7 @@ import {
   fetchProgress,
   fetchDreamDetail
 } from './dataFetchers';
+import { getScreenshotMockState } from '../utils/screenshotMockData';
 
 /**
  * TYPE DEFINITIONS
@@ -65,6 +66,8 @@ type State = {
 // Context interface - defines what's available to consuming components
 type Ctx = {
   state: State;
+  isScreenshotMode: boolean;
+  toggleScreenshotMode: (enabled: boolean) => void;
   
   // Core data management
   loadSnapshot: () => Promise<void>;        // Load cached data on app start
@@ -115,6 +118,7 @@ const DataContext = createContext<Ctx | null>(null);
 export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   // Initialize state with empty objects for dynamic keys
   const [state, setState] = useState<State>({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {} });
+  const [isScreenshotMode, setIsScreenshotMode] = useState(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const { isAuthenticated, loading: authLoading } = useAuthContext();
   
@@ -149,6 +153,11 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
   // Simplified refresh function - handles all data refreshing with smart caching
   const refresh = useCallback(async (force = false) => {
+    if (isScreenshotMode) {
+      console.log('🔄 Refresh skipped: Screenshot Mode active');
+      return;
+    }
+
     if (!isAuthenticated || isRefreshing.current) {
       console.log(`🔄 Refresh skipped:`, { isAuthenticated, isRefreshing: isRefreshing.current });
       return;
@@ -950,30 +959,36 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
    * Create the context value and provide it to child components.
    */
 
-  const value: Ctx = useMemo(() => ({
-    state,
-    loadSnapshot,
-    refresh,
-    getDreamsSummary,
-    getDreamsWithStats,
-    getToday,
-    getProgress,
-    getDreamDetail,
-    completeOccurrence,
-    deferOccurrence,
-    deleteDream,
-    archiveDream,
-    unarchiveDream,
-    updateAction,
-    deleteActionOccurrence,
-    updateArea,
-    deleteArea,
-    isStale,
-    lastSyncedLabel,
-    clearDreamsWithStatsCache,
-    checkDreamCompletion,
-    onScreenFocus,
-  }), [state]); // Only depend on state - all functions are already memoized with useCallback
+  const value: Ctx = useMemo(() => {
+    const effectiveState = isScreenshotMode ? getScreenshotMockState() : state;
+    
+    return {
+      state: effectiveState,
+      isScreenshotMode,
+      toggleScreenshotMode: setIsScreenshotMode,
+      loadSnapshot,
+      refresh,
+      getDreamsSummary,
+      getDreamsWithStats,
+      getToday,
+      getProgress,
+      getDreamDetail,
+      completeOccurrence,
+      deferOccurrence,
+      deleteDream,
+      archiveDream,
+      unarchiveDream,
+      updateAction,
+      deleteActionOccurrence,
+      updateArea,
+      deleteArea,
+      isStale,
+      lastSyncedLabel,
+      clearDreamsWithStatsCache,
+      checkDreamCompletion,
+      onScreenFocus,
+    };
+  }, [state, isScreenshotMode]); // Depend on isScreenshotMode
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

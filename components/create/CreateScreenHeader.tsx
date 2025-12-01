@@ -1,8 +1,9 @@
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { IconButton } from '../IconButton'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
+import { theme } from '../../utils/theme'
 
 export const CreateScreenHeader: React.FC<{ step?: string }> = ({ 
   step = 'title' 
@@ -36,42 +37,39 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.container}>
       <IconButton 
-        icon="chevron_left" 
+        icon="chevron_left_rounded" 
         onPress={handleBack}
         variant="ghost"
-        size="md"
-        style={styles.whiteButton}
+        size="lg"
+        iconSize={42}
+        iconWrapperStyle={{ marginLeft: -1 }}
       />
       <View style={styles.spacer} />
       <IconButton 
         icon="close" 
         onPress={handleClose}
         variant="ghost"
-        size="md"
-        style={styles.whiteButton}
+        size="lg"
+        iconSize={42}
       />
     </View>
   )
 }
+
 const styles = StyleSheet.create({
-  wrap: { 
-    height: 52, 
-    paddingHorizontal: 12, 
-    paddingTop: 15,
-    marginTop: 44, // Add space for status bar
-    flexDirection:'row', 
-    alignItems:'center', 
-    justifyContent: 'space-between'
+  container: {
+    height: 52,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 30,
+    marginTop: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent', // Ensure no background fill
   },
   spacer: {
     flex: 1
-  },
-  whiteButton: {
-    backgroundColor: 'white',
-    borderRadius: 12
   }
 })
-
-

@@ -410,7 +410,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 const ActionOccurrencePage = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext } = useData();
+  const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
   const { show: showToast } = useToast();
   const params = route.params as {
     occurrenceId?: string;
@@ -494,6 +494,27 @@ const ActionOccurrencePage = () => {
   useEffect(() => {
     const loadArtifacts = async () => {
       if (!params?.occurrenceId) return;
+
+      // Mock Data for Screenshot Mode
+      if (isScreenshotMode) {
+        // Check if it's the High Protein action (Area 2, Index 1 -> 'occ-area-2-1')
+        const isHighProtein = params.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein'));
+        
+        if (isHighProtein) {
+          // @ts-ignore: Mocking artifact
+          setArtifacts([{ 
+            id: 'mock-art-1', 
+            signed_url: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=80', // Healthy food
+            created_at: new Date().toISOString(),
+            file_name: 'meal_prep.jpg',
+            mime_type: 'image/jpeg',
+            occurrence_id: params.occurrenceId,
+            storage_path: 'mock'
+          }]);
+          setNote("Found some great recipes for chicken breast and quinoa. Planning to prep on Sunday.");
+          return;
+        }
+      }
       
       try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1073,9 +1094,8 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         <IconButton
           icon="chevron_left"
           onPress={() => navigation.goBack()}
-          variant="ghost"
+          variant="secondary"
           size="md"
-          style={styles.backButton}
         />
         <View style={styles.headerRight}>
           <View ref={menuButtonRef}>
@@ -1211,6 +1231,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             onPress={handleAIDiscussion}
             variant="secondary"
             size="md"
+            style={{ borderRadius: theme.radius.xl }}
           />
         </View>
 
@@ -1236,7 +1257,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       {/* Bottom Section */}
       <View style={styles.bottomSection}>
         {/* Uploaded Images Row */}
-        {artifacts.length > 0 && (
+        {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein')))) && (
           <View style={styles.uploadedImagesRow}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
               {artifacts.map((artifact) => (
@@ -1260,20 +1281,31 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
         {/* Upload Button and Text Input Row */}
         <View style={styles.inputRow}>
-          <TouchableOpacity 
-            style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
-            onPress={handleImagePicker}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
-            ) : (
-              <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
-            )}
-            <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-              {isUploading ? 'Uploading...' : 'Upload Photo'}
-            </Text>
-          </TouchableOpacity>
+          {isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein'))) && artifacts.length > 0 ? (
+            // Show photo instead of upload button in screenshot mode
+            <View style={styles.photoContainer}>
+              <Image
+                source={{ uri: artifacts[0].signed_url }}
+                style={styles.photoInRow}
+                resizeMode="cover"
+              />
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
+              onPress={handleImagePicker}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+              ) : (
+                <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+              )}
+              <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
+                {isUploading ? 'Uploading...' : 'Upload Photo'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TextInput
             style={styles.textInputInRow}
@@ -1334,10 +1366,6 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 16,
     backgroundColor: 'transparent',
-  },
-  backButton: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: 12,
   },
   headerRight: {
     width: 40,
@@ -1503,7 +1531,7 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     backgroundColor: theme.colors.surface[50],
-    borderRadius: 12,
+    borderRadius: theme.radius.xl,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1519,7 +1547,7 @@ const styles = StyleSheet.create({
   textInputInRow: {
     flex: 1,
     backgroundColor: theme.colors.surface[50],
-    borderRadius: 12,
+    borderRadius: theme.radius.xl,
     padding: 16,
     fontSize: 16,
     minHeight: 80,
@@ -1549,7 +1577,7 @@ const styles = StyleSheet.create({
   uploadedImage: {
     width: 80,
     height: 80,
-    borderRadius: 12,
+    borderRadius: theme.radius.xl,
   },
   deleteImageButton: {
     position: 'absolute',
@@ -1563,6 +1591,16 @@ const styles = StyleSheet.create({
   },
   uploadTextDisabled: {
     color: theme.colors.grey[500],
+  },
+  photoContainer: {
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoInRow: {
+    height: 80,
+    borderRadius: theme.radius.xl,
+    maxWidth: 120,
   },
 });
 

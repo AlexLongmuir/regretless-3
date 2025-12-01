@@ -600,39 +600,38 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
   /**
    * Restore purchases
    */
+  /**
+   * Restore purchases
+   * 
+   * Note: We don't set loading state here to prevent navigation resets.
+   * Components handle their own loading state for UI feedback.
+   */
   const restorePurchases = async (): Promise<{ success: boolean; error?: string }> => {
     try {
-      setLoading(true);
       setError(null);
       
-      // Check if RevenueCat is properly configured
       if (!isRevenueCatConfigured()) {
-        console.log('RevenueCat not configured, skipping restore');
         return { success: false, error: 'RevenueCat not configured' };
       }
       
-      // Double-check that Purchases is available and has the required methods
       if (!Purchases || typeof Purchases.restorePurchases !== 'function') {
-        console.log('RevenueCat Purchases object not properly initialized for restore');
         return { success: false, error: 'RevenueCat not properly initialized' };
       }
       
       const info = await Purchases.restorePurchases();
-      setCustomerInfo(info);
       
+      // Only update customerInfo if we have active subscriptions
+      // This prevents triggering navigation resets when there are no subscriptions
       if (info.entitlements?.active?.['pro']) {
-        console.log('Purchases restored successfully');
+        setCustomerInfo(info);
         return { success: true };
       } else {
         return { success: false, error: 'No active subscriptions found' };
       }
     } catch (err: any) {
-      console.error('Error restoring purchases:', err);
       const errorMessage = err.message || 'Failed to restore purchases';
       setError(errorMessage);
       return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false);
     }
   };
 

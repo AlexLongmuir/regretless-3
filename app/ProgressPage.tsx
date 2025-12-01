@@ -14,7 +14,7 @@ import { useData } from '../contexts/DataContext';
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
-  const { state, getDreamsWithStats, getProgress, onScreenFocus } = useData();
+  const { state, getDreamsWithStats, getProgress, onScreenFocus, isScreenshotMode } = useData();
 
   // Load data on mount
   useEffect(() => {
@@ -131,13 +131,14 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           // Calculate day progress
           const startDate = new Date(dream.start_date);
           const endDate = dream.end_date ? new Date(dream.end_date) : null;
-          const today = new Date();
+          // Use mocked date for screenshot mode (Jan 1, 2026), otherwise real date
+          const today = isScreenshotMode ? new Date('2026-01-01') : new Date();
           
           let currentDay = 1;
           let totalDays = 1;
           
           if (endDate) {
-            totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
             currentDay = Math.max(1, Math.min(currentDay, totalDays));
           } else {

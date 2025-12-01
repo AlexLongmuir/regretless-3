@@ -232,6 +232,13 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
             leftIcon="privacy_tip"
             onPress={() => navigation?.navigate('PrivacyPolicy')}
           />
+          {(user?.id === '9e0ec607-8bad-4731-84eb-958f98833131' || user?.id === '0952cd47-5227-4f9f-98b3-1e89b2296157') && (
+            <ListRow
+              title="Screenshot Studio"
+              leftIcon="camera_alt"
+              onPress={() => navigation?.navigate('ScreenshotMenu')}
+            />
+          )}
           <ListRow
             title="Log Out"
             leftIcon="logout"

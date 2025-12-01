@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, Image } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, Image, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useToast } from '../../components/toast/ToastProvider'
@@ -152,25 +152,19 @@ export default function TitleStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <CreateScreenHeader step="title" />
       <ScrollView 
         ref={scrollViewRef}
-        style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: 'bold', 
-          color: '#000', 
-          marginBottom: 24,
-          lineHeight: 24
-        }}>
+        <Text style={styles.title}>
           What's the dream you want to achieve?
         </Text>
         
@@ -180,10 +174,7 @@ export default function TitleStep() {
           onChangeText={(t) => setField('title', t)}
           variant="borderless"
           multiline={true}
-          style={{ 
-            minHeight: 44,
-            marginBottom: 16
-          }}
+          style={styles.input}
         />
 
         <DreamInputActions
@@ -194,16 +185,11 @@ export default function TitleStep() {
 
         {/* Personalized suggestions now live inside the bottom sheets (not on base page) */}
 
-        <Text style={{ 
-          fontSize: 12, 
-          fontWeight: '600', 
-          color: '#000', 
-          marginBottom: 16 
-        }}>
+        <Text style={styles.optionsLabel}>
           Frequently chosen goals
         </Text>
 
-        <View style={{ gap: 8 }}>
+        <View style={styles.optionsContainer}>
           {dreamPresets.map((preset, index) => (
             <EmojiListRow
               key={index}
@@ -211,21 +197,22 @@ export default function TitleStep() {
               text={preset.text}
               type="select"
               onSelect={handlePresetSelect}
+              isSelected={title === preset.text}
             />
           ))}
         </View>
+        
+        {/* Add spacing area before button */}
+        <View style={styles.spacingArea} />
       </ScrollView>
       
       {/* Footer with button */}
-      <View style={{ 
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
+      <View style={styles.footer}>
         <Button 
           title="Continue"
           variant={"black" as any}
           onPress={handleContinue}
+          style={styles.button}
         />
       </View>
 
@@ -235,3 +222,52 @@ export default function TitleStep() {
   )
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing['2xl'],
+    paddingBottom: theme.spacing['4xl'],
+  },
+  title: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    lineHeight: theme.typography.lineHeight.title2,
+    color: theme.colors.grey[900],
+    textAlign: 'left',
+    marginBottom: theme.spacing['2xl'],
+  },
+  input: {
+    width: '100%',
+    marginBottom: theme.spacing.lg,
+  },
+  optionsLabel: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 12,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[600],
+    marginBottom: theme.spacing.md,
+  },
+  optionsContainer: {
+    gap: theme.spacing.sm,
+  },
+  spacingArea: {
+    height: theme.spacing['4xl'],
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
+  },
+})

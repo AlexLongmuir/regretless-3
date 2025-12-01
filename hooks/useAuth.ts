@@ -34,6 +34,8 @@ export interface AuthState {
   error: string | null;
   // Computed boolean for convenience
   isAuthenticated: boolean;
+  // Whether auth state is being initialized
+  isInitializing: boolean;
 }
 
 export interface AuthOperations {
@@ -64,6 +66,7 @@ export const useAuth = (): AuthHook => {
   // State management for auth
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true); // Start with loading=true for initial session check
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -577,6 +580,7 @@ export const useAuth = (): AuthHook => {
         setError('Failed to restore session');
       } finally {
         setLoading(false);
+        setIsInitializing(false);
       }
     };
 
@@ -597,6 +601,7 @@ export const useAuth = (): AuthHook => {
     loading,
     error,
     isAuthenticated: !!user,
+    isInitializing,
     
     // Operations
     signUp,

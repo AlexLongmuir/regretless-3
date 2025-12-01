@@ -41,8 +41,7 @@ const GeneratingStep: React.FC = () => {
         <Button
           title="Continue"
           onPress={() => navigation.navigate('Progress' as never)}
-          variant="primary"
-          size="lg"
+          variant="black"
           style={styles.button}
         />
       </View>

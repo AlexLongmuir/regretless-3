@@ -9,13 +9,17 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
-import { IconButton } from '../../components/IconButton';
+import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../lib/NotificationService';
 
 const TrialReminderStep: React.FC = () => {
   const navigation = useNavigation();
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
+
+  const handleBack = () => {
+    navigation.goBack();
+  };
 
   const handleContinue = async () => {
     setIsRequestingPermissions(true);
@@ -52,15 +56,7 @@ const TrialReminderStep: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow_left"
-          onPress={() => navigation.goBack()}
-          variant="ghost"
-          size="md"
-          style={styles.backButton}
-        />
-      </View>
+      <OnboardingHeader onBack={handleBack} />
       
       <View style={styles.content}>
         <View style={styles.topSection}>
@@ -162,18 +158,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     color: theme.colors.grey[600],
     textAlign: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['3xl'],
-    paddingBottom: theme.spacing.md,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
   },
 });
 

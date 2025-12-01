@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button, ActionChipsList, IconButton } from '../../components'
@@ -18,6 +18,7 @@ interface ActionCard {
   acceptance_criteria?: string[]
   dream_image?: string
   occurrence_no?: number
+  hideEditButtons?: boolean
 }
 
 export default function ActionsStep() {
@@ -62,7 +63,6 @@ export default function ActionsStep() {
       slice_count_target: action.slice_count_target,
       acceptance_criteria: action.acceptance_criteria || [],
       dream_image: image_url || undefined, // Use dream image for all actions
-      // Don't set occurrence_no for original actions - this makes them show as "4 repeats" instead of "1 of 4"
       hideEditButtons: false // Show edit buttons in create flow
     }))
 
@@ -146,67 +146,14 @@ export default function ActionsStep() {
   const isLastArea = currentAreaIndex === areas.length - 1
   const isFirstArea = currentAreaIndex === 0
 
-  // Custom header component that handles area navigation
-  const CustomHeader = () => {
-    const navigation = useNavigation()
-    const { reset } = useCreateDream()
-    
-    const handleBack = () => {
-      if (isFirstArea) {
-        // If we're on the first area, go back to areas step
-        navigation.goBack()
-      } else {
-        // Go to previous area
-        setCurrentAreaIndex(currentAreaIndex - 1)
-      }
+  const handleBack = () => {
+    if (isFirstArea) {
+      // If we're on the first area, go back to areas step
+      navigation.goBack()
+    } else {
+      // Go to previous area
+      setCurrentAreaIndex(currentAreaIndex - 1)
     }
-
-    const handleClose = () => {
-      // Reset the CreateDreamContext state
-      reset()
-      
-      // Close the entire create flow and return to main app
-      const parentNavigation = navigation.getParent()
-      if (parentNavigation) {
-        parentNavigation.navigate('Tabs')
-      } else {
-        navigation.goBack()
-      }
-    }
-
-    return (
-      <View style={{ 
-        height: 52, 
-        paddingHorizontal: 12, 
-        paddingTop: 8,
-        marginTop: 44, // Add space for status bar
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'space-between'
-      }}>
-        <IconButton 
-          icon="chevron_left" 
-          onPress={handleBack}
-          variant="ghost"
-          size="md"
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 12
-          }}
-        />
-        <View style={{ flex: 1 }} />
-        <IconButton 
-          icon="close" 
-          onPress={handleClose}
-          variant="ghost"
-          size="md"
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 12
-          }}
-        />
-      </View>
-    )
   }
 
   const handleReorderActions = (reorderedActions: any[]) => {
@@ -222,47 +169,6 @@ export default function ActionsStep() {
     // Update all actions, replacing the current area actions with reordered ones
     const otherActions = actions.filter(action => action.area_id !== currentArea?.id)
     setActions([...otherActions, ...updatedActions])
-  }
-
-  const handleRefreshActions = async () => {
-    if (!dreamId || !title) return
-    
-    setIsLoading(true)
-    
-    try {
-      // Get auth token
-      const { data: { session } } = await supabaseClient.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No authentication token available')
-      }
-
-      const generatedActions = await generateActions({ 
-        dream_id: dreamId,
-        title: title || '',
-        start_date: start_date || undefined,
-        end_date: end_date || undefined,
-        baseline: baseline || undefined,
-        obstacles: obstacles || undefined,
-        enjoyment: enjoyment || undefined,
-        timeCommitment: timeCommitment || undefined,
-        areas: areas
-      }, session.access_token)
-      
-      if (generatedActions && generatedActions.length > 0) {
-        // Store the new actions in context
-        setActions(generatedActions)
-      }
-      
-      // Simulate minimum loading time for UX
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 2000)
-    } catch (error) {
-      console.error('Failed to refresh actions:', error)
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 1000)
-    }
   }
 
   const handleApproveArea = async () => {
@@ -314,24 +220,12 @@ export default function ActionsStep() {
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
           
           {/* Title */}
-          <Text style={{ 
-            fontSize: 18, 
-            fontWeight: 'bold', 
-            color: '#000', 
-            marginBottom: 16,
-            lineHeight: 24
-          }}>
+          <Text style={styles.loadingTitle}>
             Creating Actions
           </Text>
           
           {/* Description */}
-          <Text style={{ 
-            fontSize: 16, 
-            color: '#000', 
-            textAlign: 'center',
-            paddingHorizontal: 32,
-            lineHeight: 22
-          }}>
+          <Text style={styles.loadingDescription}>
             These are the things you tick off to complete each area and then your overall dream
           </Text>
           
@@ -378,17 +272,30 @@ export default function ActionsStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <CustomHeader />
+      <View style={styles.headerContainer}>
+        <IconButton 
+          icon="chevron_left_rounded" 
+          onPress={handleBack}
+          variant="ghost"
+          size="lg"
+          iconSize={42}
+          iconWrapperStyle={{ marginLeft: -1 }}
+        />
+        <View style={{ flex: 1 }} />
+        <IconButton 
+          icon="close" 
+          onPress={() => navigation.navigate('Tabs')} 
+          variant="ghost"
+          size="md"
+        />
+      </View>
       
       {/* Area Navigation Header */}
-      <View style={{ 
-        paddingHorizontal: 16, 
-        paddingVertical: 12
-      }}>
+      <View style={styles.areaHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 24, marginRight: 8 }}>{currentArea.icon || '🚀'}</Text>
@@ -401,41 +308,19 @@ export default function ActionsStep() {
               </Text>
             </View>
           </View>
-          
-          {/* Area Navigation Dots */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {areas.map((_, index) => (
-              <View
-                key={index}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: index <= currentAreaIndex ? '#10B981' : '#E5E7EB',
-                  marginLeft: 4
-                }}
-              />
-            ))}
-          </View>
         </View>
       </View>
       
       <ScrollView 
-        style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 400 }}
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {/* Actions Section */}
         <View style={{ marginBottom: 32 }}>
           
-          <Text style={{ 
-            fontSize: 12, 
-            fontWeight: 'bold',
-            color: '#000', 
-            marginBottom: 16,
-            lineHeight: 16
-          }}>
+          <Text style={styles.sectionTitle}>
             These are the actions for the {currentArea.title.toLowerCase()} area and the acceptance criteria for each action
           </Text>
 
@@ -487,23 +372,15 @@ export default function ActionsStep() {
               addAction(action)
             }}
             onReorder={handleReorderActions}
+            showAddButton={false}
           />
         </View>
       </ScrollView>
       
       {/* Footer section */}
-      <View style={{ 
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
+      <View style={styles.footer}>
         {/* Instructional Text */}
-        <Text style={{ 
-          fontSize: 14, 
-          color: '#000', 
-          marginBottom: 12,
-          lineHeight: 20
-        }}>
+        <Text style={styles.footerText}>
           If you want to change these, hold down to edit or provide feedback to our AI.
         </Text>
 
@@ -513,19 +390,11 @@ export default function ActionsStep() {
           onChangeText={setFeedback}
           placeholder="Provide detailed feedback here for AI to adjust your actions accordingly.."
           multiline
-          style={{ 
-            minHeight: 60,
-            backgroundColor: 'white',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 12,
-            fontSize: 16,
-            textAlignVertical: 'top'
-          }}
+          style={styles.feedbackInput}
         />
         
         {/* Navigation Buttons */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={styles.buttonContainer}>
           {/* AI Fix Button */}
           <Button 
             title="Fix with AI" 
@@ -596,7 +465,7 @@ export default function ActionsStep() {
                 }, 1000)
               }
             }}
-            style={{ flex: 1 }}
+            style={styles.flexButton}
             disabled={!feedback.trim()}
           />
           
@@ -608,10 +477,86 @@ export default function ActionsStep() {
               Keyboard.dismiss() // Close keyboard when continuing
               handleApproveArea()
             }}
-            style={{ flex: 1, borderRadius: theme.radius.xl }}
+            style={styles.flexButton}
           />
         </View>
       </View>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  headerContainer: {
+    height: 52,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 30,
+    marginTop: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  areaHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 400,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  loadingTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+    lineHeight: 24
+  },
+  loadingDescription: {
+    fontSize: 16,
+    color: '#000',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 22
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#000',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  feedbackInput: {
+    minHeight: 60,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  flexButton: {
+    flex: 1,
+    borderRadius: theme.radius.xl,
+  },
+})

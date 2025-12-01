@@ -145,8 +145,7 @@ const RatingStep: React.FC = () => {
         <Button
           title="Continue"
           onPress={handleContinue}
-          variant="primary"
-          size="lg"
+          variant="black"
           style={styles.button}
         />
       </View>

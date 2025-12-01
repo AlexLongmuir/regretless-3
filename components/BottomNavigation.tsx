@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Pressable, Text, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { theme } from '../utils/theme';
 
@@ -42,6 +43,42 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
     return null;
   };
 
+  const renderTabContent = () => (
+    <View style={styles.tabContainer}>
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.key;
+        
+        return (
+          <Pressable
+            key={tab.key}
+            style={[styles.tab, isActive && styles.activeTab]}
+            onPress={() => onTabPress(tab.key)}
+          >
+            {renderIcon(tab.icon, isActive)}
+            <Text style={[styles.label, isActive && styles.activeLabel]}>
+              {tab.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  // Use GlassView for iOS to get the native liquid glass effect
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.container, style]}>
+        <GlassView
+          style={styles.blurContainer}
+          glassEffectStyle="systemChromeMaterial" // Gives a nice native translucent look
+        >
+          {renderTabContent()}
+        </GlassView>
+      </View>
+    );
+  }
+
+  // Fallback to BlurView for Android or other platforms
   return (
     <View style={[styles.container, style]}>
       <BlurView
@@ -49,24 +86,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         tint="light"
         style={styles.blurContainer}
       >
-        <View style={styles.tabContainer}>
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.key;
-            
-            return (
-              <Pressable
-                key={tab.key}
-                style={[styles.tab, isActive && styles.activeTab]}
-                onPress={() => onTabPress(tab.key)}
-              >
-                {renderIcon(tab.icon, isActive)}
-                <Text style={[styles.label, isActive && styles.activeLabel]}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {renderTabContent()}
       </BlurView>
     </View>
   );
@@ -98,7 +118,9 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    // For glass on iOS, we want transparent background so the blur shows through
+    // For BlurView on Android, we might want a slight tint if needed, but keeping consistent
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(255, 255, 255, 0.1)',
     paddingVertical: 8,
     paddingHorizontal: 4,
     borderRadius: 30,
@@ -114,7 +136,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 1,
   },
   activeTab: {
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   label: {
     fontFamily: theme.typography.fontFamily.system,

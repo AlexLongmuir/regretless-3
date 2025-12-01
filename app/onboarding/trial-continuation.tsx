@@ -7,9 +7,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
-import { IconButton } from '../../components/IconButton';
+import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { notificationService } from '../../lib/NotificationService';
@@ -257,13 +258,16 @@ const TrialContinuationStep: React.FC = () => {
     setShowOneTimeOffer(false);
   };
 
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
   const handleRestore = async () => {
     setLoading(true);
     try {
       const result = await restorePurchases();
       
       if (result.success) {
-        // Navigate to PostPurchaseSignIn
         navigation.navigate('PostPurchaseSignIn' as never);
       } else {
         Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
@@ -329,20 +333,25 @@ const TrialContinuationStep: React.FC = () => {
     },
   ];
 
+  // Create Restore button matching IconButton style
+  const restoreButton = (
+    <TouchableOpacity
+      onPress={handleRestore}
+      style={styles.restoreButtonWrapper}
+    >
+      <BlurView 
+        intensity={100} 
+        tint="light" 
+        style={styles.restoreButton}
+      >
+        <Text style={styles.restoreText}>Restore</Text>
+      </BlurView>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow_left"
-          onPress={() => navigation.goBack()}
-          variant="ghost"
-          size="md"
-          style={styles.backButton}
-        />
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreButton}>
-          <Text style={styles.restoreText}>Restore</Text>
-        </TouchableOpacity>
-      </View>
+      <OnboardingHeader onBack={handleBack} rightElement={restoreButton} />
       
       <View style={styles.content}>
         <View style={styles.topSection}>
@@ -675,27 +684,35 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[600],
     textAlign: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['3xl'],
-    paddingBottom: theme.spacing.md,
+  restoreButtonWrapper: {
+    width: 80,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
   restoreButton: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
   },
   restoreText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.grey[700],
   },
   // Modal styles
   modalOverlay: {

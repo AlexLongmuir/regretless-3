@@ -9,13 +9,18 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
-import { IconButton } from '../../components/IconButton';
+import { OnboardingHeader } from '../../components/onboarding';
+import { Ionicons } from '@expo/vector-icons';
 
 const OneTimeOfferStep: React.FC = () => {
   const navigation = useNavigation();
   const [showOffer, setShowOffer] = useState(false);
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
+
+  const handleBack = () => {
+    navigation.goBack();
+  };
 
   useEffect(() => {
     console.log('OneTimeOfferStep mounted, starting 3-second timer...');
@@ -55,15 +60,7 @@ const OneTimeOfferStep: React.FC = () => {
   if (!showOffer) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <IconButton
-            icon="arrow_left"
-            onPress={() => navigation.goBack()}
-            variant="ghost"
-            size="md"
-            style={styles.backButton}
-          />
-        </View>
+        <OnboardingHeader onBack={handleBack} />
         <View style={styles.waitingContainer}>
           <Text style={styles.waitingText}>Please wait...</Text>
         </View>
@@ -73,15 +70,7 @@ const OneTimeOfferStep: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow_left"
-          onPress={() => navigation.goBack()}
-          variant="ghost"
-          size="md"
-          style={styles.backButton}
-        />
-      </View>
+      <OnboardingHeader onBack={handleBack} />
       
       <Animated.View 
         style={[
@@ -145,14 +134,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title3,
     fontWeight: theme.typography.fontWeight.medium as any,
     color: theme.colors.grey[600],
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['3xl'],
-    paddingBottom: theme.spacing.md,
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,
@@ -247,10 +228,6 @@ const styles = StyleSheet.create({
   claimButton: {
     width: '100%',
     borderRadius: theme.radius.xl,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 12,
   },
 });
 

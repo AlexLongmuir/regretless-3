@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/areas/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/Users/alex/regretless-3/backend/":[],"/Users/alex/regretless-3/backend/app/api/areas/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}}

@@ -252,22 +252,6 @@ const ActionsConfirmStep: React.FC = () => {
               </Text>
             </View>
           </View>
-          
-          {/* Area Navigation Dots */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {state.generatedAreas.map((_, index) => (
-              <View
-                key={index}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: index <= currentAreaIndex ? '#10B981' : '#E5E7EB',
-                  marginLeft: 4
-                }}
-              />
-            ))}
-          </View>
         </View>
       </View>
       
@@ -297,6 +281,7 @@ const ActionsConfirmStep: React.FC = () => {
             onRemove={() => {}} // No-op for onboarding
             onAdd={() => {}} // No-op for onboarding
             onReorder={handleReorderActions}
+            showAddButton={false}
           />
         </View>
       </ScrollView>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput, FlatList } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput, FlatList, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
@@ -11,12 +11,14 @@ import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
-export default function AreasStep() {
+export default function PersonalizeStep() {
   const navigation = useNavigation<any>()
   const { dreamId, title, start_date, end_date, image_url, setField, preloadedDefaultImages } = useCreateDream()
   const [defaultImages, setDefaultImages] = useState<DreamImage[]>([])
   const [selectedImage, setSelectedImage] = useState<string | null>(image_url || null)
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
+  const [isUploading, setIsUploading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Update selectedImage when image_url changes from context
   useEffect(() => {
@@ -24,21 +26,15 @@ export default function AreasStep() {
       setSelectedImage(image_url)
     }
   }, [image_url])
-  const [isUploading, setIsUploading] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
 
   // Load default images on component mount
   useEffect(() => {
-    // Check if images are already preloaded
     if (preloadedDefaultImages !== null && preloadedDefaultImages !== undefined && Array.isArray(preloadedDefaultImages)) {
       setDefaultImages(preloadedDefaultImages)
       setIsLoading(false)
-      // Since images are prefetched, they should load instantly - mark them as ready
-      // We'll still track individual loads to ensure smooth rendering
       return
     }
 
-    // Fallback to fetching if not preloaded
     const loadDefaultImages = async () => {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
@@ -48,7 +44,6 @@ export default function AreasStep() {
           return
         }
 
-        // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Request timeout')), 10000)
         )
@@ -61,11 +56,11 @@ export default function AreasStep() {
         if (response.success && response.data?.images) {
           setDefaultImages(response.data.images)
         } else {
-          setDefaultImages([]) // Set empty array to show upload option only
+          setDefaultImages([]) 
         }
       } catch (error) {
         console.error('Error loading default images:', error)
-        setDefaultImages([]) // Set empty array on error to show upload option
+        setDefaultImages([])
       } finally {
         setIsLoading(false)
       }
@@ -81,7 +76,6 @@ export default function AreasStep() {
 
   const handleImageUpload = async () => {
     try {
-      // Request permission to access media library
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
       
       if (permissionResult.granted === false) {
@@ -89,7 +83,6 @@ export default function AreasStep() {
         return
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -102,7 +95,6 @@ export default function AreasStep() {
         try {
           const { data: { session } } = await supabaseClient.auth.getSession()
           if (session?.access_token) {
-            // Create a file object for React Native
             const file = {
               uri: result.assets[0].uri,
               name: result.assets[0].fileName || 'image.jpg',
@@ -131,7 +123,6 @@ export default function AreasStep() {
   }
 
   const handleContinue = async () => {
-    // Check if an image is selected
     if (!selectedImage) {
       Alert.alert(
         'Image Required',
@@ -141,10 +132,8 @@ export default function AreasStep() {
       return
     }
 
-    // Navigate immediately for smooth UX
     navigation.navigate('Questions')
 
-    // Handle backend operations in background
     if (dreamId) {
       try {
         const { data: { session } } = await supabaseClient.auth.getSession()
@@ -170,12 +159,9 @@ export default function AreasStep() {
   const renderImageItem = ({ item, index }: { item: DreamImage; index: number }) => {
     const isSelected = selectedImage === item.signed_url
     const isFirstItem = index === 0
-    // If images are preloaded, assume they're ready (prefetched = cached = instant load)
     const isPreloaded = preloadedDefaultImages !== null && preloadedDefaultImages !== undefined
-    const isLoaded = isPreloaded || loadedImages.has(item.signed_url)
     
     if (isFirstItem) {
-      // First item is the upload button
       return (
         <TouchableOpacity
           onPress={handleImageUpload}
@@ -223,25 +209,14 @@ export default function AreasStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={styles.container}>
       <CreateScreenHeader step="personalize" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: 'bold', 
-          color: '#000', 
-          marginBottom: 32,
-          lineHeight: 24
-        }}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.title}>
           Personalize your dream
         </Text>
 
-        <Text style={{ 
-          fontSize: 14, 
-          fontWeight: '600', 
-          color: '#000', 
-          marginBottom: 16 
-        }}>
+        <Text style={styles.subtitle}>
           Choose an image: *
         </Text>
         
@@ -271,30 +246,53 @@ export default function AreasStep() {
         )}
       </ScrollView>
       
-      {/* Sticky bottom button */}
-      <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
-        paddingBottom: BOTTOM_NAV_PADDING
-      }}>
+      <View style={styles.footer}>
         <Button 
           title="Continue"
           variant={selectedImage ? "black" : "outline"}
           onPress={handleContinue}
           disabled={!selectedImage}
+          style={styles.button}
         />
       </View>
     </View>
   )
 }
 
-const styles = {
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing['2xl'],
+    paddingBottom: theme.spacing['4xl'],
+  },
+  title: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    lineHeight: theme.typography.lineHeight.title2,
+    color: theme.colors.grey[900],
+    textAlign: 'left',
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: 14,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    lineHeight: 18,
+    color: theme.colors.grey[600],
+    textAlign: 'left',
+    marginBottom: theme.spacing.xl,
+  },
   loadingContainer: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 40,
   },
   loadingText: {
@@ -305,24 +303,24 @@ const styles = {
     paddingBottom: 20,
   },
   row: {
-    justifyContent: 'space-between' as const,
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   imageItem: {
     width: '30%',
     aspectRatio: 1,
     borderRadius: 12,
-    overflow: 'hidden' as const,
+    overflow: 'hidden',
     backgroundColor: 'white',
-    position: 'relative' as const,
+    position: 'relative',
   },
   uploadButton: {
     backgroundColor: theme.colors.surface[50],
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: theme.colors.grey[200],
-    borderStyle: 'dashed' as const,
+    borderStyle: 'dashed',
   },
   uploadButtonDisabled: {
     opacity: 0.5,
@@ -342,14 +340,23 @@ const styles = {
   },
   selectedImageItem: {
     borderWidth: 3,
-    borderColor: theme.colors.primary || '#000',
+    borderColor: theme.colors.primary[600] || '#000000',
   },
   selectedOverlay: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: 8,
     right: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 12,
     padding: 4,
   },
-}
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
+  },
+});

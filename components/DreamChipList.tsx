@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, Image, ScrollView } from 'react-nati
 import { theme } from '../utils/theme';
 import { Icon } from './Icon';
 import type { Dream, DreamWithStats } from '../backend/database/types';
+import { useData } from '../contexts/DataContext';
 
 interface DreamChipProps {
   dream: DreamWithStats;
@@ -20,6 +21,8 @@ interface DreamChipListProps {
 }
 
 const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
+  const { isScreenshotMode } = useData(); // Get screenshot mode state
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const day = date.getDate();
@@ -43,10 +46,11 @@ const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
   const calculateDayProgress = () => {
     const startDate = new Date(dream.start_date);
     const endDate = dream.end_date ? new Date(dream.end_date) : null;
-    const today = new Date();
+    // Use mocked date for screenshot mode (Jan 1, 2026), otherwise real date
+    const today = isScreenshotMode ? new Date('2026-01-01') : new Date();
     
     if (endDate) {
-      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const currentDay = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       return { current: Math.max(1, currentDay), total: totalDays };
     }
@@ -83,7 +87,7 @@ const DreamChip: React.FC<DreamChipProps> = ({ dream, onPress, style }) => {
             <Text style={styles.dayProgress}>
               Day {dayProgress.current}{dayProgress.total ? ` of ${dayProgress.total}` : ''}
             </Text>
-            <Text style={styles.streakText}>🔥 {streak}</Text>
+            {streak > 0 && <Text style={styles.streakText}>🔥 {streak}</Text>}
           </View>
           
           {/* Title */}
