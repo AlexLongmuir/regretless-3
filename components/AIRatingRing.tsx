@@ -24,15 +24,15 @@ const AIRatingRing: React.FC<AIRatingRingProps> = ({
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'excellent':
-        return '#10B981'; // Green
+        return theme.colors.difficulty.easy; // Green - maps to success
       case 'very_good':
-        return '#22C55E'; // Light Green
+        return theme.colors.success[400]; // Light Green
       case 'good':
-        return '#F59E0B'; // Orange
+        return theme.colors.difficulty.medium; // Orange - maps to warning
       case 'okay':
-        return '#EF4444'; // Red
+        return theme.colors.difficulty.hard; // Red - maps to error
       default:
-        return '#6B7280'; // Gray
+        return theme.colors.icon.secondary; // Gray
     }
   };
 

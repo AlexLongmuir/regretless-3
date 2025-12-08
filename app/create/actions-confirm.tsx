@@ -2,8 +2,8 @@ import React, { useState } from 'react'
 import { View, Text, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
+import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { activateDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
@@ -34,8 +34,13 @@ export default function ActionsConfirmStep() {
       
       // Check if activation and scheduling were successful
       if (result.success) {
-        // Navigate to main app tabs
-        navigation.navigate('Tabs')
+        // Navigate back from CreateFlow modal to return to main app
+        const parentNavigation = navigation.getParent()
+        if (parentNavigation && parentNavigation.canGoBack()) {
+          parentNavigation.goBack()
+        } else if (navigation.canGoBack()) {
+          navigation.goBack()
+        }
       } else {
         // Show error if activation or scheduling failed
         Alert.alert(
@@ -75,14 +80,14 @@ export default function ActionsConfirmStep() {
           width: 200,
           height: 200,
           borderRadius: 100,
-          backgroundColor: '#10B981', // Green color
+          backgroundColor: theme.colors.status.completed,
           justifyContent: 'center',
           alignItems: 'center',
           marginBottom: 24
         }}>
           <Text style={{ 
             fontSize: 100, 
-            color: 'white',
+            color: theme.colors.text.inverse,
             fontWeight: 'bold'
           }}>
             ✓

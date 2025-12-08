@@ -117,6 +117,8 @@ export const ACTIONS_SCHEMA = {
             type: "array",
             items: { type: "string" }
           },
+          acceptance_intro: { type: "string" },
+          acceptance_outro: { type: "string" },
           position: { type: "integer" }
         },
         required: ["area_id", "title", "est_minutes", "difficulty", "acceptance_criteria", "position"]

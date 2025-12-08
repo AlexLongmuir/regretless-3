@@ -139,7 +139,114 @@ export const resetOnboardingState = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem('hasCompletedOnboarding');
     await AsyncStorage.removeItem('lastKnownEntitled');
+    await AsyncStorage.removeItem('pendingOnboardingDream');
   } catch (error) {
     console.error('Error resetting onboarding state:', error);
+  }
+};
+
+/**
+ * Pending onboarding dream data structure
+ * Stores the onboarding data needed to create a dream when user signs in
+ */
+export interface PendingOnboardingDream {
+  name: string;
+  answers: Record<number, string>;
+  dreamImageUrl: string | null;
+  generatedAreas: Array<{
+    id: string;
+    user_id: string;
+    dream_id: string;
+    title: string;
+    icon?: string;
+    position: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+  generatedActions: Array<{
+    id: string;
+    user_id: string;
+    dream_id: string;
+    area_id: string;
+    title: string;
+    est_minutes?: number;
+    difficulty: 'easy' | 'medium' | 'hard';
+    repeat_every_days?: number;
+    slice_count_target?: number;
+    acceptance_criteria?: string[];
+    acceptance_intro?: string;
+    acceptance_outro?: string;
+    position: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+const PENDING_DREAM_KEY = 'pendingOnboardingDream';
+
+/**
+ * Save pending onboarding dream data to AsyncStorage
+ * This allows the dream to be created when user signs in from any entry point
+ */
+export const savePendingOnboardingDream = async (data: PendingOnboardingDream): Promise<void> => {
+  try {
+    const jsonData = JSON.stringify(data);
+    await AsyncStorage.setItem(PENDING_DREAM_KEY, jsonData);
+    console.log('✅ [ONBOARDING] Saved pending onboarding dream data');
+  } catch (error) {
+    console.error('❌ [ONBOARDING] Error saving pending onboarding dream:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get pending onboarding dream data from AsyncStorage
+ * Returns null if no pending data exists
+ */
+export const getPendingOnboardingDream = async (): Promise<PendingOnboardingDream | null> => {
+  try {
+    const jsonData = await AsyncStorage.getItem(PENDING_DREAM_KEY);
+    if (!jsonData) {
+      return null;
+    }
+    const data = JSON.parse(jsonData) as PendingOnboardingDream;
+    console.log('✅ [ONBOARDING] Retrieved pending onboarding dream data');
+    return data;
+  } catch (error) {
+    console.error('❌ [ONBOARDING] Error retrieving pending onboarding dream:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear pending onboarding dream data from AsyncStorage
+ * Should be called after successfully creating the dream
+ */
+export const clearPendingOnboardingDream = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(PENDING_DREAM_KEY);
+    console.log('✅ [ONBOARDING] Cleared pending onboarding dream data');
+  } catch (error) {
+    console.error('❌ [ONBOARDING] Error clearing pending onboarding dream:', error);
+  }
+};
+
+/**
+ * Check if there is pending onboarding dream data (synchronous check via AsyncStorage key)
+ * This is a lightweight check that doesn't parse the data
+ */
+export const hasPendingOnboardingDream = async (): Promise<boolean> => {
+  try {
+    const jsonData = await AsyncStorage.getItem(PENDING_DREAM_KEY);
+    if (!jsonData) {
+      return false;
+    }
+    // Quick validation that data exists and has required fields
+    const data = JSON.parse(jsonData);
+    return !!(data && data.generatedAreas && data.generatedAreas.length > 0 && 
+              data.generatedActions && data.generatedActions.length > 0);
+  } catch (error) {
+    return false;
   }
 };

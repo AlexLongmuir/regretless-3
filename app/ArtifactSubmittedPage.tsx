@@ -98,10 +98,10 @@ export default function ArtifactSubmittedPage() {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return '#4CAF50'
-      case 'medium': return '#FF9800'
-      case 'hard': return '#F44336'
-      default: return '#4CAF50'
+      case 'easy': return theme.colors.difficulty.easy
+      case 'medium': return theme.colors.difficulty.medium
+      case 'hard': return theme.colors.difficulty.hard
+      default: return theme.colors.difficulty.easy
     }
   }
 
@@ -117,10 +117,10 @@ export default function ArtifactSubmittedPage() {
 
     const getBarColor = (diff: string) => {
       switch (diff) {
-        case 'easy': return '#4CAF50'
-        case 'medium': return '#FF9800'
-        case 'hard': return '#F44336'
-        default: return '#4CAF50'
+        case 'easy': return theme.colors.difficulty.easy
+        case 'medium': return theme.colors.difficulty.medium
+        case 'hard': return theme.colors.difficulty.hard
+        default: return theme.colors.difficulty.easy
       }
     }
 
@@ -135,7 +135,7 @@ export default function ArtifactSubmittedPage() {
             style={{
               width: 3,
               height: bar * 2 + 4,
-              backgroundColor: bar <= barCount ? barColor : '#E0E0E0',
+              backgroundColor: bar <= barCount ? barColor : theme.colors.disabled.inactive,
               borderRadius: 1.5
             }}
           />
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: '#10B981',
+    backgroundColor: theme.colors.status.completed,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 100,
-    color: 'white',
+    color: theme.colors.text.inverse,
     fontWeight: 'bold',
   },
   heroSection: {
@@ -362,10 +362,10 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
+    borderColor: theme.colors.disabled.inactive,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
   },
   progressText: {
     fontSize: 12,

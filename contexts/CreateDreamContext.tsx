@@ -25,6 +25,7 @@ export interface CreateDreamState {
   timelineFeasibilityAnalyzed?: boolean // Track if timeline feasibility analysis has been completed
   originalTitleForFeasibility?: string // Store original title when feasibility was generated
   originalEndDateForFeasibility?: string // Store original end date when feasibility was generated
+  originalTimeCommitmentForFeasibility?: { hours: number; minutes: number } // Store original time commitment when feasibility was generated
   areasAnalyzed?: boolean // Track if areas analysis has been completed
   
   // Legacy fields for backward compatibility

@@ -137,7 +137,13 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
         <SheetHeader
           title={view === 'home' ? 'Upload Dreamboard' : view === 'results' ? 'Results' : 'Past searches'}
           onClose={onClose}
-          onBack={view !== 'home' ? () => setView(previousView) : undefined}
+          onBack={view !== 'home' ? () => {
+            if (view === 'past') {
+              setView('home')
+            } else {
+              setView(previousView)
+            }
+          } : undefined}
         />
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: view === 'home' ? 120 : 100 }}>

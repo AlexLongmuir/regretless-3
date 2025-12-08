@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.grey[300],
   },
   afterBar: {
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.border.selected,
   },
   barValue: {
     fontFamily: theme.typography.fontFamily.system,

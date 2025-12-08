@@ -77,15 +77,20 @@ const TrialContinuationStep: React.FC = () => {
       const offerings = await Purchases.getOfferings();
       console.log('Offerings response:', offerings);
       
-      if (offerings.current) {
+      // First try to get offering with identifier "default"
+      if (offerings.all && offerings.all['default']) {
+        console.log('Default offering found:', offerings.all['default']);
+        setOffering(offerings.all['default']);
+      } else if (offerings.current) {
+        // Fallback to current offering if "default" not found
         console.log('Current offering found:', offerings.current);
         setOffering(offerings.current);
       } else {
-        console.log('No current offering available');
-        console.log('Available offerings:', Object.keys(offerings.all));
+        console.log('No default or current offering available');
+        console.log('Available offerings:', Object.keys(offerings.all || {}));
         
-        // Use the first available offering if current is null
-        const availableOfferings = Object.values(offerings.all);
+        // Use the first available offering if default/current is null
+        const availableOfferings = Object.values(offerings.all || {});
         if (availableOfferings.length > 0) {
           console.log('Using first available offering:', availableOfferings[0]);
           setOffering(availableOfferings[0] as any);

@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 10,
     overflow: 'hidden',
     marginTop: theme.spacing.xl,

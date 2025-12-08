@@ -33,7 +33,7 @@ const IntroStep: React.FC = () => {
       />
 
       <View style={styles.content}>
-        <Text style={styles.title}>Dreams Made Real</Text>
+        <Text style={styles.title}>Make Your Dreams Real</Text>
         
         <View style={styles.buttonContainer}>
           <Button
@@ -53,6 +53,10 @@ const IntroStep: React.FC = () => {
           
           <Text style={styles.signInText}>
             Already purchased? <Text style={styles.signInLink} onPress={() => navigation.navigate('PostPurchaseSignIn' as never)}>Sign in</Text>
+          </Text>
+          
+          <Text style={styles.skipText} onPress={() => navigation.navigate('TrialOffer' as never)}>
+            Skip to purchase
           </Text>
         </View>
       </View>
@@ -89,7 +93,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.largeTitle,
+    fontSize: theme.typography.fontSize.title1,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.grey[900],
     textAlign: 'center',
@@ -119,6 +123,15 @@ const styles = StyleSheet.create({
   signInLink: {
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: theme.colors.grey[900],
+  },
+  skipText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.subheadline,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.grey[600],
+    textAlign: 'center',
+    marginTop: theme.spacing.md,
+    textDecorationLine: 'underline',
   },
 });
 

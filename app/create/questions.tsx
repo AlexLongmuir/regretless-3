@@ -13,7 +13,19 @@ export default function QuestionsStep() {
   const navigation = useNavigation<any>()
   const { dreamId, title, start_date, end_date, image_url, baseline, obstacles, enjoyment, setField } = useCreateDream()
 
+  // Check if all three inputs are filled
+  const isFormValid = Boolean(
+    baseline?.trim() && 
+    obstacles?.trim() && 
+    enjoyment?.trim()
+  )
+
   const handleContinue = async () => {
+    // Prevent navigation if form is not valid
+    if (!isFormValid) {
+      return
+    }
+
     // Navigate immediately for smooth UX
     navigation.navigate('GoalFeasibility')
 
@@ -100,6 +112,7 @@ export default function QuestionsStep() {
           variant={"black" as any}
           onPress={handleContinue}
           style={styles.button}
+          disabled={!isFormValid}
         />
       </View>
     </KeyboardAvoidingView>

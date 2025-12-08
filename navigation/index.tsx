@@ -36,7 +36,6 @@ import TodayPage from '../app/TodayPage';
 import UtilitiesPage from '../app/UtilitiesPage';
 import LoginPage from '../app/LoginPage';
 import AuthLoadingPage from '../app/AuthLoadingPage';
-import ActionPage from '../app/ActionPage';
 import ActionOccurrencePage from '../app/ActionOccurrencePage';
 import ArtifactSubmittedPage from '../app/ArtifactSubmittedPage';
 import DreamCompletedPage from '../app/DreamCompletedPage';
@@ -68,6 +67,8 @@ import { theme } from '../utils/theme';
 // Create stack navigators
 const AuthStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator();
+const DreamsStack = createNativeStackNavigator();
+const TodayStack = createNativeStackNavigator();
 const BottomTab = createNativeBottomTabNavigator();
 
 /**
@@ -93,6 +94,58 @@ const scrollRefs = {
 
 // Scroll to top function - exposed via ref
 let scrollToTopFunction: (() => void) | null = null;
+
+/**
+ * DreamsStackNavigator - Stack navigator for Dreams tab
+ * 
+ * Contains DreamsPage, Dream, and Area screens so the tab bar remains visible
+ * when navigating between these screens.
+ */
+const DreamsStackNavigator = () => {
+  return (
+    <DreamsStack.Navigator screenOptions={{ headerShown: false }}>
+      <DreamsStack.Screen name="DreamsList">
+        {(props) => <DreamsPage {...props} scrollRef={scrollRefs.Dreams} />}
+      </DreamsStack.Screen>
+      <DreamsStack.Screen 
+        name="Dream" 
+        component={DreamPage}
+        options={{ presentation: 'card' }}
+      />
+      <DreamsStack.Screen 
+        name="Area" 
+        component={AreaPage}
+        options={{ presentation: 'card' }}
+      />
+      <DreamsStack.Screen 
+        name="ActionOccurrence" 
+        component={ActionOccurrencePage}
+        options={{ presentation: 'card' }}
+      />
+    </DreamsStack.Navigator>
+  );
+};
+
+/**
+ * TodayStackNavigator - Stack navigator for Today tab
+ * 
+ * Contains TodayPage and ActionOccurrence so the tab bar remains visible
+ * when navigating between these screens.
+ */
+const TodayStackNavigator = () => {
+  return (
+    <TodayStack.Navigator screenOptions={{ headerShown: false }}>
+      <TodayStack.Screen name="TodayList">
+        {(props) => <TodayPage {...props} scrollRef={scrollRefs.Today} />}
+      </TodayStack.Screen>
+      <TodayStack.Screen 
+        name="ActionOccurrence" 
+        component={ActionOccurrencePage}
+        options={{ presentation: 'card' }}
+      />
+    </TodayStack.Navigator>
+  );
+};
 
 /**
  * TabNavigator - Native bottom tab navigation for authenticated users
@@ -134,7 +187,6 @@ const TabNavigator = ({ navigation, route }: any) => {
     <View style={styles.container}>
       <BottomTab.Navigator
         screenOptions={{
-          headerShown: false,
           // Native tabs automatically use liquid glass on iOS 26+
           // No need for custom tabBarBackground or tabBarStyle
         }}
@@ -150,13 +202,26 @@ const TabNavigator = ({ navigation, route }: any) => {
             }),
           }}
           listeners={{
-            tabPress: () => {
-              // Scroll to top when tab is pressed (only works if already on this tab)
-              scrollRefs.Dreams.current?.scrollTo({ y: 0, animated: true });
+            tabPress: (e) => {
+              // Prevent default navigation if we're already on Dreams tab
+              // This allows the scroll-to-top to work
+              const state = navigation.getState();
+              const currentRoute = state?.routes[state?.index];
+              if (currentRoute?.name === 'Dreams') {
+                // Try to navigate to DreamsList if we're on a nested screen
+                const dreamsState = currentRoute.state;
+                if (dreamsState && dreamsState.index > 0) {
+                  // We're on a nested screen (Dream or Area), navigate to DreamsList
+                  navigation.navigate('Dreams', { screen: 'DreamsList' });
+                } else {
+                  // We're on DreamsList, scroll to top
+                  scrollRefs.Dreams.current?.scrollTo({ y: 0, animated: true });
+                }
+              }
             },
           }}
         >
-          {(props) => <DreamsPage {...props} scrollRef={scrollRefs.Dreams} />}
+          {() => <DreamsStackNavigator />}
         </BottomTab.Screen>
         <BottomTab.Screen
           name="Today"
@@ -168,12 +233,26 @@ const TabNavigator = ({ navigation, route }: any) => {
             }),
           }}
           listeners={{
-            tabPress: () => {
-              scrollRefs.Today.current?.scrollTo({ y: 0, animated: true });
+            tabPress: (e) => {
+              // Prevent default navigation if we're already on Today tab
+              // This allows the scroll-to-top to work
+              const state = navigation.getState();
+              const currentRoute = state?.routes[state?.index];
+              if (currentRoute?.name === 'Today') {
+                // Try to navigate to TodayList if we're on a nested screen
+                const todayState = currentRoute.state;
+                if (todayState && todayState.index > 0) {
+                  // We're on a nested screen (ActionOccurrence), navigate to TodayList
+                  navigation.navigate('Today', { screen: 'TodayList' });
+                } else {
+                  // We're on TodayList, scroll to top
+                  scrollRefs.Today.current?.scrollTo({ y: 0, animated: true });
+                }
+              }
             },
           }}
         >
-          {(props) => <TodayPage {...props} scrollRef={scrollRefs.Today} />}
+          {() => <TodayStackNavigator />}
         </BottomTab.Screen>
         <BottomTab.Screen
           name="Progress"
@@ -257,16 +336,6 @@ const MainNavigator = ({
           component={TabNavigator}
         />
         <MainStack.Screen 
-          name="Action" 
-          component={ActionPage}
-          options={{ presentation: 'modal' }}
-        />
-        <MainStack.Screen 
-          name="ActionOccurrence" 
-          component={ActionOccurrencePage}
-          options={{ presentation: 'modal' }}
-        />
-        <MainStack.Screen 
           name="ArtifactSubmitted" 
           component={ArtifactSubmittedPage}
           options={{ presentation: 'modal' }}
@@ -275,16 +344,6 @@ const MainNavigator = ({
           name="DreamCompleted" 
           component={DreamCompletedPage}
           options={{ presentation: 'modal' }}
-        />
-        <MainStack.Screen 
-          name="Dream" 
-          component={DreamPage}
-          options={{ presentation: 'card' }}
-        />
-        <MainStack.Screen 
-          name="Area" 
-          component={AreaPage}
-          options={{ presentation: 'card' }}
         />
         <MainStack.Screen 
           name="Progress" 

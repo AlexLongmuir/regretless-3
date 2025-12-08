@@ -128,11 +128,13 @@ const mockOccurrences: ActionOccurrenceStatus[] = [
       difficulty: 'easy',
       est_minutes: 20,
       recurrence_rule: 'RRULE:FREQ=WEEKLY',
+      acceptance_intro: "Take a moment to plan meals that will fuel your body and support your fitness goals this week",
       acceptance_criteria: [
         'Find 3 cookable high-protein meals',
         'Pick one simple fallback meal',
         'Set daily "protein anchors" (snacks/quick wins)'
       ],
+      acceptance_outro: "You're done when you have a clear, actionable plan for the week ahead",
       areas: {
         title: 'Reset & Build Foundation',
         icon: '🏋️',
@@ -284,11 +286,13 @@ const area2ActionsData = [
     difficulty: "easy",
     est_minutes: 20,
     recurrence_rule: 'RRULE:FREQ=WEEKLY',
+    intro: "Take a moment to plan meals that will fuel your body and support your fitness goals this week",
     criteria: [
       "Find 3 cookable high-protein meals",
       "Pick one simple fallback meal",
       "Set daily 'protein anchors' (snacks/quick wins)"
-    ]
+    ],
+    outro: "You're done when you have a clear, actionable plan for the week ahead"
   },
   {
     title: "Do your strength & conditioning circuit",
@@ -357,7 +361,9 @@ const area2Actions: Action[] = area2ActionsData.map((data, index) => ({
   is_active: true,
   created_at: getRelativeDate(0),
   updated_at: getRelativeDate(-1),
-  acceptance_criteria: data.criteria
+  acceptance_criteria: data.criteria,
+  acceptance_intro: (data as any).intro,
+  acceptance_outro: (data as any).outro
 }));
 
 // Create actions for other areas

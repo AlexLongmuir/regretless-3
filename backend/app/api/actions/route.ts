@@ -74,11 +74,17 @@ export async function POST(req: Request) {
     const existingActionIds = new Set(existingActions?.map(a => a.id) || [])
     const incomingActionIds = new Set(actions.filter(a => a.id).map(a => a.id))
 
+    // Helper function to check if an ID is temporary
+    const isTempId = (id: string | undefined): boolean => {
+      if (!id) return true;
+      return id.startsWith('temp_') || id.startsWith('temp-');
+    };
+
     // Actions to create (no id or temporary id)
-    const actionsToCreate = actions.filter(action => !action.id || action.id.startsWith('temp_'))
+    const actionsToCreate = actions.filter(action => !action.id || isTempId(action.id))
     
     // Actions to update (has id and exists and is not temporary)
-    const actionsToUpdate = actions.filter(action => action.id && !action.id.startsWith('temp_') && existingActionIds.has(action.id))
+    const actionsToUpdate = actions.filter(action => action.id && !isTempId(action.id) && existingActionIds.has(action.id))
     
     // Actions to soft delete (exist in incoming areas but not in incoming list)
     const actionIdsToDelete = [...existingActionIds].filter(id => !incomingActionIds.has(id))

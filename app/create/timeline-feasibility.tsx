@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native'
+import React, { useState } from 'react'
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -24,6 +24,7 @@ export default function TimelineFeasibilityStep() {
     timelineFeasibility,
     timelineFeasibilityAnalyzed,
     originalEndDateForFeasibility,
+    originalTimeCommitmentForFeasibility,
     setField,
     setTimelineFeasibilityAnalyzed
   } = useCreateDream()
@@ -32,6 +33,30 @@ export default function TimelineFeasibilityStep() {
   const [assessment, setAssessment] = useState<string>('')
   const [suggestedEndDate, setSuggestedEndDate] = useState<string>('')
   const [reasoning, setReasoning] = useState<string>('')
+  
+  // Helper to format time commitment for display
+  const formatTimeCommitment = (timeCommitment: { hours: number; minutes: number } | undefined) => {
+    if (!timeCommitment) return ''
+    const totalMinutes = (timeCommitment.hours || 0) * 60 + (timeCommitment.minutes || 0)
+    if (totalMinutes === 0) return ''
+    return `${totalMinutes} ${totalMinutes === 1 ? 'min' : 'mins'}`
+  }
+  
+  // Helper to create concise assessment message
+  const createConciseAssessment = (
+    timeCommitment: { hours: number; minutes: number } | undefined,
+    formattedDate: string,
+    reasoning: string
+  ) => {
+    const timeText = formatTimeCommitment(timeCommitment)
+    if (!timeText) return ''
+    
+    // Extract first sentence from reasoning, or use a default
+    const firstSentence = reasoning.split('.')[0].trim()
+    const explanation = firstSentence || 'Your consistent daily effort will build momentum towards your goal.'
+    
+    return `Based on your daily time commitment of ${timeText}, we forecast you can achieve this by ${formattedDate}. ${explanation}`
+  }
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [currentStartDate, setCurrentStartDate] = useState<string>('')
@@ -56,23 +81,82 @@ export default function TimelineFeasibilityStep() {
     })
   }
 
+  // Helper function to compare time commitments
+  const timeCommitmentChanged = (current: { hours: number; minutes: number } | undefined, original: { hours: number; minutes: number } | undefined) => {
+    if (!current || !original) return true
+    return current.hours !== original.hours || current.minutes !== original.minutes
+  }
+
   useFocusEffect(
     React.useCallback(() => {
+      // Check if time commitment has changed - if so, we need to re-run analysis
+      const timeCommitmentHasChanged = timeCommitmentChanged(timeCommitment, originalTimeCommitmentForFeasibility)
+      
+      // If we already have analyzed data AND time commitment hasn't changed, use it instead of re-running
+      if (timelineFeasibility && timelineFeasibilityAnalyzed && !timeCommitmentHasChanged) {
+        // Initialize current values from context
+        if (start_date) {
+          setCurrentStartDate(start_date)
+        } else {
+          const today = new Date().toISOString().split('T')[0]
+          setCurrentStartDate(today)
+        }
+
+        if (end_date) {
+          setCurrentEndDate(end_date)
+        } else if (timelineFeasibility.suggestedEndDate) {
+          setCurrentEndDate(timelineFeasibility.suggestedEndDate)
+        }
+
+        // Format the suggested end date to match what we display
+        const formattedSuggestedDate = formatDate(timelineFeasibility.suggestedEndDate)
+        
+        // Create concise assessment message
+        const conciseAssessment = createConciseAssessment(
+          timeCommitment,
+          formattedSuggestedDate,
+          timelineFeasibility.reasoning || ''
+        )
+        
+        setAssessment(conciseAssessment)
+        setSuggestedEndDate(timelineFeasibility.suggestedEndDate)
+        setReasoning(timelineFeasibility.reasoning)
+        setIsLoading(false)
+        return
+      }
+
       // Initialize current values from context when navigating back
-      if (start_date) {
-        setCurrentStartDate(start_date)
-      } else if (!currentStartDate) {
+      let startDate = start_date
+      let endDate = end_date
+      
+      if (startDate) {
+        setCurrentStartDate(startDate)
+      } else {
         // Default to today if no start date
         const today = new Date().toISOString().split('T')[0]
+        startDate = today
         setCurrentStartDate(today)
         setField('start_date', today)
       }
 
-      if (end_date) {
-        setCurrentEndDate(end_date)
+      if (endDate) {
+        setCurrentEndDate(endDate)
       }
 
-      // Reset analysis flag and show loading on every page visit
+      // If time commitment changed and we've already analyzed, reset to force re-run
+      if (timeCommitmentHasChanged && timelineFeasibilityAnalyzed) {
+        setTimelineFeasibilityAnalyzed(false)
+        // Clear the cached feasibility data so we re-run
+        setField('timelineFeasibility', undefined)
+      }
+
+      // Only skip analysis if we've analyzed AND time commitment hasn't changed
+      if (timelineFeasibilityAnalyzed && !timeCommitmentHasChanged) {
+        setIsLoading(false)
+        return
+      }
+
+      // Reset analysis flag and show loading
       setHasRunAnalysis(false)
       setIsLoading(true)
 
@@ -88,7 +172,6 @@ export default function TimelineFeasibilityStep() {
         if (hasRunAnalysis) {
           return
         }
-        
         setHasRunAnalysis(true)
         
         try {
@@ -98,10 +181,14 @@ export default function TimelineFeasibilityStep() {
             throw new Error('No authentication token available')
           }
 
+          // Use the initialized dates
+          const finalStartDate = startDate || undefined
+          const finalEndDate = endDate || undefined
+
           const result = await runTimelineFeasibility({ 
             title,
-            start_date: currentStartDate || undefined,
-            end_date: currentEndDate || undefined,
+            start_date: finalStartDate,
+            end_date: finalEndDate,
             baseline: baseline || undefined,
             obstacles: obstacles || undefined,
             enjoyment: enjoyment || undefined,
@@ -110,17 +197,28 @@ export default function TimelineFeasibilityStep() {
           
           // Store in context
           setField('timelineFeasibility', result)
-          setField('originalEndDateForFeasibility', currentEndDate || 'No end date set')
+          setField('originalEndDateForFeasibility', finalEndDate || 'No end date set')
+          setField('originalTimeCommitmentForFeasibility', timeCommitment)
           setTimelineFeasibilityAnalyzed(true)
           
           // Process results
-          setAssessment(result.assessment)
+          // Format the suggested end date to match what we display
+          const formattedSuggestedDate = formatDate(result.suggestedEndDate)
+          
+          // Create concise assessment message
+          const conciseAssessment = createConciseAssessment(
+            timeCommitment,
+            formattedSuggestedDate,
+            result.reasoning || ''
+          )
+          
+          setAssessment(conciseAssessment)
           setSuggestedEndDate(result.suggestedEndDate)
           setReasoning(result.reasoning)
           
-          // Set suggested end date if we don't have one yet
-          if (!currentEndDate) {
-            setCurrentEndDate(result.suggestedEndDate)
+          // Always use the AI's suggested end date (only update if different to prevent loop)
+          setCurrentEndDate(result.suggestedEndDate)
+          if (end_date !== result.suggestedEndDate) {
             setField('end_date', result.suggestedEndDate)
           }
           
@@ -135,14 +233,19 @@ export default function TimelineFeasibilityStep() {
           
           // Fallback to default values if AI fails
           const defaultEndDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 90 days from now
-          setAssessment('Unable to analyze timeline automatically. Please set your preferred end date.')
+          const formattedDefaultDate = formatDate(defaultEndDate)
+          const fallbackAssessment = createConciseAssessment(
+            timeCommitment,
+            formattedDefaultDate,
+            'Your consistent daily effort will build momentum towards your goal.'
+          )
+          setAssessment(fallbackAssessment || 'Unable to analyze timeline automatically. Please set your preferred end date.')
           setSuggestedEndDate(defaultEndDate)
           setReasoning('Default 90-day timeline suggested.')
           
-          if (!currentEndDate) {
-            setCurrentEndDate(defaultEndDate)
-            setField('end_date', defaultEndDate)
-          }
+          // Always use the default end date
+          setCurrentEndDate(defaultEndDate)
+          setField('end_date', defaultEndDate)
           
           setTimeout(() => {
             setIsLoading(false)
@@ -151,7 +254,7 @@ export default function TimelineFeasibilityStep() {
       }
 
       runAnalysis()
-    }, [title, timeCommitment, currentStartDate, currentEndDate])
+    }, [title, timeCommitment, start_date, baseline, obstacles, enjoyment, timelineFeasibility, timelineFeasibilityAnalyzed, originalTimeCommitmentForFeasibility, setField, setTimelineFeasibilityAnalyzed])
   )
 
 
@@ -232,7 +335,7 @@ export default function TimelineFeasibilityStep() {
           <Text style={{ 
             fontSize: 18, 
             fontWeight: 'bold', 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             lineHeight: 24
           }}>
@@ -242,7 +345,7 @@ export default function TimelineFeasibilityStep() {
           {/* Description */}
           <Text style={{ 
             fontSize: 16, 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             textAlign: 'center',
             paddingHorizontal: 32,
             lineHeight: 22
@@ -253,7 +356,7 @@ export default function TimelineFeasibilityStep() {
           {/* Loading indicator */}
           <ActivityIndicator 
             size="large" 
-            color="#000" 
+            color={theme.colors.text.primary} 
             style={{ marginTop: 32 }} 
           />
         </View>
@@ -265,7 +368,7 @@ export default function TimelineFeasibilityStep() {
     <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="feasibility" />
       
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
         {/* Page Title */}
         <Text style={{ 
           fontSize: 18, 
@@ -281,7 +384,7 @@ export default function TimelineFeasibilityStep() {
         <View style={{ marginBottom: 32 }}>
           <Text style={{ 
             fontSize: 16, 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             fontWeight: '600'
           }}>
@@ -292,7 +395,7 @@ export default function TimelineFeasibilityStep() {
           {assessment && (
             <Text style={{ 
               fontSize: 16, 
-              color: '#000', 
+              color: theme.colors.text.primary, 
               marginBottom: 16,
               lineHeight: 22
             }}>
@@ -305,7 +408,7 @@ export default function TimelineFeasibilityStep() {
         <View style={{ marginBottom: 32 }}>
           <Text style={{ 
             fontSize: 16, 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             fontWeight: '600'
           }}>
@@ -315,7 +418,7 @@ export default function TimelineFeasibilityStep() {
           {/* Start Date */}
           <Text style={{ 
             fontSize: 14, 
-            color: '#666', 
+            color: theme.colors.text.muted, 
             marginBottom: 12
           }}>
             Start Date
@@ -336,7 +439,7 @@ export default function TimelineFeasibilityStep() {
           {/* End Date */}
           <Text style={{ 
             fontSize: 14, 
-            color: '#666', 
+            color: theme.colors.text.muted, 
             marginBottom: 12
           }}>
             End Date
@@ -357,23 +460,27 @@ export default function TimelineFeasibilityStep() {
         </View>
       </ScrollView>
       
-      {/* Sticky bottom button */}
-      <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
+      {/* Footer with button */}
+      <View style={styles.footer}>
         <Button 
           title="Create Goal"
           variant="black"
           onPress={handleContinue}
-          style={{ borderRadius: theme.radius.xl }}
+          style={styles.button}
         />
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
+  },
+})

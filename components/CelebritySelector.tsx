@@ -498,7 +498,13 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
         <SheetHeader
           title={view === 'home' ? 'Celebrity Dreams' : view === 'results' ? 'Results' : 'Past searches'}
           onClose={onClose}
-          onBack={view !== 'home' ? () => setView(previousView) : undefined}
+          onBack={view !== 'home' ? () => {
+            if (view === 'past') {
+              setView('home')
+            } else {
+              setView(previousView)
+            }
+          } : undefined}
         />
 
         <View style={{ flex: 1 }}>

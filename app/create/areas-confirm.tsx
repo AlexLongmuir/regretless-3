@@ -28,7 +28,7 @@ export default function AreasConfirmStep() {
           width: 200,
           height: 200,
           borderRadius: 100,
-          backgroundColor: '#10B981', // Green color
+          backgroundColor: theme.colors.status.completed,
           justifyContent: 'center',
           alignItems: 'center',
           marginBottom: 24

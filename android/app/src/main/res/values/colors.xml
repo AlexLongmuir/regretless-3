@@ -1,7 +1,12 @@
 <resources>
+  <!-- Semantic color mappings for future dark mode support -->
+  <!-- Maps to theme.colors.background.card / theme.colors.text.inverse -->
   <color name="splashscreen_background">#ffffff</color>
   <color name="iconBackground">#ffffff</color>
+  <!-- Maps to theme.colors.primary[600] -->
   <color name="colorPrimary">#023c69</color>
+  <!-- Maps to theme.colors.text.inverse -->
   <color name="colorPrimaryDark">#ffffff</color>
+  <!-- Maps to theme.colors.text.inverse -->
   <color name="notification_icon_color">#ffffff</color>
 </resources>

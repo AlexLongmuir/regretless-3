@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Platform } from 'react-native'
+import { View, Text, ScrollView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -84,7 +84,7 @@ export default function TimeCommitmentStep() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="time-commitment" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
         <Text style={{ 
           fontSize: 18, 
           fontWeight: 'bold', 
@@ -132,38 +132,32 @@ export default function TimeCommitmentStep() {
         </Text>
       </ScrollView>
       
-      {/* Sticky bottom button */}
-      <View style={{ 
-        position: 'absolute', 
-        bottom: 0, 
-        left: 0, 
-        right: 0, 
-        padding: 16,
-        paddingBottom: BOTTOM_NAV_PADDING
-      }}>
+      {/* Footer with button */}
+      <View style={styles.footer}>
         <Button 
           title="Continue"
           variant={"black" as any}
           onPress={handleContinue}
+          style={styles.button}
         />
       </View>
     </View>
   )
 }
 
-const styles = {
+const styles = StyleSheet.create({
   timeDisplay: {
-    alignItems: 'center' as const,
+    alignItems: 'center',
     marginBottom: 24,
   },
   timeText: {
     fontSize: 32,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: theme.colors.grey[900],
   },
   timePickerContainer: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
   },
   timePicker: {
@@ -172,8 +166,17 @@ const styles = {
   helpText: {
     fontSize: 14,
     color: theme.colors.grey[600],
-    textAlign: 'center' as const,
+    textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
-}
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
+  },
+})

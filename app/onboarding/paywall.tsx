@@ -46,7 +46,7 @@ const PaywallStep: React.FC = () => {
   const { restorePurchases } = useEntitlementsContext();
   const [loading, setLoading] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
-  const [selectedPlan, setSelectedPlan] = useState<string>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<string>('$rc_annual');
 
   useEffect(() => {
     fetchOfferings();
@@ -61,7 +61,11 @@ const PaywallStep: React.FC = () => {
       }
       
       const offerings = await Purchases.getOfferings();
-      if (offerings.current) {
+      // First try to get offering with identifier "default"
+      if (offerings.all && offerings.all['default']) {
+        setOffering(offerings.all['default']);
+      } else if (offerings.current) {
+        // Fallback to current offering if "default" not found
         setOffering(offerings.current);
       }
     } catch (error) {
@@ -130,14 +134,14 @@ const PaywallStep: React.FC = () => {
   // Mock pricing data - in real implementation, this would come from RevenueCat
   const pricingOptions: PricingOption[] = [
     {
-      id: 'monthly',
+      id: '$rc_monthly',
       title: 'Monthly',
       subtitle: 'Perfect for trying out',
       price: '$9.99',
       period: '/month',
     },
     {
-      id: 'annual',
+      id: '$rc_annual',
       title: 'Annual',
       subtitle: 'Best value',
       price: '$79.99',
@@ -205,7 +209,7 @@ const PaywallStep: React.FC = () => {
         </View>
 
         <Text style={styles.trialText}>
-          Start with a 3-day free trial, then {selectedPlan === 'annual' ? '$79.99/year' : '$9.99/month'}
+          Start with a 3-day free trial, then {selectedPlan === '$rc_annual' ? '$79.99/year' : '$9.99/month'}
         </Text>
       </View>
 

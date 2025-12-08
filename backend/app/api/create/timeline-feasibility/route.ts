@@ -67,7 +67,7 @@ Please provide:
       system: TIMELINE_FEASIBILITY_SYSTEM,
       messages: [{ text: prompt }],
       schema: TIMELINE_FEASIBILITY_SCHEMA,
-      maxOutputTokens: 400,
+      maxOutputTokens: 800,
       modelId: GEMINI_MODEL
     })
 

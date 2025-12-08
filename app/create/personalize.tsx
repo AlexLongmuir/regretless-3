@@ -222,7 +222,7 @@ export default function PersonalizeStep() {
         
         <Text style={{ 
           fontSize: 12, 
-          color: '#666', 
+          color: theme.colors.text.muted, 
           marginBottom: 16,
           fontStyle: 'italic'
         }}>

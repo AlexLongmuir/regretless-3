@@ -16,6 +16,8 @@ interface ActionCard {
   repeat_every_days?: number
   slice_count_target?: number
   acceptance_criteria?: string[]
+  acceptance_intro?: string
+  acceptance_outro?: string
   dream_image?: string
   // For action occurrences
   occurrence_no?: number
@@ -112,9 +114,9 @@ export function ActionChip({
   }
 
   const getStatusBackgroundColor = () => {
-    if (action.is_done) return '#E8F5E8' // Light green for completed
-    if (action.is_overdue) return '#FFF3E0' // Light orange for overdue
-    return 'white' // Default white
+    if (action.is_done) return theme.colors.statusBackground.completed
+    if (action.is_overdue) return theme.colors.statusBackground.overdue
+    return theme.colors.background.card // Default white
   }
 
 
@@ -134,10 +136,10 @@ export function ActionChip({
 
     const getBarColor = (diff: string) => {
       switch (diff) {
-        case 'easy': return '#4CAF50'
-        case 'medium': return '#FF9800'
-        case 'hard': return '#F44336'
-        default: return '#4CAF50'
+        case 'easy': return theme.colors.difficulty.easy
+        case 'medium': return theme.colors.difficulty.medium
+        case 'hard': return theme.colors.difficulty.hard
+        default: return theme.colors.difficulty.easy
       }
     }
 
@@ -152,7 +154,7 @@ export function ActionChip({
             style={{
               width: 3,
               height: bar * 2 + 4,
-              backgroundColor: bar <= barCount ? barColor : '#E0E0E0',
+              backgroundColor: bar <= barCount ? barColor : theme.colors.disabled.inactive,
               borderRadius: 1.5
             }}
           />
@@ -190,14 +192,14 @@ export function ActionChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: 1
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={12} color="#666" />
+          <Ionicons name="close" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
       
@@ -218,13 +220,13 @@ export function ActionChip({
                 width: 24,
                 height: 24,
                 borderRadius: 12,
-                backgroundColor: '#f0f0f0',
+                backgroundColor: theme.colors.disabled.inactiveAlt,
                 justifyContent: 'center',
                 alignItems: 'center'
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-up" size={12} color="#666" />
+              <Ionicons name="chevron-up" size={12} color={theme.colors.icon.default} />
             </TouchableOpacity>
           )}
           {!isLast && onMoveDown && (
@@ -234,13 +236,13 @@ export function ActionChip({
                 width: 24,
                 height: 24,
                 borderRadius: 12,
-                backgroundColor: '#f0f0f0',
+                backgroundColor: theme.colors.disabled.inactiveAlt,
                 justifyContent: 'center',
                 alignItems: 'center'
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="chevron-down" size={12} color="#666" />
+              <Ionicons name="chevron-down" size={12} color={theme.colors.icon.default} />
             </TouchableOpacity>
           )}
         </View>
@@ -257,14 +259,14 @@ export function ActionChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center',
             zIndex: 1
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={12} color="#666" />
+          <Ionicons name="create-outline" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
 
@@ -277,7 +279,7 @@ export function ActionChip({
                 style={{
                   width: '100%',
                   height: '100%',
-                  backgroundColor: '#f0f0f0',
+                  backgroundColor: theme.colors.disabled.inactiveAlt,
                   borderRadius: 8,
                   justifyContent: 'center',
                   alignItems: 'center'
@@ -303,13 +305,13 @@ export function ActionChip({
               style={{
                 width: '100%',
                 height: '100%',
-                backgroundColor: '#f0f0f0',
+                backgroundColor: theme.colors.disabled.inactiveAlt,
                 borderRadius: 8,
                 justifyContent: 'center',
                 alignItems: 'center'
               }}
             >
-              <Ionicons name="flag" size={24} color="#999" />
+              <Ionicons name="flag" size={24} color={theme.colors.icon.tertiary} />
             </View>
           )}
           
@@ -362,7 +364,7 @@ export function ActionChip({
           <Text style={{ 
             fontSize: 14, 
             fontWeight: 'bold',
-            color: '#000',
+            color: theme.colors.text.primary,
             marginBottom: 8,
             lineHeight: 18
           }}>
@@ -372,8 +374,8 @@ export function ActionChip({
           {/* Metadata Row */}
           <View style={{ flexDirection: 'row', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="time-outline" size={12} color="#666" style={{ marginRight: 4 }} />
-              <Text style={{ fontSize: 12, color: '#666' }}>
+              <Ionicons name="time-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
+              <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
                 {formatTime(action.est_minutes || 0)}
               </Text>
             </View>
@@ -382,7 +384,7 @@ export function ActionChip({
               <DifficultyBars difficulty={action.difficulty || 'medium'} />
               <Text style={{ 
                 fontSize: 12, 
-                color: '#666',
+                color: theme.colors.text.muted,
                 fontWeight: '400',
                 marginLeft: 6
               }}>
@@ -392,8 +394,8 @@ export function ActionChip({
             
             {action.repeat_every_days && (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="refresh-outline" size={12} color="#666" style={{ marginRight: 4 }} />
-                <Text style={{ fontSize: 12, color: '#666' }}>
+                <Ionicons name="refresh-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
+                <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
                   {action.repeat_every_days} days
                 </Text>
               </View>
@@ -401,8 +403,8 @@ export function ActionChip({
             
             {action.slice_count_target && (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="layers-outline" size={12} color="#666" style={{ marginRight: 4 }} />
-                <Text style={{ fontSize: 12, color: '#666' }}>
+                <Ionicons name="layers-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
+                <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
                   {action.occurrence_no ? `${action.occurrence_no} of ${action.slice_count_target}` : `${action.slice_count_target} repeats`}
                 </Text>
               </View>
@@ -414,7 +416,7 @@ export function ActionChip({
             {(action.acceptance_criteria || []).slice(0, 3).map((criterion, index) => (
               <Text key={index} style={{ 
                 fontSize: 12, 
-                color: '#666', 
+                color: theme.colors.text.muted, 
                 marginBottom: 4,
                 lineHeight: 16
               }}>
@@ -445,7 +447,7 @@ export function AddActionChip({ onPress, style }: AddActionChipProps) {
       <Text style={{ 
         fontSize: 14, 
         fontWeight: '500',
-        color: '#666',
+        color: theme.colors.text.muted,
         textAlign: 'left'
       }}>
         + Add Action
@@ -471,6 +473,8 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
     repeat_every_days: undefined,
     slice_count_target: undefined,
     acceptance_criteria: [],
+    acceptance_intro: undefined,
+    acceptance_outro: undefined,
     dream_image: '',
     occurrence_no: 1
   })
@@ -538,13 +542,13 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.colors.text.placeholder}
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: '#000'
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -556,14 +560,14 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.colors.text.placeholder}
               keyboardType="numeric"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: '#000'
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -579,13 +583,13 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: formData.difficulty === diff ? '#000' : 'white',
+                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
                 >
                   <Text style={{ 
-                    color: formData.difficulty === diff ? 'white' : '#000',
+                    color: formData.difficulty === diff ? theme.colors.text.inverse : theme.colors.text.primary,
                     fontWeight: '600'
                   }}>
                     {diff.charAt(0).toUpperCase() + diff.slice(1)}
@@ -612,15 +616,15 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
+                    backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center',
                     borderWidth: 1,
-                    borderColor: formData.repeat_every_days === option.value ? '#000' : '#E5E7EB'
+                    borderColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.border.default
                   }}
                 >
                   <Text style={{ 
-                    color: formData.repeat_every_days === option.value ? 'white' : '#000',
+                    color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
                     fontWeight: '600',
                     fontSize: 14
                   }}>
@@ -638,14 +642,14 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
               placeholder="How many times will you do this?"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.colors.text.placeholder}
               keyboardType="numeric"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: '#000'
+                color: theme.colors.text.primary
               }}
             />
             <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
@@ -658,18 +662,39 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={addCriterion}>
-                <Text style={{ color: '#000', fontWeight: '600' }}>+ Add</Text>
+                <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Intro */}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Intro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_intro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
+                placeholder="One sentence setting intention..."
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
+
+            {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
               <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
                 <TextInput
                   value={criterion}
                   onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Criterion ${index + 1}`}
+                  placeholder={`Bullet ${index + 1}`}
                   style={{
                     flex: 1,
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
@@ -677,10 +702,29 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   }}
                 />
                 <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color="#F44336" />
+                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
                 </TouchableOpacity>
               </View>
             ))}
+
+            {/* Outro */}
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Outro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_outro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
+                placeholder="One sentence defining 'done'..."
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
           </View>
         </ScrollView>
       </View>
@@ -706,6 +750,8 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
     repeat_every_days: undefined,
     slice_count_target: undefined,
     acceptance_criteria: [],
+    acceptance_intro: undefined,
+    acceptance_outro: undefined,
     dream_image: '',
     occurrence_no: 1
   })
@@ -767,6 +813,8 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
       repeat_every_days: undefined,
       slice_count_target: undefined,
       acceptance_criteria: [],
+      acceptance_intro: undefined,
+      acceptance_outro: undefined,
       dream_image: '',
       occurrence_no: 1
     })
@@ -828,9 +876,9 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   <TouchableOpacity
                     key={opt}
                     onPress={() => setLinkMode(opt)}
-                    style={{ flex: 1, padding: 12, backgroundColor: linkMode === opt ? '#000' : 'white', borderRadius: 8, alignItems: 'center' }}
+                    style={{ flex: 1, padding: 12, backgroundColor: linkMode === opt ? theme.colors.border.selected : theme.colors.background.card, borderRadius: 8, alignItems: 'center' }}
                   >
-                    <Text style={{ color: linkMode === opt ? 'white' : '#000', fontWeight: '600' }}>
+                    <Text style={{ color: linkMode === opt ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600' }}>
                       {opt === 'inbox' ? 'Inbox' : 'Choose Goal'}
                     </Text>
                   </TouchableOpacity>
@@ -854,14 +902,14 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                         style={{
                           paddingVertical: 10,
                           paddingHorizontal: 12,
-                          backgroundColor: selectedDreamId === d.id ? '#000' : 'white',
+                          backgroundColor: selectedDreamId === d.id ? theme.colors.border.selected : theme.colors.background.card,
                           borderRadius: 8,
                           marginRight: 8,
                           borderWidth: 1,
-                          borderColor: selectedDreamId === d.id ? '#000' : '#E5E7EB'
+                          borderColor: selectedDreamId === d.id ? theme.colors.border.selected : theme.colors.border.default
                         }}
                       >
-                        <Text style={{ color: selectedDreamId === d.id ? 'white' : '#000' }}>{(d as any).title}</Text>
+                        <Text style={{ color: selectedDreamId === d.id ? theme.colors.text.inverse : theme.colors.text.primary }}>{(d as any).title}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -877,14 +925,14 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                             style={{
                               paddingVertical: 10,
                               paddingHorizontal: 12,
-                              backgroundColor: selectedAreaId === a.id ? '#000' : 'white',
+                              backgroundColor: selectedAreaId === a.id ? theme.colors.border.selected : theme.colors.background.card,
                               borderRadius: 8,
                               marginRight: 8,
                               borderWidth: 1,
-                              borderColor: selectedAreaId === a.id ? '#000' : '#E5E7EB'
+                              borderColor: selectedAreaId === a.id ? theme.colors.border.selected : theme.colors.border.default
                             }}
                           >
-                            <Text style={{ color: selectedAreaId === a.id ? 'white' : '#000' }}>{a.title}</Text>
+                            <Text style={{ color: selectedAreaId === a.id ? theme.colors.text.inverse : theme.colors.text.primary }}>{a.title}</Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -901,13 +949,13 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.colors.text.placeholder}
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: '#000'
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -919,14 +967,14 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.colors.text.placeholder}
               keyboardType="numeric"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: '#000'
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -940,12 +988,12 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                 setShowDatePicker(true);
               }}
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12
               }}
             >
-              <Text style={{ fontSize: 16, color: '#000' }}>
+              <Text style={{ fontSize: 16, color: theme.colors.text.primary }}>
                 {dueDate.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
@@ -991,33 +1039,75 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={addCriterion}>
-                <Text style={{ color: '#000', fontWeight: '600' }}>+ Add</Text>
+                <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Intro */}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Intro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_intro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
+                placeholder="One sentence setting intention..."
+                placeholderTextColor={theme.colors.text.placeholder}
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
+
+            {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
               <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
                 <TextInput
                   value={criterion}
                   onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Criterion ${index + 1}`}
-                  placeholderTextColor="#999"
+                  placeholder={`Bullet ${index + 1}`}
+                  placeholderTextColor={theme.colors.text.placeholder}
                   autoFocus={focusedCriterionIndex === index}
                   onFocus={() => setFocusedCriterionIndex(index)}
                   style={{
                     flex: 1,
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
                     marginRight: 8,
-                    color: '#000'
+                    color: theme.colors.text.primary
                   }}
                 />
                 <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color="#F44336" />
+                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
                 </TouchableOpacity>
               </View>
             ))}
+
+            {/* Outro */}
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Outro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_outro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
+                placeholder="One sentence defining 'done'..."
+                placeholderTextColor={theme.colors.text.placeholder}
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
           </View>
 
           {/* Action Type */}
@@ -1046,7 +1136,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   }}
                 >
                   <Text style={{ 
-                    color: actionType === option.value ? 'white' : '#000',
+                    color: actionType === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
                     fontWeight: '600',
                     fontSize: 14
                   }}>
@@ -1076,13 +1166,13 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                     style={{
                       flex: 1,
                       padding: 12,
-                      backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
+                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
                       borderRadius: 8,
                       alignItems: 'center'
                     }}
                   >
                     <Text style={{ 
-                      color: formData.repeat_every_days === option.value ? 'white' : '#000',
+                      color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
                       fontWeight: '600',
                       fontSize: 14
                     }}>
@@ -1113,17 +1203,17 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   }));
                 }}
                 placeholder="How many times will you do this?"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.text.placeholder}
                 keyboardType="numeric"
                 style={{
-                  backgroundColor: 'white',
+                  backgroundColor: theme.colors.background.card,
                   borderRadius: 8,
                   padding: 12,
                   fontSize: 16,
-                  color: '#000'
+                  color: theme.colors.text.primary
                 }}
               />
-              <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: theme.colors.text.muted, marginTop: 4 }}>
                 For actions you'll complete a specific number of times (e.g., "Do this 5 times")
               </Text>
             </View>
@@ -1140,13 +1230,13 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: formData.difficulty === diff ? '#000' : 'white',
+                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
                 >
                   <Text style={{ 
-                    color: formData.difficulty === diff ? 'white' : '#000',
+                    color: formData.difficulty === diff ? theme.colors.text.inverse : theme.colors.text.primary,
                     fontWeight: '600'
                   }}>
                     {diff.charAt(0).toUpperCase() + diff.slice(1)}

@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Icon 
             name={icon} 
             size={20} 
-            color={variant === 'secondary' ? theme.colors.grey[800] : "white"}
+            color={variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse}
           />
         )}
         <Text style={[
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[600],
   },
   secondary: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
   },
   outline: {
     backgroundColor: 'transparent',
@@ -118,10 +118,10 @@ const styles = StyleSheet.create({
     color: theme.colors.primary[600],
   },
   blackText: {
-    color: '#ffffff',
+    color: theme.colors.text.inverse,
   },
   successText: {
-    color: '#ffffff',
+    color: theme.colors.text.inverse,
   },
   disabledText: {
     color: theme.colors.grey[500],

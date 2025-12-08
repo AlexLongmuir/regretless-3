@@ -7,17 +7,6 @@ import { IconButton } from '../components/IconButton';
 const TermsOfServicePage = ({ navigation }: { navigation?: any }) => {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <IconButton
-          icon="chevron_left"
-          onPress={() => navigation?.goBack()}
-          variant="ghost"
-          size="md"
-          style={styles.backButton}
-        />
-      </View>
-      
       <ScrollView contentContainerStyle={styles.content}>
         {/* Title */}
         <Text style={styles.title}>Terms of Service</Text>

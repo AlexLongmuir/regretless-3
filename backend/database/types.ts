@@ -85,6 +85,8 @@ export interface Action {
   repeat_every_days?: 1 | 2 | 3;
   slice_count_target?: number;
   acceptance_criteria?: string[];
+  acceptance_intro?: string;
+  acceptance_outro?: string;
   position: number;
   is_active: boolean;
   deleted_at?: string;
@@ -304,6 +306,8 @@ export interface ActionWithOccurrences {
   repeat_every_days?: 1 | 2 | 3;
   slice_count_target?: number;
   acceptance_criteria?: string[];
+  acceptance_intro?: string;
+  acceptance_outro?: string;
   position: number;
   is_active: boolean;
   deleted_at?: string;
@@ -405,6 +409,8 @@ export interface CreateActionForm {
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
   acceptance_criteria?: string[];
+  acceptance_intro?: string;
+  acceptance_outro?: string;
 }
 
 export interface UpdateOccurrenceForm {

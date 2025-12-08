@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { theme } from '../utils/theme'
 
 interface AreaChipProps {
   id: string
@@ -72,8 +73,8 @@ export function AreaChip({
 
   // Get background color based on completion status
   const getBackgroundColor = () => {
-    if (isComplete) return '#E8F5E8' // Light green for completed (same as ActionChipsList)
-    return 'white' // Default white
+    if (isComplete) return theme.colors.statusBackground.completed
+    return theme.colors.background.card // Default white
   }
 
   const ChipWrapper = clickable ? TouchableOpacity : View
@@ -108,13 +109,13 @@ export function AreaChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center'
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-up" size={12} color="#666" />
+          <Ionicons name="chevron-up" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
 
@@ -129,13 +130,13 @@ export function AreaChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center'
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-down" size={12} color="#666" />
+          <Ionicons name="chevron-down" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
 
@@ -150,7 +151,7 @@ export function AreaChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center'
           }}
@@ -170,13 +171,13 @@ export function AreaChip({
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#f0f0f0',
+            backgroundColor: theme.colors.disabled.inactiveAlt,
             justifyContent: 'center',
             alignItems: 'center'
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={12} color="#666" />
+          <Ionicons name="create-outline" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
       
@@ -190,7 +191,7 @@ export function AreaChip({
         <Text style={{ 
           fontSize: 16, 
           fontWeight: 'bold',
-          color: '#000',
+          color: theme.colors.text.primary,
           marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0
         }}>
           {title}
@@ -209,14 +210,14 @@ export function AreaChip({
               <Text style={{ 
                 fontSize: 12, 
                 fontWeight: '500',
-                color: '#666'
+                color: theme.colors.text.muted
               }}>
                 {completedActions} of {totalActions}
               </Text>
               <Text style={{ 
                 fontSize: 12, 
                 fontWeight: 'bold',
-                color: '#666'
+                color: theme.colors.text.muted
               }}>
                 {progressPercentage}%
               </Text>
@@ -225,14 +226,14 @@ export function AreaChip({
             {/* Progress Bar */}
             <View style={{
               height: 6,
-              backgroundColor: '#E0E0E0',
+              backgroundColor: theme.colors.disabled.inactive,
               borderRadius: 3,
               overflow: 'hidden'
             }}>
               <View 
                 style={{
                   height: '100%',
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: theme.colors.status.completed,
                   borderRadius: 3,
                   width: `${progressPercentage}%`
                 }} 
@@ -260,7 +261,7 @@ export function AddAreaChip({ onPress, style }: AddAreaChipProps) {
       <Text style={{ 
         fontSize: 14, 
         fontWeight: '500',
-        color: '#666',
+        color: theme.colors.text.muted,
         textAlign: 'center'
       }}>
         + Add Area
@@ -286,7 +287,7 @@ export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
         alignItems: 'center',
         minHeight: 80,
         borderWidth: 2,
-        borderColor: '#E0E0E0',
+        borderColor: theme.colors.disabled.inactive,
         borderStyle: 'dashed'
       },
       style
@@ -354,7 +355,7 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
             <Text style={{
               fontSize: 18,
               fontWeight: 'bold',
-              color: '#111827', // grey[900]
+              color: theme.colors.text.primary, // grey[900]
             }}>
               {title}
             </Text>
@@ -374,7 +375,7 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
               <Text style={{
                 fontSize: 18,
                 fontWeight: 'bold',
-                color: '#6b7280', // grey[500]
+                color: theme.colors.icon.secondary, // grey[500]
               }}>
                 +
               </Text>

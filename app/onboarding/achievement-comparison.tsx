@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   whiteContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 16,
     padding: theme.spacing.lg,
     width: '100%',

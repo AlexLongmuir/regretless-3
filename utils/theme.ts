@@ -136,6 +136,73 @@ export const theme = {
     pageBackground: '#E5E7EB', // grey[200] - the preferred darker grey from DreamPage
     // Default grey for secondary buttons - iOS-style grey that stands out on white
     defaultGrey: '#E5E7EB', // grey[300] - light enough to feel secondary but dark enough to be visible
+    
+    // Semantic color groups for consistent theming and future dark mode support
+    // Difficulty indicators
+    difficulty: {
+      easy: '#4CAF50',      // Green - maps to success[500] or success[400]
+      medium: '#FF9800',    // Orange - maps to warning[500] or warning[400]
+      hard: '#F44336',      // Red - maps to error[500] or error[400]
+    },
+    
+    // Status indicators
+    status: {
+      completed: '#4CAF50',  // Green
+      overdue: '#F44336',    // Red
+      pending: '#666',       // Grey - use grey[500]
+    },
+    
+    // Status background tints (for cards/containers)
+    statusBackground: {
+      completed: '#E8F5E8',  // Light green tint
+      overdue: '#FFF3E0',    // Light orange tint
+      default: 'transparent',
+    },
+    
+    // Disabled/inactive states
+    disabled: {
+      inactive: '#E0E0E0',   // Grey for disabled elements
+      inactiveAlt: '#f0f0f0', // Alternative grey
+      text: '#9CA3AF',      // grey[400] for disabled text
+      placeholder: '#999',   // Placeholder text
+    },
+    
+    // Semantic text colors
+    text: {
+      primary: '#111827',     // grey[900] - main text
+      secondary: '#4B5563',   // grey[600] - secondary text
+      tertiary: '#6B7280',   // grey[500] - tertiary text
+      inverse: '#FFFFFF',     // surface[50] - white text for dark backgrounds
+      muted: '#666',          // Muted text (map to grey[500])
+      placeholder: '#999',    // Placeholder (map to grey[400])
+    },
+    
+    // Semantic background colors
+    background: {
+      card: '#FFFFFF',       // surface[50] - white for cards
+      page: '#E5E7EB',       // pageBackground - already exists
+      input: '#FFFFFF',       // surface[50] - white for inputs
+      pressed: '#E5E7EB',     // grey[200] - pressed state
+      hover: '#F3F4F6',       // grey[100] - hover state
+      imagePlaceholder: '#F3F4F6', // grey[200] - for image placeholders
+      overlay: 'rgba(0, 0, 0, 0.5)', // Modal overlay
+    },
+    
+    // Semantic border colors
+    border: {
+      default: '#E5E7EB',     // grey[200] - default borders
+      selected: '#000000',   // black - selected state
+      input: '#E5E7EB',      // grey[200] - input borders
+    },
+    
+    // Icon colors
+    icon: {
+      default: '#4B5563',     // grey[600] - default icons
+      secondary: '#6B7280',   // grey[500] - secondary icons
+      tertiary: '#9CA3AF',    // grey[400] - tertiary icons
+      error: '#EF4444',       // error[500] - error icons
+      inverse: '#FFFFFF',      // surface[50] - white icons
+    },
   },
   gradients: {
     magical: {

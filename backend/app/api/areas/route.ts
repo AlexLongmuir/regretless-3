@@ -52,11 +52,17 @@ export async function POST(req: Request) {
     const existingAreaIds = new Set(existingAreas?.map(a => a.id) || [])
     const incomingAreaIds = new Set(areas.filter(a => a.id).map(a => a.id))
 
+    // Helper function to check if an ID is temporary
+    const isTempId = (id: string | undefined): boolean => {
+      if (!id) return true;
+      return id.startsWith('temp_') || id.startsWith('temp-');
+    };
+
     // Areas to create (no id or temporary id)
-    const areasToCreate = areas.filter(area => !area.id || area.id.startsWith('temp_'))
+    const areasToCreate = areas.filter(area => !area.id || isTempId(area.id))
     
     // Areas to update (has id and exists and is not temporary)
-    const areasToUpdate = areas.filter(area => area.id && !area.id.startsWith('temp_') && existingAreaIds.has(area.id))
+    const areasToUpdate = areas.filter(area => area.id && !isTempId(area.id) && existingAreaIds.has(area.id))
     
     // Areas to soft delete (exist but not in incoming list)
     const areaIdsToDelete = [...existingAreaIds].filter(id => !incomingAreaIds.has(id))

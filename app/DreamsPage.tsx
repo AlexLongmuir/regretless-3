@@ -12,13 +12,14 @@ import type { Dream, DreamWithStats } from '../backend/database/types';
 
 
 const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
-  const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus } = useData();
-  const { user, isAuthenticated, loading: authLoading } = useAuthContext();
+  const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus, refresh } = useData();
+  const { user, isAuthenticated, loading: authLoading, isCreatingOnboardingDream, hasPendingOnboardingDream } = useAuthContext();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const skeletonOpacity = useRef(new Animated.Value(1)).current;
   const [skeletonOverlayVisible, setSkeletonOverlayVisible] = useState(false);
+  const prevCreatingDreamRef = useRef(false);
   
   const dreams = state.dreamsSummary?.dreams || [];
   const dreamsWithStats = state.dreamsWithStats?.dreams || [];
@@ -29,10 +30,14 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     (state.dreamsWithStats && state.dreamsWithStats.dreams && state.dreamsWithStats.dreams.length > 0)
   );
   
-  // Show loading skeleton if: initial load AND no cached data OR actively refreshing without cache
+  // Show loading skeleton if: 
+  // - initial load AND no cached data OR
+  // - actively refreshing without cache OR
+  // - onboarding dream is being created (to prevent showing empty state prematurely)
   // BUT if we have dreams data, don't show skeleton (even during initial load)
   const shouldShowSkeleton = (isInitialLoad && !hasCachedData && dreams.length === 0) || 
-                             (isRefreshing && !hasCachedData && dreams.length === 0);
+                             (isRefreshing && !hasCachedData && dreams.length === 0) ||
+                             (isCreatingOnboardingDream || (hasPendingOnboardingDream && dreams.length === 0));
 
   // Smooth crossfade: show overlay when we need skeleton; fade out when content is ready
   useEffect(() => {
@@ -133,15 +138,30 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   }
 
   // Show empty state only if we've finished loading AND confirmed no dreams exist
-  // Don't show if still loading, initializing, or refreshing
+  // Don't show if still loading, initializing, refreshing, or creating onboarding dream
   // Also ensure we're not in initial load phase
   // AND we've confirmed there are truly no dreams (not just empty array from initial state)
   const shouldShowEmptyState = !authLoading && 
                                 hasLoadedOnce && 
                                 !isRefreshing && 
                                 !isInitialLoad &&
+                                !isCreatingOnboardingDream &&
+                                !hasPendingOnboardingDream &&
                                 dreams.length === 0;
   
+  // Watch for dream creation completion and trigger refresh
+  useEffect(() => {
+    // If dream creation was in progress and now completed, refresh data
+    if (prevCreatingDreamRef.current && !isCreatingOnboardingDream && !hasPendingOnboardingDream) {
+      console.log('🎉 [ONBOARDING] Dream creation completed, refreshing DreamsPage...');
+      setIsRefreshing(true);
+      refresh(true).then(() => {
+        setIsRefreshing(false);
+      });
+    }
+    prevCreatingDreamRef.current = isCreatingOnboardingDream || hasPendingOnboardingDream;
+  }, [isCreatingOnboardingDream, hasPendingOnboardingDream, refresh]);
+
   console.log('DreamsPage render state:', {
     authLoading,
     hasLoadedOnce,
@@ -152,7 +172,9 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     shouldShowEmptyState,
     hasCachedData: !!hasCachedData,
     dreamsSummaryExists: !!state.dreamsSummary,
-    dreamsWithStatsExists: !!state.dreamsWithStats
+    dreamsWithStatsExists: !!state.dreamsWithStats,
+    isCreatingOnboardingDream,
+    hasPendingOnboardingDream
   });
   
   if (shouldShowEmptyState) {

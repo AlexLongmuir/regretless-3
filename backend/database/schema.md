@@ -70,6 +70,8 @@ Planned work inside an area (templates for recurring work).
 | repeat_every_days | integer | How often to repeat (1/2/3) | CHECK (repeat_every_days IN (1, 2, 3)) |
 | slice_count_target | integer | Target number of slices for finite actions | |
 | acceptance_criteria | jsonb | ≤3 bullets of criteria | CHECK (jsonb_array_length(acceptance_criteria) <= 3) |
+| acceptance_intro | text | Introductory sentence setting intention | |
+| acceptance_outro | text | Closing sentence defining completion | |
 | is_active | boolean | Whether action is active | NOT NULL, DEFAULT true |
 | position | integer | Position within area | NOT NULL |
 | deleted_at | timestamptz | When action was soft-deleted | |

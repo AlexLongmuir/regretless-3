@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.xl,

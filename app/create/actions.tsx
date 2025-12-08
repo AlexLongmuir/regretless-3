@@ -16,6 +16,8 @@ interface ActionCard {
   difficulty?: 'easy' | 'medium' | 'hard'
   repeat_every_days?: 1 | 2 | 3
   acceptance_criteria?: string[]
+  acceptance_intro?: string
+  acceptance_outro?: string
   dream_image?: string
   occurrence_no?: number
   hideEditButtons?: boolean
@@ -31,16 +33,14 @@ export default function ActionsStep() {
     areas,
     actions, 
     setActions, 
-    addAction, 
-    updateAction, 
-    removeAction,
     updateArea,
     start_date,
     end_date,
     baseline,
     obstacles,
     enjoyment,
-    timeCommitment
+    timeCommitment,
+    reset
   } = useCreateDream()
   
   const [isLoading, setIsLoading] = useState(true)
@@ -62,8 +62,10 @@ export default function ActionsStep() {
       repeat_every_days: action.repeat_every_days ? Math.ceil(7 / action.repeat_every_days) as 1 | 2 | 3 : undefined,
       slice_count_target: action.slice_count_target,
       acceptance_criteria: action.acceptance_criteria || [],
+      acceptance_intro: (action as any).acceptance_intro,
+      acceptance_outro: (action as any).acceptance_outro,
       dream_image: image_url || undefined, // Use dream image for all actions
-      hideEditButtons: false // Show edit buttons in create flow
+      hideEditButtons: true // Hide edit buttons in create flow
     }))
 
   useFocusEffect(
@@ -156,20 +158,24 @@ export default function ActionsStep() {
     }
   }
 
-  const handleReorderActions = (reorderedActions: any[]) => {
-    // Update positions based on new order (starting from 1)
-    const updatedActions = reorderedActions.map((action, index) => {
-      const originalAction = currentAreaActions.find(a => a.id === action.id)
-      if (originalAction) {
-        return { ...originalAction, position: index + 1 } // Start positions from 1
-      }
-      return originalAction
-    }).filter(Boolean) as Action[]
+  const handleClose = () => {
+    // Reset the CreateDreamContext state
+    reset()
     
-    // Update all actions, replacing the current area actions with reordered ones
-    const otherActions = actions.filter(action => action.area_id !== currentArea?.id)
-    setActions([...otherActions, ...updatedActions])
+    // Close the entire create flow and return to main app
+    // Since CreateFlow is a modal, navigate back from the parent navigator
+    const parentNavigation = navigation.getParent()
+    if (parentNavigation && parentNavigation.canGoBack()) {
+      // Navigate back from the CreateFlow modal to return to main app
+      parentNavigation.goBack()
+    } else {
+      // Fallback: try to navigate back from current navigator
+      if (navigation.canGoBack()) {
+        navigation.goBack()
+      }
+    }
   }
+
 
   const handleApproveArea = async () => {
     // Check if current area has a real ID (not temporary)
@@ -288,7 +294,7 @@ export default function ActionsStep() {
         <View style={{ flex: 1 }} />
         <IconButton 
           icon="close" 
-          onPress={() => navigation.navigate('Tabs')} 
+          onPress={handleClose} 
           variant="ghost"
           size="md"
         />
@@ -303,7 +309,7 @@ export default function ActionsStep() {
               <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#000' }}>
                 {currentArea.title}
               </Text>
-              <Text style={{ fontSize: 12, color: '#666' }}>
+              <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
                 Area {currentAreaIndex + 1} of {areas.length}
               </Text>
             </View>
@@ -328,50 +334,6 @@ export default function ActionsStep() {
           {/* Action Cards */}
           <ActionChipsList
             actions={actionCards as any}
-            onEdit={(id, updatedAction) => {
-              // Convert UI ActionCard back to Action and update context
-              const actionUpdate: Partial<Action> = {
-                title: updatedAction.title,
-                est_minutes: updatedAction.est_minutes,
-                difficulty: updatedAction.difficulty,
-                repeat_every_days: updatedAction.repeat_every_days ? Math.ceil(7 / updatedAction.repeat_every_days) as 1 | 2 | 3 : undefined,
-                acceptance_criteria: updatedAction.acceptance_criteria,
-              }
-              updateAction(id, actionUpdate)
-            }}
-            onRemove={(id) => {
-              // Remove from context - this will update live
-              removeAction(id)
-            }}
-            onAdd={(newAction) => {
-              // Convert UI ActionCard to Action and add to context
-              if (!dreamId || !currentArea) return
-              
-              // Check if current area has a real ID (not temporary)
-              if (currentArea.id.startsWith('temp_')) {
-                console.error('Cannot add actions to area with temporary ID:', currentArea.id)
-                return
-              }
-              
-              const action: Action = {
-                id: `temp_${Date.now()}`, // Temporary ID until saved to backend
-                user_id: user?.id || '', // Set user ID
-                dream_id: dreamId || '', // Set dream ID
-                area_id: currentArea.id, // Set to current area's real ID
-                title: newAction.title,
-                est_minutes: newAction.est_minutes,
-                difficulty: newAction.difficulty || 'medium',
-                repeat_every_days: newAction.repeat_every_days ? Math.ceil(7 / newAction.repeat_every_days) as 1 | 2 | 3 : undefined,
-                acceptance_criteria: newAction.acceptance_criteria || [],
-                position: currentAreaActions.length + 1, // Add at the end of current area actions (starting from 1)
-                is_active: true,
-                deleted_at: undefined,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-              addAction(action)
-            }}
-            onReorder={handleReorderActions}
             showAddButton={false}
           />
         </View>
@@ -544,7 +506,7 @@ const styles = StyleSheet.create({
   },
   feedbackInput: {
     minHeight: 60,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,

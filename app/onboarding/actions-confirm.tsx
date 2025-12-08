@@ -22,6 +22,8 @@ interface ActionCard {
   difficulty?: 'easy' | 'medium' | 'hard'
   repeat_every_days?: 1 | 2 | 3
   acceptance_criteria?: string[]
+  acceptance_intro?: string
+  acceptance_outro?: string
   dream_image?: string
   occurrence_no?: number
 }
@@ -48,6 +50,8 @@ const ActionsConfirmStep: React.FC = () => {
       repeat_every_days: action.repeat_every_days ? Math.ceil(7 / action.repeat_every_days) as 1 | 2 | 3 : undefined,
       slice_count_target: action.slice_count_target,
       acceptance_criteria: action.acceptance_criteria || [],
+      acceptance_intro: (action as any).acceptance_intro,
+      acceptance_outro: (action as any).acceptance_outro,
       dream_image: state.dreamImageUrl || undefined, // Use dream image from onboarding context
       // Don't set occurrence_no for original actions - this makes them show as "4 repeats" instead of "1 of 4"
       hideEditButtons: true // Hide edit buttons in onboarding
@@ -247,7 +251,7 @@ const ActionsConfirmStep: React.FC = () => {
               <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#000' }}>
                 {currentArea.title}
               </Text>
-              <Text style={{ fontSize: 12, color: '#666' }}>
+              <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
                 Area {currentAreaIndex + 1} of {state.generatedAreas.length}
               </Text>
             </View>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { theme } from '../utils/theme';
@@ -13,6 +14,7 @@ import { supabaseClient } from '../lib/supabaseClient';
 import { upsertActions } from '../frontend-services/backend-bridge';
 import type { Dream, Action, ActionOccurrence, Area } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 
 interface AreaPageProps {
   route?: {
@@ -190,6 +192,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
         repeat_every_days: action.repeat_every_days,
         slice_count_target: action.slice_count_target,
         acceptance_criteria: action.acceptance_criteria || [],
+        acceptance_intro: (action as any).acceptance_intro,
+        acceptance_outro: (action as any).acceptance_outro,
         position: nextPosition,
         is_active: true
       } as Omit<Action, 'id' | 'created_at' | 'updated_at'>;
@@ -208,6 +212,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           repeat_every_days: a.repeat_every_days,
           slice_count_target: a.slice_count_target,
           acceptance_criteria: a.acceptance_criteria,
+          acceptance_intro: (a as any).acceptance_intro,
+          acceptance_outro: (a as any).acceptance_outro,
           position: a.position,
           is_active: a.is_active
         })),
@@ -472,8 +478,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar style="light" />
-      <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <IconButton
             icon="chevron_left"
@@ -632,7 +638,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: BOTTOM_NAV_PADDING,
   },
   emojiContainer: {
     alignItems: 'center',

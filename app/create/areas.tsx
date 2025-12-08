@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   feedbackInput: {
     minHeight: 60,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,

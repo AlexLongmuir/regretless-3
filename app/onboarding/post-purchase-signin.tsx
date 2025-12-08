@@ -18,10 +18,9 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
-import { updateSubscriptionStatus } from '../../utils/onboardingFlow';
-import { upsertDream, upsertAreas, upsertActions, activateDream } from '../../frontend-services/backend-bridge';
+import { updateSubscriptionStatus, getPendingOnboardingDream, clearPendingOnboardingDream } from '../../utils/onboardingFlow';
+import { createDreamFromOnboardingData } from '../../utils/onboardingDreamCreation';
 import { supabaseClient } from '../../lib/supabaseClient';
-import { supabaseServerAuth } from '../../backend/lib/supabaseServer';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
@@ -39,144 +38,31 @@ const PostPurchaseSignInStep: React.FC = () => {
 
   const [isCreatingDream, setIsCreatingDream] = useState(false);
 
-  // Function to create dream from onboarding data
+  // Function to create dream from onboarding data (uses shared utility)
   const createDreamFromOnboarding = async (token: string) => {
-    try {
-      console.log('🎯 [ONBOARDING] Starting dream creation from onboarding data...');
-      
-      // Check if we have the required data
-      if (!onboardingState.generatedAreas.length || !onboardingState.generatedActions.length) {
-        console.log('⚠️ [ONBOARDING] No generated areas or actions found, skipping dream creation');
-        return null;
-      }
-
-      // Map onboarding answers to dream parameters
-      const dreamTitle = onboardingState.answers[2] || 'My Dream'; // Main dream answer
-      const dreamBaseline = onboardingState.answers[1] || ''; // Current life answer
-      const dreamObstacles = onboardingState.answers[10] || ''; // Obstacles answer (ID 10)
-      const dreamEnjoyment = onboardingState.answers[11] || ''; // Motivation answer (ID 11)
-      const timeCommitment = onboardingState.answers[3] || ''; // Time commitment answer (ID 3)
-
-      // Parse time commitment from "0h 30m" format to JSON
-      let timeCommitmentJson = null;
-      if (timeCommitment) {
-        const match = timeCommitment.match(/(\d+)h?\s*(\d+)?m?/);
-        if (match) {
-          const hours = parseInt(match[1]) || 0;
-          const minutes = parseInt(match[2]) || 0;
-          timeCommitmentJson = { hours, minutes };
-        }
-      }
-
-      // Create the dream
-      console.log('🎯 [ONBOARDING] Creating dream:', dreamTitle);
-      const dreamResponse = await upsertDream({
-        title: dreamTitle,
-        image_url: onboardingState.dreamImageUrl,
-        baseline: dreamBaseline,
-        obstacles: dreamObstacles,
-        enjoyment: dreamEnjoyment,
-        time_commitment: timeCommitmentJson,
-        start_date: new Date().toISOString(),
-        end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() // 3 months from now
-      }, token);
-
-      console.log('✅ [ONBOARDING] Dream created with ID:', dreamResponse.id);
-
-      // Save user's name to profile
-      if (onboardingState.name) {
-        console.log('🎯 [ONBOARDING] Saving user name to profile...');
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session?.access_token) {
-            const sb = supabaseServerAuth(session.access_token);
-            const { error: profileError } = await sb
-              .from('profiles')
-              .update({ name: onboardingState.name })
-              .eq('user_id', user?.id);
-            
-            if (profileError) {
-              console.error('❌ [ONBOARDING] Failed to save name to profile:', profileError);
-            } else {
-              console.log('✅ [ONBOARDING] User name saved to profile');
-            }
-          }
-        } catch (error) {
-          console.error('❌ [ONBOARDING] Error saving name to profile:', error);
-        }
-      }
-
-      // Save onboarding responses
-      console.log('🎯 [ONBOARDING] Saving onboarding responses...');
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.access_token) {
-          const sb = supabaseServerAuth(session.access_token);
-          
-          // Prepare responses for insertion
-          const responses = Object.entries(onboardingState.answers)
-            .filter(([_, answer]) => answer && answer.trim()) // Only non-empty answers
-            .map(([questionId, answer]) => ({
-              user_id: user?.id,
-              question_id: parseInt(questionId),
-              answer: answer.trim()
-            }));
-
-          if (responses.length > 0) {
-            const { error: responsesError } = await sb
-              .from('onboarding_responses')
-              .upsert(responses, { 
-                onConflict: 'user_id,question_id',
-                ignoreDuplicates: false 
-              });
-            
-            if (responsesError) {
-              console.error('❌ [ONBOARDING] Failed to save onboarding responses:', responsesError);
-            } else {
-              console.log('✅ [ONBOARDING] Onboarding responses saved:', responses.length);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ [ONBOARDING] Error saving onboarding responses:', error);
-      }
-
-      // Save areas
-      console.log('🎯 [ONBOARDING] Saving areas...');
-      const areasResponse = await upsertAreas({
-        dream_id: dreamResponse.id,
-        areas: onboardingState.generatedAreas
-      }, token);
-
-      console.log('✅ [ONBOARDING] Areas saved:', areasResponse.areas.length);
-
-      // Save actions
-      console.log('🎯 [ONBOARDING] Saving actions...');
-      const actionsResponse = await upsertActions({
-        dream_id: dreamResponse.id,
-        actions: onboardingState.generatedActions
-      }, token);
-
-      console.log('✅ [ONBOARDING] Actions saved:', actionsResponse.actions.length);
-
-      // Activate dream and schedule actions
-      console.log('🎯 [ONBOARDING] Activating dream and scheduling actions...');
-      const activationResponse = await activateDream({
-        dream_id: dreamResponse.id
-      }, token);
-
-      if (activationResponse.success) {
-        console.log('✅ [ONBOARDING] Dream activated and actions scheduled successfully!');
-        return dreamResponse.id;
-      } else {
-        console.error('❌ [ONBOARDING] Dream activation failed:', activationResponse.error);
-        return dreamResponse.id; // Still return dream ID even if scheduling failed
-      }
-
-    } catch (error) {
-      console.error('❌ [ONBOARDING] Failed to create dream from onboarding data:', error);
+    // Check if we have the required data from context
+    if (!onboardingState.generatedAreas.length || !onboardingState.generatedActions.length) {
+      console.log('⚠️ [ONBOARDING] No generated areas or actions found in context, skipping dream creation');
       return null;
     }
+
+    if (!user?.id) {
+      console.log('⚠️ [ONBOARDING] No user ID available, skipping dream creation');
+      return null;
+    }
+
+    // Use shared creation function
+    return await createDreamFromOnboardingData(
+      {
+        name: onboardingState.name,
+        answers: onboardingState.answers,
+        dreamImageUrl: onboardingState.dreamImageUrl,
+        generatedAreas: onboardingState.generatedAreas,
+        generatedActions: onboardingState.generatedActions,
+      },
+      token,
+      user.id
+    );
   };
 
   // Test Apple Sign In availability on component mount
@@ -259,15 +145,39 @@ const PostPurchaseSignInStep: React.FC = () => {
           setIsCreatingDream(true);
           try {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.access_token) {
-              const dreamId = await createDreamFromOnboarding(session.access_token);
+            if (session?.access_token && user?.id) {
+              // Try to create from context first (immediate flow)
+              let dreamId = await createDreamFromOnboarding(session.access_token);
+              
+              // If context doesn't have data, try AsyncStorage as fallback
+              if (!dreamId) {
+                console.log('🔍 [ONBOARDING] No data in context, checking AsyncStorage...');
+                const pendingData = await getPendingOnboardingDream();
+                if (pendingData && pendingData.generatedAreas.length > 0 && pendingData.generatedActions.length > 0) {
+                  dreamId = await createDreamFromOnboardingData(
+                    {
+                      name: pendingData.name,
+                      answers: pendingData.answers,
+                      dreamImageUrl: pendingData.dreamImageUrl,
+                      generatedAreas: pendingData.generatedAreas,
+                      generatedActions: pendingData.generatedActions,
+                    },
+                    session.access_token,
+                    user.id
+                  );
+                  if (dreamId) {
+                    await clearPendingOnboardingDream();
+                  }
+                }
+              }
+              
               if (dreamId) {
                 console.log('🎉 [ONBOARDING] Dream creation completed successfully!');
               } else {
                 console.log('⚠️ [ONBOARDING] Dream creation skipped or failed');
               }
             } else {
-              console.log('⚠️ [ONBOARDING] No auth token available for dream creation');
+              console.log('⚠️ [ONBOARDING] No auth token or user ID available for dream creation');
             }
           } catch (error) {
             console.error('❌ [ONBOARDING] Error during dream creation:', error);
@@ -286,15 +196,39 @@ const PostPurchaseSignInStep: React.FC = () => {
           setIsCreatingDream(true);
           try {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.access_token) {
-              const dreamId = await createDreamFromOnboarding(session.access_token);
+            if (session?.access_token && user?.id) {
+              // Try to create from context first (immediate flow)
+              let dreamId = await createDreamFromOnboarding(session.access_token);
+              
+              // If context doesn't have data, try AsyncStorage as fallback
+              if (!dreamId) {
+                console.log('🔍 [ONBOARDING] No data in context, checking AsyncStorage...');
+                const pendingData = await getPendingOnboardingDream();
+                if (pendingData && pendingData.generatedAreas.length > 0 && pendingData.generatedActions.length > 0) {
+                  dreamId = await createDreamFromOnboardingData(
+                    {
+                      name: pendingData.name,
+                      answers: pendingData.answers,
+                      dreamImageUrl: pendingData.dreamImageUrl,
+                      generatedAreas: pendingData.generatedAreas,
+                      generatedActions: pendingData.generatedActions,
+                    },
+                    session.access_token,
+                    user.id
+                  );
+                  if (dreamId) {
+                    await clearPendingOnboardingDream();
+                  }
+                }
+              }
+              
               if (dreamId) {
                 console.log('🎉 [ONBOARDING] Dream creation completed successfully!');
               } else {
                 console.log('⚠️ [ONBOARDING] Dream creation skipped or failed');
               }
             } else {
-              console.log('⚠️ [ONBOARDING] No auth token available for dream creation');
+              console.log('⚠️ [ONBOARDING] No auth token or user ID available for dream creation');
             }
           } catch (dreamError) {
             console.error('❌ [ONBOARDING] Error during dream creation:', dreamError);

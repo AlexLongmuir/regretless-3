@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, FlatList } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -17,6 +18,7 @@ import { upsertDream, rescheduleActions, upsertAreas, getDefaultImages, uploadDr
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 
 // Popular emojis for area icons
 const POPULAR_EMOJIS = [
@@ -929,8 +931,8 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar style="light" />
-      <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <IconButton
             icon="chevron_left"
@@ -1133,7 +1135,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                 <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Dream Image</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   {/* Current Image */}
-                  <View style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
+                  <View style={{ width: 100, height: 100, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.colors.background.imagePlaceholder }}>
                     {editImageUrl ? (
                       <Image
                         source={{ uri: editImageUrl }}
@@ -1142,7 +1144,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                       />
                     ) : (
                       <View style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+                        <Ionicons name="image-outline" size={32} color={theme.colors.icon.tertiary} />
                       </View>
                     )}
                   </View>
@@ -1152,9 +1154,9 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                     onPress={() => setShowImageOptions(!showImageOptions)}
                     style={({ pressed }) => ({
                       flex: 1,
-                      backgroundColor: pressed ? '#E5E7EB' : '#F9FAFB',
+                      backgroundColor: pressed ? theme.colors.background.pressed : theme.colors.background.hover,
                       borderWidth: 1,
-                      borderColor: '#E5E7EB',
+                      borderColor: theme.colors.border.default,
                       borderRadius: 8,
                       padding: 12,
                       alignItems: 'center',
@@ -1162,7 +1164,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                       minHeight: 44
                     })}
                   >
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary }}>
                       {showImageOptions ? 'Hide Options' : (editImageUrl ? 'Change Photo' : 'Add Photo')}
                     </Text>
                   </Pressable>
@@ -1173,7 +1175,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   <View style={{ marginTop: 12 }}>
                     {isLoadingImages ? (
                       <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-                        <Text style={{ fontSize: 14, color: '#666' }}>Loading images...</Text>
+                        <Text style={{ fontSize: 14, color: theme.colors.text.muted }}>Loading images...</Text>
                       </View>
                     ) : (
                       <FlatList
@@ -1190,10 +1192,10 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                                 style={{
                                   width: '30%',
                                   aspectRatio: 1,
-                                  backgroundColor: '#F9FAFB',
+                                  backgroundColor: theme.colors.background.hover,
                                   borderRadius: 12,
                                   borderWidth: 2,
-                                  borderColor: '#E5E7EB',
+                                  borderColor: theme.colors.border.default,
                                   borderStyle: 'dashed',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -1203,13 +1205,13 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                                 }}
                               >
                                 {isUploadingImage ? (
-                                  <Ionicons name="hourglass-outline" size={24} color="#6B7280" />
+                                  <Ionicons name="hourglass-outline" size={24} color={theme.colors.icon.secondary} />
                                 ) : (
-                                  <Ionicons name="add" size={24} color="#111827" />
+                                  <Ionicons name="add" size={24} color={theme.colors.text.primary} />
                                 )}
                                 <Text style={{
                                   fontSize: 12,
-                                  color: isUploadingImage ? '#6B7280' : '#111827',
+                                  color: isUploadingImage ? theme.colors.icon.secondary : theme.colors.text.primary,
                                   marginTop: 4,
                                   fontWeight: '500'
                                 }}>
@@ -1227,11 +1229,11 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                                 aspectRatio: 1,
                                 borderRadius: 12,
                                 overflow: 'hidden',
-                                backgroundColor: 'white',
+                                backgroundColor: theme.colors.background.card,
                                 marginRight: '3.33%',
                                 marginBottom: 12,
                                 borderWidth: isSelected ? 3 : 0,
-                                borderColor: '#000'
+                                borderColor: theme.colors.border.selected
                               }}
                             >
                               <Image
@@ -1273,7 +1275,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   placeholder="Enter dream title"
                   multiline
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
@@ -1331,7 +1333,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                 <Pressable
                   onPress={() => setShowTimePicker(true)}
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     alignItems: 'flex-start'
@@ -1339,7 +1341,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                 >
                   <Text style={{
                     fontSize: 16,
-                    color: '#111827',
+                    color: theme.colors.text.primary,
                     textAlign: 'left'
                   }}>
                     {formatTime(editTimeCommitment.hours, editTimeCommitment.minutes)}
@@ -1370,14 +1372,14 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                     <Pressable
                       onPress={() => setShowTimePicker(false)}
                       style={{
-                        backgroundColor: '#000',
+                        backgroundColor: theme.colors.border.selected,
                         paddingHorizontal: 20,
                         paddingVertical: 8,
                         borderRadius: 6,
                         marginTop: 12
                       }}
                     >
-                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                      <Text style={{ color: theme.colors.text.inverse, fontWeight: '600' }}>Done</Text>
                     </Pressable>
                   </View>
                 )}
@@ -1387,21 +1389,21 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
               {dreamData?.activated_at && editEndDate && (
                 <View style={{ marginBottom: 16 }}>
                   <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Reschedule Actions</Text>
-                  <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 12, lineHeight: 20 }}>
+                  <Text style={{ fontSize: 14, color: theme.colors.icon.secondary, marginBottom: 12, lineHeight: 20 }}>
                     Running behind or changed your time commitment or end date? Reschedule outstanding actions from today's date to your end date.
                   </Text>
                   <Pressable
                     onPress={handleReschedule}
                     disabled={isRescheduling}
                     style={{
-                      backgroundColor: isRescheduling ? '#6B7280' : '#000',
+                      backgroundColor: isRescheduling ? theme.colors.icon.secondary : theme.colors.border.selected,
                       borderRadius: 8,
                       padding: 16,
                       alignItems: 'center'
                     }}
                   >
                     <Text style={{
-                      color: 'white',
+                      color: theme.colors.text.inverse,
                       fontWeight: '600',
                       fontSize: 16
                     }}>
@@ -1452,7 +1454,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   placeholder="Enter area title"
                   multiline
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
@@ -1469,7 +1471,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   onChangeText={setNewAreaIcon}
                   placeholder="Enter emoji (e.g. 🚀)"
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
@@ -1477,7 +1479,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   }}
                   maxLength={2}
                 />
-                <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                <Text style={{ fontSize: 12, color: theme.colors.text.muted, marginTop: 4 }}>
                   Optional: Enter 1-2 emojis to represent this area
                 </Text>
               </View>
@@ -1509,7 +1511,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: 0,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: BOTTOM_NAV_PADDING,
   },
   imageContainer: {
     width: 225,
@@ -1683,7 +1685,7 @@ const styles = StyleSheet.create({
   },
   areaSkeletonCard: {
     width: '100%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,

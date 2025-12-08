@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: '#10B981',
+    backgroundColor: theme.colors.status.completed,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 100,
-    color: 'white',
+    color: theme.colors.text.inverse,
   },
   heroSection: {
     padding: 24,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: theme.colors.primary[500],
-    color: 'white',
+    color: theme.colors.text.inverse,
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',

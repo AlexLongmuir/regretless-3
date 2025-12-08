@@ -15,6 +15,8 @@ import {
   Linking,
   Pressable
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -22,7 +24,6 @@ import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../utils/theme';
-import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { OptionsPopover } from '../components/OptionsPopover';
@@ -33,6 +34,7 @@ import { useData } from '../contexts/DataContext';
 import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArtifact, getArtifacts, deleteArtifact, completeOccurrence, generateAIReview, type Artifact } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { ActionOccurrenceStatus } from '../backend/database/types';
+import { BOTTOM_NAV_HEIGHT } from '../utils/bottomNavigation';
 
 // Edit Action Modal Component (copied from ActionChipsList)
 interface EditActionModalProps {
@@ -52,6 +54,8 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     repeat_every_days: undefined as number | undefined,
     slice_count_target: undefined as number | undefined,
     acceptance_criteria: [] as string[],
+    acceptance_intro: '' as string | undefined,
+    acceptance_outro: '' as string | undefined,
     dream_image: '',
     occurrence_no: 1
   });
@@ -179,11 +183,11 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
               placeholder="Enter action title"
               placeholderTextColor={theme.colors.grey[500]}
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: theme.colors.black
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -198,11 +202,11 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
               placeholderTextColor={theme.colors.grey[500]}
               keyboardType="numeric"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
-                color: theme.colors.black
+                color: theme.colors.text.primary
               }}
             />
           </View>
@@ -216,12 +220,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                 setShowDatePicker(true);
               }}
               style={{
-                backgroundColor: 'white',
+                backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
                 padding: 12
               }}
             >
-              <Text style={{ fontSize: 16, color: theme.colors.black }}>
+              <Text style={{ fontSize: 16, color: theme.colors.text.primary }}>
                 {dueDate.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
@@ -267,33 +271,75 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={addCriterion}>
-                <Text style={{ color: '#000', fontWeight: '600' }}>+ Add</Text>
+                <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Intro */}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.grey[600] }}>Intro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_intro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
+                placeholder="One sentence setting intention..."
+                placeholderTextColor={theme.colors.grey[500]}
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
+
+            {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
               <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
                 <TextInput
                   value={criterion}
                   onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Criterion ${index + 1}`}
+                  placeholder={`Bullet ${index + 1}`}
                   placeholderTextColor={theme.colors.grey[500]}
                   autoFocus={focusedCriterionIndex === index}
                   onFocus={() => setFocusedCriterionIndex(index)}
                   style={{
                     flex: 1,
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
                     fontSize: 16,
                     marginRight: 8,
-                    color: theme.colors.black
+                    color: theme.colors.text.primary
                   }}
                 />
                 <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color="#F44336" />
+                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
                 </TouchableOpacity>
               </View>
             ))}
+
+            {/* Outro */}
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.grey[600] }}>Outro (optional)</Text>
+              <TextInput
+                value={formData.acceptance_outro || ''}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
+                placeholder="One sentence defining 'done'..."
+                placeholderTextColor={theme.colors.grey[500]}
+                multiline
+                style={{
+                  backgroundColor: theme.colors.background.card,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  color: theme.colors.text.primary,
+                  minHeight: 44
+                }}
+              />
+            </View>
           </View>
 
           {/* Action Type Segmented */}
@@ -311,12 +357,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: actionType === opt.value ? '#000' : 'white',
+                    backgroundColor: actionType === opt.value ? theme.colors.border.selected : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
                 >
-                  <Text style={{ color: actionType === opt.value ? 'white' : '#000', fontWeight: '600' }}>{opt.label}</Text>
+                  <Text style={{ color: actionType === opt.value ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600' }}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -338,12 +384,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                     style={{
                       flex: 1,
                       padding: 12,
-                      backgroundColor: formData.repeat_every_days === option.value ? '#000' : 'white',
+                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
                       borderRadius: 8,
                       alignItems: 'center'
                     }}
                   >
-                    <Text style={{ color: formData.repeat_every_days === option.value ? 'white' : '#000', fontWeight: '600', fontSize: 14 }}>{option.label}</Text>
+                    <Text style={{ color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600', fontSize: 14 }}>{option.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -368,11 +414,11 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                 placeholderTextColor={theme.colors.grey[500]}
                 keyboardType="numeric"
                 style={{
-                  backgroundColor: 'white',
+                  backgroundColor: theme.colors.background.card,
                   borderRadius: 8,
                   padding: 12,
                   fontSize: 16,
-                  color: theme.colors.black
+                  color: theme.colors.text.primary
                 }}
               />
             </View>
@@ -389,12 +435,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: formData.difficulty === diff ? '#000' : 'white',
+                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
                 >
-                  <Text style={{ color: formData.difficulty === diff ? 'white' : '#000', fontWeight: '600' }}>
+                  <Text style={{ color: formData.difficulty === diff ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600' }}>
                     {diff.charAt(0).toUpperCase() + diff.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -410,6 +456,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 const ActionOccurrencePage = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
   const { show: showToast } = useToast();
   const params = route.params as {
@@ -497,10 +544,23 @@ const ActionOccurrencePage = () => {
 
       // Mock Data for Screenshot Mode
       if (isScreenshotMode) {
-        // Check if it's the High Protein action (Area 2, Index 1 -> 'occ-area-2-1')
-        const isHighProtein = params.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein'));
+        // Check if it's the High Protein action (Area 2, Index 1 -> 'occ-area-2-1' or 'mock-occ-1')
+        // Check occurrenceId first (most reliable), then action title from params or occurrenceData
+        const actionTitle = params.actionTitle || (occurrenceData as any)?.action_title || '';
+        const isHighProtein = params.occurrenceId === 'occ-area-2-1' || 
+                              params.occurrenceId === 'mock-occ-1' || 
+                              actionTitle.toLowerCase().includes('high protein');
+        
+        console.log('🎯 [SCREENSHOT] Checking high protein action:', {
+          occurrenceId: params.occurrenceId,
+          isScreenshotMode,
+          actionTitle,
+          isHighProtein,
+          hasOccurrenceData: !!occurrenceData
+        });
         
         if (isHighProtein) {
+          console.log('✅ [SCREENSHOT] Setting mock artifacts for high protein action');
           // @ts-ignore: Mocking artifact
           setArtifacts([{ 
             id: 'mock-art-1', 
@@ -539,7 +599,7 @@ const ActionOccurrencePage = () => {
     };
 
     loadArtifacts();
-  }, [params?.occurrenceId]);
+  }, [params?.occurrenceId, occurrenceData, isScreenshotMode]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -570,23 +630,23 @@ const ActionOccurrencePage = () => {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return '#4CAF50';
-      case 'medium': return '#FF9800';
-      case 'hard': return '#F44336';
-      default: return '#4CAF50';
+      case 'easy': return theme.colors.difficulty.easy;
+      case 'medium': return theme.colors.difficulty.medium;
+      case 'hard': return theme.colors.difficulty.hard;
+      default: return theme.colors.difficulty.easy;
     }
   };
 
   const getStatusColor = () => {
-    if (isCompleted) return '#4CAF50';
-    if ((occurrenceData as any)?.is_overdue || params?.isOverdue) return '#F44336';
-    return '#666';
+    if (isCompleted) return theme.colors.status.completed;
+    if ((occurrenceData as any)?.is_overdue || params?.isOverdue) return theme.colors.status.overdue;
+    return theme.colors.status.pending;
   };
 
   const getPageBackgroundColor = () => {
-    if (isCompleted) return '#E8F5E8'; // Light green for completed
-    if ((occurrenceData as any)?.is_overdue || params?.isOverdue) return '#FFF3E0'; // Light orange for overdue
-    return theme.colors.pageBackground; // Default background
+    if (isCompleted) return theme.colors.statusBackground.completed;
+    if ((occurrenceData as any)?.is_overdue || params?.isOverdue) return theme.colors.statusBackground.overdue;
+    return theme.colors.background.page; // Default background
   };
 
   const getStatusText = () => {
@@ -860,9 +920,17 @@ const ActionOccurrencePage = () => {
     const currentNote = note.trim() || 'No notes yet';
     const acceptanceCriteria = actionData?.acceptance_criteria || params?.acceptanceCriteria || [];
     
-    // Format acceptance criteria
-    const criteriaText = acceptanceCriteria.length > 0 
-      ? acceptanceCriteria.map((criteria: string, index: number) => `${index + 1}. ${criteria}`).join('\n')
+    // Format acceptance criteria with new structure
+    const intro = (actionData as any)?.acceptance_intro || (params as any)?.acceptanceIntro;
+    const outro = (actionData as any)?.acceptance_outro || (params as any)?.acceptanceOutro;
+    const criteriaText = acceptanceCriteria.length > 0 || intro || outro
+      ? [
+          intro ? `Intro: ${intro}` : null,
+          acceptanceCriteria.length > 0 
+            ? acceptanceCriteria.map((criteria: string, index: number) => `${index + 1}. ${criteria}`).join('\n')
+            : null,
+          outro ? `Outro: ${outro}` : null
+        ].filter(Boolean).join('\n\n')
       : 'No specific criteria defined';
     
     // Create a concise summary with improved prompt engineering
@@ -936,10 +1004,10 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
     const getBarColor = (diff: string) => {
       switch (diff) {
-        case 'easy': return '#4CAF50';
-        case 'medium': return '#FF9800';
-        case 'hard': return '#F44336';
-        default: return '#4CAF50';
+        case 'easy': return theme.colors.difficulty.easy;
+        case 'medium': return theme.colors.difficulty.medium;
+        case 'hard': return theme.colors.difficulty.hard;
+        default: return theme.colors.difficulty.easy;
       }
     };
 
@@ -954,7 +1022,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             style={{
               width: 3,
               height: bar * 2 + 4,
-              backgroundColor: bar <= barCount ? barColor : '#E0E0E0',
+              backgroundColor: bar <= barCount ? barColor : theme.colors.disabled.inactive,
               borderRadius: 1.5
             }}
           />
@@ -978,6 +1046,8 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       repeat_every_days: actionData.repeat_every_days,
       slice_count_target: actionData.slice_count_target,
       acceptance_criteria: actionData.acceptance_criteria || [],
+      acceptance_intro: (actionData as any).acceptance_intro,
+      acceptance_outro: (actionData as any).acceptance_outro,
       dream_image: dreamAreaData?.areaEmoji || '',
       occurrence_no: occurrenceData?.occurrence_no || 1
     };
@@ -1001,7 +1071,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       }
 
       // Prepare updates for the action
-      const updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] } = {};
+      const updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[]; acceptance_intro?: string; acceptance_outro?: string } = {};
       
       if (updatedAction.title !== actionData.title) updates.title = updatedAction.title;
       if (updatedAction.est_minutes !== actionData.est_minutes) updates.est_minutes = updatedAction.est_minutes;
@@ -1010,6 +1080,12 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       if (updatedAction.slice_count_target !== actionData.slice_count_target) updates.slice_count_target = updatedAction.slice_count_target;
       if (JSON.stringify(updatedAction.acceptance_criteria) !== JSON.stringify(actionData.acceptance_criteria)) {
         updates.acceptance_criteria = updatedAction.acceptance_criteria;
+      }
+      if ((updatedAction as any).acceptance_intro !== ((actionData as any).acceptance_intro || undefined)) {
+        updates.acceptance_intro = (updatedAction as any).acceptance_intro || undefined;
+      }
+      if ((updatedAction as any).acceptance_outro !== ((actionData as any).acceptance_outro || undefined)) {
+        updates.acceptance_outro = (updatedAction as any).acceptance_outro || undefined;
       }
 
       if (Object.keys(updates).length === 0) {
@@ -1068,6 +1144,12 @@ Focus on practical, immediately actionable advice that moves me closer to comple
   };
 
   const menuOptions = [
+    ...(!isCompleted ? [{
+      id: 'defer',
+      icon: 'event',
+      title: 'Defer +1 Day',
+      onPress: handleDefer
+    }] : []),
     {
       id: 'edit',
       icon: 'edit',
@@ -1084,13 +1166,16 @@ Focus on practical, immediately actionable advice that moves me closer to comple
   ];
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { backgroundColor: getPageBackgroundColor() }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.wrapper}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={[styles.container, { backgroundColor: getPageBackgroundColor() }]} edges={['top']}>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          {/* Header */}
+          <View style={styles.header}>
         <IconButton
           icon="chevron_left"
           onPress={() => navigation.goBack()}
@@ -1119,7 +1204,13 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 200 } // Space for floating bottom section
+        ]}
+      >
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.imageContainer}>
@@ -1140,7 +1231,13 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 // Navigate to dream page - we need to get the dream ID from the action data
                 const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
                 if (dreamId) {
-                  (navigation as any).navigate('Dream', { dreamId });
+                  (navigation as any).navigate('Tabs', {
+                    screen: 'Dreams',
+                    params: {
+                      screen: 'Dream',
+                      params: { dreamId }
+                    }
+                  });
                 }
               }}>
                 <Text style={styles.dreamTitle}>{dreamAreaData.dreamTitle}</Text>
@@ -1152,12 +1249,18 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 const areaId = actionData?.areas?.id || actionData?.area_id;
                 const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
                 if (areaId && dreamId) {
-                  (navigation as any).navigate('Area', { 
-                    areaId, 
-                    areaTitle: dreamAreaData.areaName,
-                    areaEmoji: dreamAreaData.areaEmoji,
-                    dreamId,
-                    dreamTitle: dreamAreaData.dreamTitle
+                  (navigation as any).navigate('Tabs', {
+                    screen: 'Dreams',
+                    params: {
+                      screen: 'Area',
+                      params: { 
+                        areaId, 
+                        areaTitle: dreamAreaData.areaName,
+                        areaEmoji: dreamAreaData.areaEmoji,
+                        dreamId,
+                        dreamTitle: dreamAreaData.dreamTitle
+                      }
+                    }
                   });
                 }
               }}>
@@ -1174,11 +1277,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                   : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
                 }
               </Text>
-              {!isCompleted && (
-                <TouchableOpacity onPress={handleDefer} style={{ marginLeft: 'auto' }}>
-                  <Text style={styles.deferLink}>Defer +1 Day</Text>
-                </TouchableOpacity>
-              )}
             </View>
             
             {/* Details Row */}
@@ -1210,22 +1308,37 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
-          <Text style={styles.sectionTitle}>Acceptance Criteria</Text>
           <View style={styles.criteriaList}>
-            {(actionData?.acceptance_criteria && actionData.acceptance_criteria.length > 0) || (params?.acceptanceCriteria && params.acceptanceCriteria.length > 0) ? (
+            {/* Intro */}
+            {(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && (
+              <Text style={styles.criteriaIntro}>
+                {actionData?.acceptance_intro || (params as any)?.acceptanceIntro}
+              </Text>
+            )}
+            
+            {/* Bullets */}
+            {((actionData?.acceptance_criteria && actionData.acceptance_criteria.length > 0) || (params?.acceptanceCriteria && params.acceptanceCriteria.length > 0)) ? (
               (actionData?.acceptance_criteria || params?.acceptanceCriteria || []).map((criteria: string, index: number) => (
                 <Text key={index} style={styles.criteriaItem}>
-                  {index + 1}. {criteria}
+                  • {criteria}
                 </Text>
               ))
-            ) : (
+            ) : !(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && !(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) ? (
               <Text style={styles.criteriaItem}>No specific criteria defined</Text>
+            ) : null}
+            
+            {/* Outro */}
+            {(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) && (
+              <Text style={[styles.criteriaOutro, (actionData?.acceptance_criteria && actionData.acceptance_criteria.length > 0) || (params?.acceptanceCriteria && params.acceptanceCriteria.length > 0) ? styles.criteriaOutroWithBullets : null]}>
+                {actionData?.acceptance_outro || (params as any)?.acceptanceOutro}
+              </Text>
             )}
           </View>
         </View>
 
-        {/* AI Help Button */}
+        {/* AI Help Section */}
         <View style={styles.aiHelpSection}>
+          <Text style={styles.aiHelpSecondaryText}>Need help? Get AI to draft your steps.</Text>
           <Button
             title="Plan with AI"
             onPress={handleAIDiscussion}
@@ -1254,84 +1367,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         )}
       </ScrollView>
 
-      {/* Bottom Section */}
-      <View style={styles.bottomSection}>
-        {/* Uploaded Images Row */}
-        {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein')))) && (
-          <View style={styles.uploadedImagesRow}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
-              {artifacts.map((artifact) => (
-                <View key={artifact.id} style={styles.artifactImageContainer}>
-                  <Image
-                    source={{ uri: artifact.signed_url }}
-                    style={styles.uploadedImage}
-                    resizeMode="cover"
-                  />
-                  <TouchableOpacity
-                    style={styles.deleteImageButton}
-                    onPress={() => handleDeleteImage(artifact.id)}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#F44336" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Upload Button and Text Input Row */}
-        <View style={styles.inputRow}>
-          {isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || (params.actionTitle && params.actionTitle.toLowerCase().includes('high protein'))) && artifacts.length > 0 ? (
-            // Show photo instead of upload button in screenshot mode
-            <View style={styles.photoContainer}>
-              <Image
-                source={{ uri: artifacts[0].signed_url }}
-                style={styles.photoInRow}
-                resizeMode="cover"
-              />
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
-              onPress={handleImagePicker}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
-              ) : (
-                <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
-              )}
-              <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-                {isUploading ? 'Uploading...' : 'Upload Photo'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <TextInput
-            style={styles.textInputInRow}
-            placeholder="Add a note about your progress..."
-            placeholderTextColor={theme.colors.grey[500]}
-            multiline
-            value={note}
-            onChangeText={setNote}
-          />
-        </View>
-        
-        <View style={styles.actionButtons}>
-          <Button
-            title={
-              isSubmitting 
-                ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
-                : (isCompleted ? "Re-submit" : "Mark as Done")
-            }
-            variant="black"
-            onPress={handleComplete}
-            disabled={isSubmitting}
-            style={{ borderRadius: theme.radius.xl }}
-          />
-        </View>
-      </View>
-
       {/* Options Popover */}
       <OptionsPopover
         visible={showOptionsPopover}
@@ -1349,11 +1384,112 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         dreamEndDate={undefined}
       />
 
-    </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+      
+      {/* Bottom Section - Floating above nav bar */}
+      <View style={[styles.bottomSection, { bottom: BOTTOM_NAV_HEIGHT + insets.bottom }]}>
+          {/* Uploaded Images Row */}
+          {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || params?.occurrenceId === 'mock-occ-1' || ((params?.actionTitle || (occurrenceData as any)?.action_title || '').toLowerCase().includes('high protein')))) && (
+            <View style={styles.uploadedImagesRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
+                {artifacts.map((artifact) => (
+                  <View key={artifact.id} style={styles.artifactImageContainer}>
+                    <Image
+                      source={{ uri: artifact.signed_url }}
+                      style={styles.uploadedImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.deleteImageButton}
+                      onPress={() => handleDeleteImage(artifact.id)}
+                    >
+                      <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Upload Button and Text Input Row */}
+          <View style={styles.inputRow}>
+            {(() => {
+              if (!isScreenshotMode || artifacts.length === 0) {
+                console.log('🔍 [RENDER] Not showing image:', { isScreenshotMode, artifactsLength: artifacts.length });
+                return false;
+              }
+              const actionTitle = params?.actionTitle || (occurrenceData as any)?.action_title || '';
+              const isHighProtein = params?.occurrenceId === 'occ-area-2-1' || 
+                                    params?.occurrenceId === 'mock-occ-1' || 
+                                    actionTitle.toLowerCase().includes('high protein');
+              console.log('🔍 [RENDER] Checking high protein:', { 
+                occurrenceId: params?.occurrenceId, 
+                actionTitle, 
+                isHighProtein,
+                artifactsLength: artifacts.length 
+              });
+              return isHighProtein;
+            })() ? (
+              // Show photo instead of upload button in screenshot mode
+              <View style={styles.photoContainer}>
+                <Image
+                  source={{ uri: artifacts[0].signed_url }}
+                  style={styles.photoInRow}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
+                onPress={handleImagePicker}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+                ) : (
+                  <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+                )}
+                <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
+                  {isUploading ? 'Uploading...' : 'Upload Photo'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TextInput
+              style={styles.textInputInRow}
+              placeholder="Add a note about your progress..."
+              placeholderTextColor={theme.colors.grey[500]}
+              multiline
+              value={note}
+              onChangeText={setNote}
+            />
+          </View>
+          
+          <View style={styles.actionButtons}>
+            <Button
+              title={
+                isSubmitting 
+                  ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
+                  : (isCompleted ? "Re-submit" : "Mark as Done")
+              }
+              variant="black"
+              onPress={handleComplete}
+              disabled={isSubmitting}
+              style={{ borderRadius: theme.radius.xl }}
+            />
+          </View>
+        </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'visible',
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.pageBackground,
@@ -1363,7 +1499,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 16,
     paddingBottom: 16,
     backgroundColor: 'transparent',
   },
@@ -1377,10 +1513,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 0,
   },
   heroSection: {
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    paddingBottom: 24,
     marginBottom: 8,
   },
   imageContainer: {
@@ -1443,7 +1581,7 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
     flexWrap: 'wrap',
   },
   detailItem: {
@@ -1466,24 +1604,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     width: '100%',
   },
-  deferLink: {
-    fontSize: 14,
-    color: theme.colors.grey[600],
-    fontWeight: '500',
-    marginLeft: 'auto',
-  },
   detailValue: {
     fontSize: 14,
     color: theme.colors.grey[600],
   },
   aiHelpSection: {
-    paddingHorizontal: 24,
+    padding: 24,
+    paddingTop: 4,
     marginBottom: 16,
+  },
+  aiHelpSecondaryText: {
+    fontSize: 14,
+    color: theme.colors.grey[600],
+    marginBottom: 8,
+    lineHeight: 20,
   },
   acceptanceSection: {
     padding: 24,
-    paddingTop: 8,
-    marginBottom: 16,
+    paddingTop: 4,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1496,7 +1635,23 @@ const styles = StyleSheet.create({
   },
   criteriaItem: {
     fontSize: 16,
-    color: theme.colors.grey[700],
+                  color: theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  criteriaIntro: {
+    fontSize: 16,
+                  color: theme.colors.text.primary,
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  criteriaOutro: {
+    fontSize: 16,
+                  color: theme.colors.text.primary,
+    marginTop: 12,
+    lineHeight: 22,
+  },
+  criteriaOutroWithBullets: {
+    marginTop: 12,
   },
   aiReviewSection: {
     padding: 24,
@@ -1511,14 +1666,21 @@ const styles = StyleSheet.create({
   },
   aiFeedback: {
     fontSize: 14,
-    color: theme.colors.black,
+                  color: theme.colors.text.primary,
     textAlign: 'left',
     lineHeight: 20,
     flex: 1,
   },
   bottomSection: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     padding: 16,
-    paddingBottom: BOTTOM_NAV_PADDING,
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+    zIndex: 9999,
+    elevation: 9999,
   },
   uploadedImagesRow: {
     marginBottom: 16,
@@ -1583,7 +1745,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
     borderRadius: 10,
   },
   uploadButtonDisabled: {
@@ -1598,9 +1760,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoInRow: {
+    width: 80,
     height: 80,
     borderRadius: theme.radius.xl,
-    maxWidth: 120,
   },
 });
 

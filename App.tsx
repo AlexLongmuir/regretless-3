@@ -53,6 +53,7 @@ export default function App() {
         
         // Initialize RevenueCat (will use mock if no API key provided)
         const revenueCatApiKey = Constants.expoConfig?.extra?.revenueCatApiKey;
+        console.log('🔑 RevenueCat API Key being used:', revenueCatApiKey ? revenueCatApiKey.substring(0, 15) + '...' : 'NOT SET');
         await initializeRevenueCat(revenueCatApiKey);
         
         console.log('All services initialized successfully');

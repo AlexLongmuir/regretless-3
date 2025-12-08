@@ -26,13 +26,17 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
     reset()
     
     // Close the entire create flow and return to main app
-    // Navigate to the parent navigator's Tabs screen
+    // Since CreateFlow is a modal, navigate back from the parent navigator
     const parentNavigation = navigation.getParent()
-    if (parentNavigation) {
-      parentNavigation.navigate('Tabs')
+    if (parentNavigation && parentNavigation.canGoBack()) {
+      // Navigate back from the CreateFlow modal to return to main app
+      parentNavigation.goBack()
     } else {
-      // Fallback: just go back
-      navigation.goBack()
+      // Fallback: try to navigate back from current navigator
+      // This handles cases where getParent() doesn't work as expected
+      if (navigation.canGoBack()) {
+        navigation.goBack()
+      }
     }
   }
 

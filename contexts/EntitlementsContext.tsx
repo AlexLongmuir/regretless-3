@@ -308,6 +308,19 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         return { success: false, error: rcCheckError.message };
       }
 
+      // Check if there's already an active subscription for this user
+      const { data: existingActiveSubscription, error: activeCheckError } = await supabaseClient
+        .from('user_subscriptions')
+        .select('id, user_id, rc_app_user_id, is_active')
+        .eq('user_id', finalSubscriptionData.user_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (activeCheckError) {
+        console.error('Error checking existing active subscription:', activeCheckError);
+        return { success: false, error: activeCheckError.message };
+      }
+
       if (existingByRevenueCat) {
         // This RevenueCat user ID is already associated with a different user
         if (existingByRevenueCat.user_id !== finalSubscriptionData.user_id) {
@@ -317,11 +330,151 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
             error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
           };
         } else {
-          // Same user - webhook handles updates, no need to update here
-          console.log('✅ Subscription already linked to this user, webhook will handle updates');
+          // Same user - update the existing subscription
+          console.log('✅ Updating existing subscription with same RevenueCat user ID');
+          const { error: updateError } = await supabaseClient
+            .from('user_subscriptions')
+            .update(finalSubscriptionData)
+            .eq('id', existingByRevenueCat.id);
+
+          if (updateError) {
+            console.error('Error updating subscription:', updateError);
+            return { success: false, error: updateError.message };
+          }
+          console.log('✅ Updated existing subscription entry');
+        }
+      } else if (existingActiveSubscription) {
+        // There's an active subscription for this user but with different RevenueCat ID
+        // This can happen if user purchased on a different device or there was a previous attempt
+        console.log('⚠️ Found existing active subscription with different RevenueCat ID, updating it');
+        
+        // Re-check if the new RevenueCat ID exists (to catch race conditions with webhooks)
+        const { data: recheckByRevenueCat, error: recheckError } = await supabaseClient
+          .from('user_subscriptions')
+          .select('id, user_id, is_active')
+          .eq('rc_app_user_id', finalSubscriptionData.rc_app_user_id)
+          .maybeSingle();
+
+        if (recheckError && recheckError.code !== 'PGRST116') {
+          console.error('Error re-checking RevenueCat subscription:', recheckError);
+          return { success: false, error: recheckError.message };
+        }
+
+        if (recheckByRevenueCat) {
+          // The new RevenueCat ID now exists (possibly inserted by webhook)
+          if (recheckByRevenueCat.user_id !== finalSubscriptionData.user_id) {
+            // Belongs to a different user - this is an error
+            console.log('⚠️ New RevenueCat ID already linked to another account:', recheckByRevenueCat.user_id);
+            return { 
+              success: false, 
+              error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
+            };
+          } else {
+            // Belongs to the same user - update that record and deactivate the old one
+            console.log('✅ New RevenueCat ID exists for same user, updating that record and deactivating old one');
+            
+            // Update the record with the new RevenueCat ID
+            const { error: updateNewError } = await supabaseClient
+              .from('user_subscriptions')
+              .update(finalSubscriptionData)
+              .eq('id', recheckByRevenueCat.id);
+
+            if (updateNewError) {
+              console.error('Error updating subscription with new RevenueCat ID:', updateNewError);
+              return { success: false, error: updateNewError.message };
+            }
+
+            // Deactivate the old subscription
+            const { error: deactivateError } = await supabaseClient
+              .from('user_subscriptions')
+              .update({ is_active: false })
+              .eq('id', existingActiveSubscription.id);
+
+            if (deactivateError) {
+              console.error('Error deactivating old subscription:', deactivateError);
+              // Don't fail the whole operation if deactivation fails
+            } else {
+              console.log('✅ Deactivated old subscription entry');
+            }
+
+            console.log('✅ Updated subscription with new RevenueCat ID');
+          }
+        } else {
+          // New RevenueCat ID doesn't exist - safe to update the old subscription
+          const { error: updateError } = await supabaseClient
+            .from('user_subscriptions')
+            .update(finalSubscriptionData)
+            .eq('id', existingActiveSubscription.id);
+
+          if (updateError) {
+            // Check if this is a unique constraint violation
+            if (updateError.code === '23505') {
+              console.log('⚠️ Unique constraint violation detected, re-checking for race condition...');
+              
+              // Re-check if the new ID was inserted between our check and update
+              const { data: finalCheck, error: finalCheckError } = await supabaseClient
+                .from('user_subscriptions')
+                .select('id, user_id, is_active')
+                .eq('rc_app_user_id', finalSubscriptionData.rc_app_user_id)
+                .maybeSingle();
+
+              if (finalCheckError && finalCheckError.code !== 'PGRST116') {
+                console.error('Error in final check after constraint violation:', finalCheckError);
+                return { success: false, error: finalCheckError.message };
+              }
+
+              if (finalCheck) {
+                // The new ID now exists - handle it
+                if (finalCheck.user_id !== finalSubscriptionData.user_id) {
+                  console.log('⚠️ New RevenueCat ID now linked to another account:', finalCheck.user_id);
+                  return { 
+                    success: false, 
+                    error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
+                  };
+                } else {
+                  // Same user - update that record and deactivate old one
+                  console.log('✅ New RevenueCat ID now exists for same user, updating that record');
+                  
+                  const { error: updateNewError } = await supabaseClient
+                    .from('user_subscriptions')
+                    .update(finalSubscriptionData)
+                    .eq('id', finalCheck.id);
+
+                  if (updateNewError) {
+                    console.error('Error updating subscription with new RevenueCat ID:', updateNewError);
+                    return { success: false, error: updateNewError.message };
+                  }
+
+                  // Deactivate the old subscription
+                  const { error: deactivateError } = await supabaseClient
+                    .from('user_subscriptions')
+                    .update({ is_active: false })
+                    .eq('id', existingActiveSubscription.id);
+
+                  if (deactivateError) {
+                    console.error('Error deactivating old subscription:', deactivateError);
+                  } else {
+                    console.log('✅ Deactivated old subscription entry');
+                  }
+
+                  console.log('✅ Updated subscription with new RevenueCat ID after constraint violation');
+                }
+              } else {
+                // Still doesn't exist - this is unexpected, return the original error
+                console.error('Error updating existing active subscription:', updateError);
+                return { success: false, error: updateError.message };
+              }
+            } else {
+              // Not a unique constraint violation - return the error
+              console.error('Error updating existing active subscription:', updateError);
+              return { success: false, error: updateError.message };
+            }
+          } else {
+            console.log('✅ Updated existing active subscription entry');
+          }
         }
       } else {
-        // No existing subscription with this RevenueCat user ID, create new one
+        // No existing subscription, create new one
         const { error: insertError } = await supabaseClient
           .from('user_subscriptions')
           .insert(finalSubscriptionData);

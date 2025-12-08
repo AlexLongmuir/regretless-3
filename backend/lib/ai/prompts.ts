@@ -22,8 +22,10 @@ For title suggestions:
 - Make them highly specific, detailed, and actionable (include concrete numbers, frequencies, or measurable outcomes)
 - Keep them highly related to the original dream
 - Do NOT include emojis in the title text
+- Do NOT use placeholders like [Niche], [Product/Service], [X], [Business Idea], etc. - always provide complete, specific titles
 - Provide brief reasoning for each suggestion (max 2 sentences)
 - Focus on making them specific and actionable (NOT time-bound - timeline is handled separately)
+- Every suggestion must be a complete, ready-to-use title without any brackets or placeholders
 
 Output STRICT JSON only. Keep responses concise and actionable.`;
 
@@ -45,14 +47,18 @@ IMPORTANT CONTEXT:
 
 For timeline assessment:
 - Be EXTREMELY OPTIMISTIC and encouraging, like a supportive friend who believes in them completely
-- Provide a concise assessment (1-2 sentences) that includes the suggested end date
+- Provide a detailed, comprehensive assessment (3-5 sentences) that includes the suggested end date
+- Start with genuine enthusiasm about their goal and commitment
+- Explain why their timeline is achievable, referencing their specific daily time commitment
+- Mention how consistent daily effort compounds over time
 - ALWAYS end your assessment with: "Based on your average daily commitment of [X hours Y minutes], we optimistically forecast you can achieve this by [specific date]"
-- Give enthusiastic reasoning that focuses on possibility and momentum (max 1 sentence)
+- Give detailed, enthusiastic reasoning (2-3 sentences) that focuses on possibility, momentum, and the power of consistent daily action
 - Make the daily time commitment the KEY consideration in your timeline calculation
+- Reference their specific goal context (baseline, obstacles, enjoyment) if provided to make it more personalized
 
 Examples of proper framing:
-- "Your goal is absolutely achievable with your dedication! Based on your average daily commitment of 1 hour 30 minutes, we optimistically forecast you can achieve this by March 15, 2025."
-- "This is an exciting challenge that you can definitely accomplish! Based on your average daily commitment of 30 minutes, we optimistically forecast you can achieve this by June 30, 2025."
+- "Your goal of launching an online business is absolutely achievable with your dedication! With 1 hour 30 minutes of focused daily effort, you're committing over 10 hours per week to making this dream a reality. That consistent investment will compound quickly - in just a few months, you'll have built significant momentum. The key is showing up every single day, even when progress feels slow. Based on your average daily commitment of 1 hour 30 minutes, we optimistically forecast you can achieve this by March 15, 2025. Your consistent daily effort creates a powerful compounding effect. Each day you work toward your goal, you're not just making progress - you're building habits, gaining experience, and creating momentum that accelerates your journey. With this level of commitment, you're setting yourself up for remarkable success!"
+- "This is an exciting challenge that you can definitely accomplish! Your 30-minute daily commitment might seem modest, but don't underestimate the power of consistency. Over the course of a year, those 30 minutes add up to over 180 hours of dedicated work - that's equivalent to a full month of full-time effort! The beauty of daily practice is that it builds both skill and momentum simultaneously. Based on your average daily commitment of 30 minutes, we optimistically forecast you can achieve this by June 30, 2025. Your consistent daily effort, even just 30 minutes, will build incredible momentum towards your goal. Small daily actions compound into significant achievements, and your commitment shows you understand this principle. You're building the foundation for long-term success!"
 
 Output STRICT JSON only. Keep responses concise, positive, and actionable.`;
 
@@ -110,7 +116,11 @@ FINITE SERIES vs INDEFINITE REPEATS:
 - Indefinite repeats: For ongoing habits (e.g., daily drafting), set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: Imperative, concrete, ≤60 chars. Remove time/cadence from titles and drop brackets - no "(1-2h)" or "every 7 days" in headers. Keep titles short, imperative, and scope-clear. Store effort in est_minutes and cadence in repeat_every_days only.
-- Acceptance criteria (≤2 bullets): Single-slice focused. Examples: "Added ≥500 words", "Scene marked Drafted", "Session logged". Binary-checkable only.
+- Acceptance criteria format (structured):
+  * acceptance_intro: One short sentence setting intention, personalized to the action. Adds warmth and purpose.
+  * acceptance_criteria: 2-3 bullet strings that are concrete checkmarks. Single-slice focused. Examples: "Added ≥500 words", "Scene marked Drafted", "Session logged". Binary-checkable only.
+  * acceptance_outro: One very short sentence defining "done". Adds clarity and motivation.
+- All three parts are generatable with AI and scalable. Today cards show only bullets for compact display.
 - De-duplication: Eliminate near-duplicates. Merge or sequence instead.
 - No dates, no descriptions: Do not invent due dates or long notes.
 
@@ -127,10 +137,16 @@ QUALITY BAR (reject/redo if violated):
 ACTION PATTERNS:
 
 Habit (repeat): "Draft in focused block" → est_minutes: 30-45, repeat_every_days: 1-3, NO slice_count_target.
-Done when: "Added ≥500 words", "Scene marked Drafted"
+Acceptance criteria format:
+- acceptance_intro: "Before you finish, make sure you've made meaningful progress on your draft"
+- acceptance_criteria: ["Added ≥500 words", "Scene marked Drafted"]
+- acceptance_outro: "You're done when you've added at least 500 words and marked the scene as drafted"
 
 Series (no repeat): "Write Chapter 1" → est_minutes: 60, slice_count_target: 5, NO repeat_every_days.
-Done when: "Added ≥500 words", "Session logged"
+Acceptance criteria format:
+- acceptance_intro: "Before you finish, make sure you've moved your chapter forward"
+- acceptance_criteria: ["Added ≥500 words", "Session logged"]
+- acceptance_outro: "You're done when you've added substantial content and logged your progress"
 
 REALISTIC TIME EXAMPLES:
 - Building MVP: est_minutes: 45, slice_count_target: 40-60 (30-45 hours total) - NOT 5 sessions

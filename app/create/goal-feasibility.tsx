@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
@@ -53,12 +53,18 @@ export default function GoalFeasibilityStep() {
         // Process summary
         setSummary(goalFeasibility.summary)
         
-        // Process title suggestions - add original as last option
-        const processedSuggestions = goalFeasibility.titleSuggestions.map((suggestion, index) => ({
-          ...suggestion,
-          id: `suggestion-${index}`,
-          selected: false
-        }))
+        // Process title suggestions - filter out any with placeholders and add original as last option
+        const processedSuggestions = goalFeasibility.titleSuggestions
+          .filter(suggestion => {
+            // Filter out suggestions with placeholders like [Niche], [X], etc.
+            const hasPlaceholder = /\[.*?\]/.test(suggestion.title)
+            return !hasPlaceholder
+          })
+          .map((suggestion, index) => ({
+            ...suggestion,
+            id: `suggestion-${index}`,
+            selected: false
+          }))
         
         // Add original goal as last option
         processedSuggestions.push({
@@ -107,12 +113,18 @@ export default function GoalFeasibilityStep() {
           // Process summary
           setSummary(result.summary)
           
-          // Process title suggestions - add original as last option
-          const processedSuggestions = result.titleSuggestions.map((suggestion, index) => ({
-            ...suggestion,
-            id: `suggestion-${index}`,
-            selected: false
-          }))
+          // Process title suggestions - filter out any with placeholders and add original as last option
+          const processedSuggestions = result.titleSuggestions
+            .filter(suggestion => {
+              // Filter out suggestions with placeholders like [Niche], [X], etc.
+              const hasPlaceholder = /\[.*?\]/.test(suggestion.title)
+              return !hasPlaceholder
+            })
+            .map((suggestion, index) => ({
+              ...suggestion,
+              id: `suggestion-${index}`,
+              selected: false
+            }))
           
           // Add original goal as last option
           processedSuggestions.push({
@@ -145,7 +157,7 @@ export default function GoalFeasibilityStep() {
       }
 
       runAnalysis()
-    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, start_date, end_date, baseline, obstacles, enjoyment, currentGoal])
+    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, baseline, obstacles, enjoyment])
   )
 
   const handleGoalSelect = (goalId: string) => {
@@ -243,7 +255,7 @@ export default function GoalFeasibilityStep() {
       
       <ScrollView 
         style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -276,7 +288,7 @@ export default function GoalFeasibilityStep() {
           
           <Text style={{ 
             fontSize: 14, 
-            color: '#666', 
+            color: theme.colors.text.muted, 
             marginBottom: 12
           }}>
             Current goal
@@ -301,7 +313,7 @@ export default function GoalFeasibilityStep() {
             <View style={{ gap: 8, marginBottom: 16 }}>
               <Text style={{ 
                 fontSize: 14, 
-                color: '#666', 
+                color: theme.colors.text.muted, 
                 marginBottom: 12
               }}>
                 Alternative goal suggestions (click to replace current)
@@ -330,18 +342,26 @@ export default function GoalFeasibilityStep() {
       </ScrollView>
       
       {/* Footer with button */}
-      <View style={{ 
-        paddingHorizontal: 16,
-        paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
-      }}>
+      <View style={styles.footer}>
         <Button 
           title="Continue to Time Commitment"
           variant="black"
           onPress={handleContinue}
-          style={{ borderRadius: theme.radius.xl }}
+          style={styles.button}
         />
       </View>
     </KeyboardAvoidingView>
   )
 }
+
+const styles = StyleSheet.create({
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.pageBackground,
+  },
+  button: {
+    width: '100%',
+    borderRadius: theme.radius.xl,
+  },
+})

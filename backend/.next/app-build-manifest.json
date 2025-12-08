@@ -1,89 +1,29 @@
 {
   "pages": {
-    "/api/action-occurrences/artifacts/[occurrenceId]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/action-occurrences/artifacts/[occurrenceId]/route.js"
-    ],
-    "/api/action-occurrences/artifacts/upload/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/action-occurrences/artifacts/upload/route.js"
-    ],
-    "/api/dreams/default-images-public/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/default-images-public/route.js"
-    ],
     "/api/dreams/celebrities/default/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/dreams/celebrities/default/route.js"
-    ],
-    "/api/dreams/celebrities/generate/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/celebrities/generate/route.js"
-    ],
-    "/api/create/generate-areas/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/generate-areas/route.js"
-    ],
-    "/api/create/generate-actions/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/generate-actions/route.js"
     ],
     "/api/dreams/default-images/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/dreams/default-images/route.js"
     ],
+    "/api/dreams/celebrities/generate/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/dreams/celebrities/generate/route.js"
+    ],
     "/api/dreams/generated/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/dreams/generated/route.js"
     ],
-    "/api/dreams/dreamboard/analyze/route": [
+    "/api/dreams/default-images-public/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/dreamboard/analyze/route.js"
-    ],
-    "/api/dreams/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/route.js"
-    ],
-    "/api/create/goal-feasibility/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/goal-feasibility/route.js"
-    ],
-    "/api/create/timeline-feasibility/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/timeline-feasibility/route.js"
-    ],
-    "/api/areas/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/areas/route.js"
-    ],
-    "/api/actions/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/actions/route.js"
-    ],
-    "/api/create/activate-dream/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/activate-dream/route.js"
-    ],
-    "/api/create/schedule-actions/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/create/schedule-actions/route.js"
+      "static/chunks/app/api/dreams/default-images-public/route.js"
     ]
   }
 }

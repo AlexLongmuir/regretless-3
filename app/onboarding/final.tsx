@@ -4,7 +4,7 @@
  * Shows final results with AreaChips and completion animation
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
@@ -12,10 +12,35 @@ import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { savePendingOnboardingDream } from '../../utils/onboardingFlow';
 
 const FinalStep: React.FC = () => {
   const navigation = useNavigation();
   const { state } = useOnboardingContext();
+
+  // Save onboarding data when user reaches final step
+  // This ensures the dream can be created even if user signs in from a different entry point
+  useEffect(() => {
+    const saveOnboardingData = async () => {
+      // Only save if we have the required data
+      if (state.generatedAreas.length > 0 && state.generatedActions.length > 0) {
+        try {
+          await savePendingOnboardingDream({
+            name: state.name,
+            answers: state.answers,
+            dreamImageUrl: state.dreamImageUrl,
+            generatedAreas: state.generatedAreas,
+            generatedActions: state.generatedActions,
+          });
+          console.log('✅ [ONBOARDING] Saved onboarding data for future dream creation');
+        } catch (error) {
+          console.error('❌ [ONBOARDING] Failed to save onboarding data:', error);
+        }
+      }
+    };
+
+    saveOnboardingData();
+  }, []); // Only run once on mount
 
   const handleContinue = () => {
     // Navigate to trial offer flow
