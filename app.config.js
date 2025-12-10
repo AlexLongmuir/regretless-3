@@ -1,6 +1,6 @@
 export default {
   "expo": {
-    "name": "dreamer-3",
+    "name": "Dreamer",
     "slug": "dreamer",
     "owner": "alongmuir",
     "version": "1.0.0",
@@ -67,6 +67,7 @@ export default {
       "supabaseUrl": process.env.EXPO_PUBLIC_SUPABASE_URL,
       "supabaseAnonKey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       "revenueCatApiKey": process.env.EXPO_PUBLIC_REVENUECAT_API_KEY,
+      "mixpanelToken": process.env.EXPO_PUBLIC_MIXPANEL_TOKEN,
       "eas": {
         "projectId": "f92cdd32-9b86-4148-9f96-6eb8a392ca9f"
       }

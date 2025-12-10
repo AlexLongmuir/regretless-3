@@ -13,6 +13,7 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { savePendingOnboardingDream } from '../../utils/onboardingFlow';
+import { trackEvent } from '../../lib/mixpanel';
 
 const FinalStep: React.FC = () => {
   const navigation = useNavigation();
@@ -43,6 +44,10 @@ const FinalStep: React.FC = () => {
   }, []); // Only run once on mount
 
   const handleContinue = () => {
+    trackEvent('Onboarding Completed', {
+      total_areas: state.generatedAreas.length,
+      total_actions: state.generatedActions.length,
+    });
     // Navigate to trial offer flow
     navigation.navigate('TrialOffer' as never);
   };

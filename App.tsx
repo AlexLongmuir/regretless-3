@@ -40,6 +40,7 @@ import { CreateDreamProvider } from './contexts/CreateDreamContext';
 import { DataProvider } from './contexts/DataContext';
 import { notificationService } from './lib/NotificationService';
 import { initializeRevenueCat } from './lib/revenueCat';
+import { initializeMixpanel, getMixpanelStatus } from './lib/mixpanel';
 
 export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -55,6 +56,15 @@ export default function App() {
         const revenueCatApiKey = Constants.expoConfig?.extra?.revenueCatApiKey;
         console.log('🔑 RevenueCat API Key being used:', revenueCatApiKey ? revenueCatApiKey.substring(0, 15) + '...' : 'NOT SET');
         await initializeRevenueCat(revenueCatApiKey);
+        
+        // Initialize Mixpanel (will use no-op if no token provided)
+        const mixpanelToken = Constants.expoConfig?.extra?.mixpanelToken;
+        console.log('📊 Mixpanel Token being used:', mixpanelToken ? mixpanelToken.substring(0, 15) + '...' : 'NOT SET');
+        await initializeMixpanel(mixpanelToken);
+        
+        // Log Mixpanel status for debugging
+        const mixpanelStatus = getMixpanelStatus();
+        console.log('📊 Mixpanel Status:', mixpanelStatus);
         
         console.log('All services initialized successfully');
         setIsInitialized(true);

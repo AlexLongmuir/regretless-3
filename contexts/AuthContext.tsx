@@ -20,6 +20,7 @@ import { useAuth, AuthHook } from '../hooks/useAuth';
 import { getPendingOnboardingDream, clearPendingOnboardingDream } from '../utils/onboardingFlow';
 import { createDreamFromOnboardingData } from '../utils/onboardingDreamCreation';
 import { supabaseClient } from '../lib/supabaseClient';
+import { identifyUser, resetUser, setUserProperties } from '../lib/mixpanel';
 
 /**
  * Extended AuthHook interface that includes onboarding dream creation state
@@ -69,7 +70,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       userEmail: auth.user?.email || 'none',
       error: auth.error,
     });
-  }, [auth.isAuthenticated, auth.loading, auth.user?.email, auth.error]);
+
+    // Mixpanel Identification
+    if (auth.isAuthenticated && auth.user?.id) {
+      identifyUser(auth.user.id);
+      if (auth.user.email) {
+        setUserProperties({
+          $email: auth.user.email,
+          $name: auth.user.email, // Using email as name for now
+        });
+      }
+    }
+  }, [auth.isAuthenticated, auth.loading, auth.user?.email, auth.error, auth.user?.id]);
 
   // Check for pending onboarding data on authentication
   useEffect(() => {
@@ -182,8 +194,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       hasProcessedPendingDream.current = false;
       setIsCreatingOnboardingDream(false);
       setHasPendingOnboardingDream(false);
+      
+      // Reset Mixpanel user on logout
+      if (!auth.loading) {
+        resetUser();
+      }
     }
-  }, [auth.isAuthenticated]);
+  }, [auth.isAuthenticated, auth.loading]);
 
   // Create extended context value
   const extendedAuth: ExtendedAuthHook = {

@@ -63,6 +63,7 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useEntitlementsContext } from '../contexts/EntitlementsContext';
 import { OnboardingProvider } from '../contexts/OnboardingContext';
 import { theme } from '../utils/theme';
+import { trackEvent } from '../lib/mixpanel';
 
 // Create stack navigators
 const AuthStack = createNativeStackNavigator();
@@ -527,8 +528,33 @@ const styles = StyleSheet.create({
  * - NavigationContainer only needs to be rendered once in the app
  * - Keeps navigation setup encapsulated in this file
  */
-export default () => (
-  <NavigationContainer>
-    <AppNavigator />
-  </NavigationContainer>
-);
+export default () => {
+  const routeNameRef = useRef<string>();
+  const navigationRef = useRef<any>();
+
+  return (
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        routeNameRef.current = navigationRef.current.getCurrentRoute()?.name;
+      }}
+      onStateChange={async () => {
+        const previousRouteName = routeNameRef.current;
+        const currentRoute = navigationRef.current.getCurrentRoute();
+        const currentRouteName = currentRoute?.name;
+
+        if (previousRouteName !== currentRouteName) {
+          // Track screen view
+          trackEvent('Screen View', {
+            screen_name: currentRouteName,
+            params: currentRoute?.params,
+          });
+        }
+
+        routeNameRef.current = currentRouteName;
+      }}
+    >
+      <AppNavigator />
+    </NavigationContainer>
+  );
+};

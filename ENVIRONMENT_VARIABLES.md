@@ -21,6 +21,9 @@ GOOGLE_WEB_CLIENT_ID=your_google_web_client_id_here
 # RevenueCat Configuration
 EXPO_PUBLIC_REVENUECAT_API_KEY=pk_your_revenuecat_api_key_here
 
+# Mixpanel Configuration
+EXPO_PUBLIC_MIXPANEL_TOKEN=your_mixpanel_token_here
+
 # OpenAI Configuration (Backend Only)
 OPENAI_API_KEY=sk_your_openai_api_key_here
 ```
@@ -53,6 +56,29 @@ OPENAI_API_KEY=sk_your_openai_api_key_here
 
 - **Without API key**: The app will run in mock mode (no RevenueCat functionality)
 - **With API key**: The app will use real RevenueCat for subscription management
+
+## Mixpanel Token
+
+### Where to get your Mixpanel Token:
+
+1. Go to [Mixpanel Dashboard](https://mixpanel.com/)
+2. Sign in to your account
+3. Navigate to **Project Settings** → **Project Info**
+4. Copy your **Project Token**
+
+### How to add it:
+
+1. Add the following line to your `.env` or `.env.local` file:
+   ```
+   EXPO_PUBLIC_MIXPANEL_TOKEN=your_actual_mixpanel_token_here
+   ```
+2. Replace `your_actual_mixpanel_token_here` with your actual Mixpanel project token
+
+### Important Notes:
+
+- The `EXPO_PUBLIC_` prefix is required for Expo to expose the variable to your app
+- Without a token, Mixpanel will use a no-op implementation (events won't be tracked but won't cause errors)
+- Never commit your actual token to version control
 
 ## OpenAI API Key (Backend)
 

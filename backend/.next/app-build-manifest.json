@@ -1,29 +1,3 @@
 {
-  "pages": {
-    "/api/dreams/celebrities/default/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/celebrities/default/route.js"
-    ],
-    "/api/dreams/default-images/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/default-images/route.js"
-    ],
-    "/api/dreams/celebrities/generate/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/celebrities/generate/route.js"
-    ],
-    "/api/dreams/generated/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/generated/route.js"
-    ],
-    "/api/dreams/default-images-public/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/dreams/default-images-public/route.js"
-    ]
-  }
+  "pages": {}
 }

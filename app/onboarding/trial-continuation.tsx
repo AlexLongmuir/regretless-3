@@ -26,7 +26,7 @@ try {
   const RevenueCat = require('react-native-purchases');
   PurchasesOffering = RevenueCat.PurchasesOffering;
 } catch (error) {
-  console.log('RevenueCat types not available, using mock types');
+// console.log('RevenueCat types not available, using mock types');
   const MockRevenueCat = require('../../utils/revenueCatMock');
   PurchasesOffering = MockRevenueCat.MockPurchasesOffering;
 }
@@ -54,7 +54,7 @@ const TrialContinuationStep: React.FC = () => {
       
       // Check if RevenueCat is properly configured
       if (!isRevenueCatConfigured()) {
-        console.log('RevenueCat not configured, using mock offerings');
+// console.log('RevenueCat not configured, using mock offerings');
         // Set mock offering for development
         setOffering({
           identifier: 'mock-offering',
@@ -73,31 +73,31 @@ const TrialContinuationStep: React.FC = () => {
         return;
       }
       
-      console.log('Fetching RevenueCat offerings... (attempt', retryCount + 1, ')');
+      // console.log('Fetching RevenueCat offerings... (attempt', retryCount + 1, ')');
       const offerings = await Purchases.getOfferings();
-      console.log('Offerings response:', offerings);
+      // console.log('Offerings response:', offerings);
       
       // First try to get offering with identifier "default"
       if (offerings.all && offerings.all['default']) {
-        console.log('Default offering found:', offerings.all['default']);
+        // console.log('Default offering found:', offerings.all['default']);
         setOffering(offerings.all['default']);
       } else if (offerings.current) {
         // Fallback to current offering if "default" not found
-        console.log('Current offering found:', offerings.current);
+        // console.log('Current offering found:', offerings.current);
         setOffering(offerings.current);
       } else {
-        console.log('No default or current offering available');
-        console.log('Available offerings:', Object.keys(offerings.all || {}));
+        // console.log('No default or current offering available');
+        // console.log('Available offerings:', Object.keys(offerings.all || {}));
         
         // Use the first available offering if default/current is null
         const availableOfferings = Object.values(offerings.all || {});
         if (availableOfferings.length > 0) {
-          console.log('Using first available offering:', availableOfferings[0]);
+          // console.log('Using first available offering:', availableOfferings[0]);
           setOffering(availableOfferings[0] as any);
         } else {
           // Retry once if no offerings found
           if (retryCount === 0) {
-            console.log('Retrying fetch offerings...');
+            // console.log('Retrying fetch offerings...');
             setTimeout(() => fetchOfferings(1), 1000);
             return;
           }
@@ -108,7 +108,7 @@ const TrialContinuationStep: React.FC = () => {
       
       // Retry once on error
       if (retryCount === 0) {
-        console.log('Retrying fetch offerings after error...');
+        // console.log('Retrying fetch offerings after error...');
         setTimeout(() => fetchOfferings(1), 1000);
         return;
       }
@@ -120,12 +120,12 @@ const TrialContinuationStep: React.FC = () => {
   const handleStartTrial = async () => {
     // Check if RevenueCat is properly configured
     if (!isRevenueCatConfigured()) {
-      console.log('RevenueCat not configured, simulating mock purchase');
+      // console.log('RevenueCat not configured, simulating mock purchase');
       setLoading(true);
       
       // Simulate purchase delay
       setTimeout(() => {
-        console.log('Mock purchase completed successfully');
+        // console.log('Mock purchase completed successfully');
         setLoading(false);
         // Navigate to PostPurchaseSignIn
         navigation.navigate('PostPurchaseSignIn' as never);
@@ -138,11 +138,11 @@ const TrialContinuationStep: React.FC = () => {
       return;
     }
 
-    console.log('Starting trial with offering:', offering);
-      console.log('Available packages:', offering.availablePackages?.map((pkg: any) => ({
-        identifier: pkg.identifier,
-        product: pkg.product?.identifier
-      })));
+    // console.log('Starting trial with offering:', offering);
+    // console.log('Available packages:', offering.availablePackages?.map((pkg: any) => ({
+    //   identifier: pkg.identifier,
+    //   product: pkg.product?.identifier
+    // })));
 
     setLoading(true);
     try {
@@ -152,21 +152,21 @@ const TrialContinuationStep: React.FC = () => {
       );
 
       if (!packageToPurchase) {
-        console.log('Package not found for selectedPlan:', selectedPlan);
-        console.log('Available package identifiers:', offering.availablePackages?.map((pkg: any) => pkg.identifier));
+        // console.log('Package not found for selectedPlan:', selectedPlan);
+        // console.log('Available package identifiers:', offering.availablePackages?.map((pkg: any) => pkg.identifier));
         Alert.alert('Error', 'Selected subscription plan not available. Please try a different plan.');
         return;
       }
 
-      console.log('Purchasing package:', packageToPurchase.identifier);
+      // console.log('Purchasing package:', packageToPurchase.identifier);
 
       // Make the purchase
       const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
 
-      console.log('Purchase completed, customer info:', {
-        hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
-        userId: customerInfo.originalAppUserId,
-      });
+      // console.log('Purchase completed, customer info:', {
+      //   hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
+      //   userId: customerInfo.originalAppUserId,
+      // });
 
       // Wait a moment for RevenueCat to fully process the purchase
       // Sometimes there's a delay between purchase completion and entitlement activation
@@ -175,10 +175,10 @@ const TrialContinuationStep: React.FC = () => {
       // Refresh customer info to get the latest entitlement status
       const refreshedCustomerInfo = await Purchases.getCustomerInfo();
       
-      console.log('Refreshed customer info after purchase:', {
-        hasProAccess: refreshedCustomerInfo.entitlements?.active?.['pro'] || false,
-        userId: refreshedCustomerInfo.originalAppUserId,
-      });
+      // console.log('Refreshed customer info after purchase:', {
+      //   hasProAccess: refreshedCustomerInfo.entitlements?.active?.['pro'] || false,
+      //   userId: refreshedCustomerInfo.originalAppUserId,
+      // });
 
       // Check if user has active entitlement
       if (refreshedCustomerInfo.entitlements?.active?.['pro']) {
@@ -194,7 +194,7 @@ const TrialContinuationStep: React.FC = () => {
             if (expirationDate) {
               // Schedule reminder 24 hours before trial expires
               await notificationService.scheduleTrialReminder(user.id, expirationDate, 24);
-              console.log('Trial reminder notification scheduled for 24 hours before expiration');
+              // console.log('Trial reminder notification scheduled for 24 hours before expiration');
             }
           } catch (error) {
             console.error('Error scheduling trial reminder:', error);
@@ -213,7 +213,7 @@ const TrialContinuationStep: React.FC = () => {
         if (hasActiveSubscription) {
           // User has an active subscription but entitlement might not be active yet
           // This can happen with trial subscriptions
-          console.log('Active subscription found but entitlement not yet active, proceeding anyway');
+          // console.log('Active subscription found but entitlement not yet active, proceeding anyway');
           setPurchaseSuccess(true);
           
           // Schedule trial reminder notification (24 hours before trial expires)
@@ -225,7 +225,7 @@ const TrialContinuationStep: React.FC = () => {
               if (expirationDate) {
                 // Schedule reminder 24 hours before trial expires
                 await notificationService.scheduleTrialReminder(user.id, expirationDate, 24);
-                console.log('Trial reminder notification scheduled for 24 hours before expiration');
+                // console.log('Trial reminder notification scheduled for 24 hours before expiration');
               }
             } catch (error) {
               console.error('Error scheduling trial reminder:', error);
@@ -244,7 +244,7 @@ const TrialContinuationStep: React.FC = () => {
       console.error('Purchase error:', error);
       if (error.userCancelled) {
         // User cancelled, no action needed
-        console.log('User cancelled purchase');
+        // console.log('User cancelled purchase');
       } else {
         Alert.alert('Purchase Error', error.message || 'Something went wrong');
       }
@@ -254,7 +254,7 @@ const TrialContinuationStep: React.FC = () => {
   };
 
   const handleClaimOffer = () => {
-    console.log('Claiming limited offer');
+    // console.log('Claiming limited offer');
     setShowOneTimeOffer(false);
     // Navigate to payment or next step
   };

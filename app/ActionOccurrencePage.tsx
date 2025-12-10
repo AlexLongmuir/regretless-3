@@ -35,6 +35,7 @@ import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArt
 import { supabaseClient } from '../lib/supabaseClient';
 import type { ActionOccurrenceStatus } from '../backend/database/types';
 import { BOTTOM_NAV_HEIGHT } from '../utils/bottomNavigation';
+import { trackEvent } from '../lib/mixpanel';
 
 // Edit Action Modal Component (copied from ActionChipsList)
 interface EditActionModalProps {
@@ -761,6 +762,15 @@ const ActionOccurrencePage = () => {
       
       setIsCompleted(true);
       showToast('Success', 'Action completed successfully!');
+      
+      // Track Action Completed event
+      trackEvent('Action Completed', {
+        action_id: params.occurrenceId,
+        action_title: actionData?.title || params?.actionTitle,
+        dream_title: dreamAreaData?.dreamTitle || params?.dreamTitle,
+        has_note: !!note.trim(),
+        has_artifacts: artifacts.length > 0,
+      });
       
         // Generate AI review if we have artifacts or a note
         let finalAiRating = aiRating;

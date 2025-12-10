@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { preloadOnboardingImages, onboardingImages } from '../../utils/preloadOnboardingImages';
+import { trackEvent } from '../../lib/mixpanel';
 
 const IntroStep: React.FC = () => {
   const navigation = useNavigation();
@@ -21,6 +22,7 @@ const IntroStep: React.FC = () => {
   }, []);
 
   const handleContinue = () => {
+    trackEvent('Onboarding Started');
     navigation.navigate('Welcome' as never);
   };
 

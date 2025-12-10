@@ -8,6 +8,7 @@
 import { upsertDream, upsertAreas, upsertActions, activateDream } from '../frontend-services/backend-bridge';
 import type { PendingOnboardingDream } from './onboardingFlow';
 import type { Area, Action } from '../backend/database/types';
+import { trackEvent } from '../lib/mixpanel';
 
 /**
  * Interface for onboarding data that can come from context or AsyncStorage
@@ -204,6 +205,15 @@ export const createDreamFromOnboardingData = async (
 
     if (activationResponse.success) {
       console.log('✅ [ONBOARDING] Dream activated and actions scheduled successfully!');
+      
+      // Track Dream Created event
+      trackEvent('Dream Created', {
+        dream_id: dreamResponse.id,
+        dream_title: dreamTitle,
+        total_areas: data.generatedAreas.length,
+        total_actions: data.generatedActions.length,
+      });
+
       return dreamResponse.id;
     } else {
       console.error('❌ [ONBOARDING] Dream activation failed:', activationResponse.error);

@@ -15,3 +15,5 @@ COMMENT ON COLUMN actions.acceptance_outro IS 'Closing sentence defining complet
 -- Note: Existing acceptance_criteria data remains as-is (migrated to bullets)
 -- No data transformation needed since we're keeping acceptance_criteria for bullets only
 
+
+

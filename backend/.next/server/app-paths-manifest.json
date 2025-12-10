@@ -1,7 +1,1 @@
-{
-  "/api/dreams/celebrities/default/route": "app/api/dreams/celebrities/default/route.js",
-  "/api/dreams/generated/route": "app/api/dreams/generated/route.js",
-  "/api/dreams/default-images-public/route": "app/api/dreams/default-images-public/route.js",
-  "/api/dreams/default-images/route": "app/api/dreams/default-images/route.js",
-  "/api/dreams/celebrities/generate/route": "app/api/dreams/celebrities/generate/route.js"
-}
+{}

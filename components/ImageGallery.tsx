@@ -97,7 +97,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
 
   const handlePhotoLibrary = async () => {
     try {
-      console.log('Starting photo library selection...');
+      // console.log('Starting photo library selection...');
       setShowImageOptions(false); // Close popover immediately
       
       // Add placeholder image for testing
@@ -106,9 +106,9 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
       return;
       
       // Always request permissions explicitly first
-      console.log('Requesting media library permissions...');
+      // console.log('Requesting media library permissions...');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log('Permission request result:', status);
+      // console.log('Permission request result:', status);
       
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'Photo library access is required to select photos.');
@@ -118,7 +118,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
       // Small delay to ensure permissions are processed
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      console.log('Launching image library...');
+      // console.log('Launching image library...');
       const result = await Promise.race([
         ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
@@ -132,13 +132,13 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
         )
       ]);
 
-      console.log('Image picker result:', result);
+      // console.log('Image picker result:', result);
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        console.log('Adding image:', result.assets[0].uri);
+        // console.log('Adding image:', result.assets[0].uri);
         onImagesChange([...images, result.assets[0].uri]);
       } else {
-        console.log('Image selection canceled or no assets');
+        // console.log('Image selection canceled or no assets');
       }
     } catch (error) {
       console.error('Error selecting photo:', error);

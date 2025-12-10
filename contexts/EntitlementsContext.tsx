@@ -24,7 +24,7 @@ try {
   const RevenueCat = require('react-native-purchases');
   CustomerInfoType = RevenueCat.CustomerInfo;
 } catch (error) {
-  console.log('RevenueCat types not available, using mock types');
+// console.log('RevenueCat types not available, using mock types');
   const MockRevenueCat = require('../utils/revenueCatMock');
   CustomerInfoType = MockRevenueCat.MockCustomerInfo;
 }
@@ -90,23 +90,23 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       
       // Check if RevenueCat is properly configured
       if (!isRevenueCatConfigured()) {
-        console.log('RevenueCat not configured, skipping refresh');
+        // console.log('RevenueCat not configured, skipping refresh');
         return;
       }
       
       // Double-check that Purchases is available and has the required methods
       if (!Purchases || typeof Purchases.getCustomerInfo !== 'function') {
-        console.log('RevenueCat Purchases object not properly initialized for refresh');
+        // console.log('RevenueCat Purchases object not properly initialized for refresh');
         return;
       }
       
       const info = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
       
-      console.log('Customer info refreshed:', {
-        hasProAccess: info.entitlements?.active?.['pro'] || false,
-        userId: info.originalAppUserId,
-      });
+      // console.log('Customer info refreshed:', {
+      //   hasProAccess: info.entitlements?.active?.['pro'] || false,
+      //   userId: info.originalAppUserId,
+      // });
     } catch (err: any) {
       console.error('Error refreshing customer info:', err);
       setError(err.message || 'Failed to refresh subscription status');
@@ -126,51 +126,51 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       
       // Check if RevenueCat is properly configured
       if (!isRevenueCatConfigured()) {
-        console.log('RevenueCat not configured, skipping link');
+        // console.log('RevenueCat not configured, skipping link');
         return { success: true }; // Return success for mock mode
       }
       
       // Double-check that Purchases is available and has the required methods
       if (!Purchases || typeof Purchases.logIn !== 'function' || typeof Purchases.getAppUserID !== 'function') {
-        console.log('RevenueCat Purchases object not properly initialized for link');
+        // console.log('RevenueCat Purchases object not properly initialized for link');
         return { success: false, error: 'RevenueCat not properly initialized' };
       }
       
       // Get current RevenueCat user ID
       const currentRevenueCatUserId = await Purchases.getAppUserID();
-      console.log('🔗 RevenueCat linking check:', {
-        currentRevenueCatUserId,
-        targetUserId: userId,
-        isAnonymous: currentRevenueCatUserId?.startsWith('$RCAnonymousID'),
-        userEmail: user?.email,
-      });
+      // console.log('🔗 RevenueCat linking check:', {
+      //   currentRevenueCatUserId,
+      //   targetUserId: userId,
+      //   isAnonymous: currentRevenueCatUserId?.startsWith('$RCAnonymousID'),
+      //   userEmail: user?.email,
+      // });
       
       // Only link if currently anonymous
       if (!currentRevenueCatUserId?.startsWith('$RCAnonymousID')) {
-        console.log('RevenueCat already linked to a named user, skipping link');
+        // console.log('RevenueCat already linked to a named user, skipping link');
         return { success: true };
       }
       
       // Link the anonymous user with the authenticated user
-      console.log('🔗 Linking anonymous RevenueCat user to authenticated user:', userId);
+      // console.log('🔗 Linking anonymous RevenueCat user to authenticated user:', userId);
       const { customerInfo: linkedCustomerInfo } = await Purchases.logIn(userId);
       
       // Use the fresh customerInfo from logIn response, not cached data
       setCustomerInfo(linkedCustomerInfo);
       
-      console.log('✅ Successfully linked RevenueCat user:', {
-        userId,
-        hasProAccess: linkedCustomerInfo.entitlements?.active?.['pro'] || false,
-      });
+      // console.log('✅ Successfully linked RevenueCat user:', {
+      //   userId,
+      //   hasProAccess: linkedCustomerInfo.entitlements?.active?.['pro'] || false,
+      // });
       
       // Try to store billing snapshot with retry mechanism
-      console.log('Attempting to store billing snapshot...');
+      // console.log('Attempting to store billing snapshot...');
       const storeResult = await storeBillingSnapshotWithRetry(linkedCustomerInfo);
       if (storeResult.success) {
-        console.log('✅ Billing snapshot stored successfully');
+        // console.log('✅ Billing snapshot stored successfully');
       } else {
-        console.log('⚠️ Billing snapshot not stored:', storeResult.error);
-        console.log('Will store when subscription becomes available');
+        // console.log('⚠️ Billing snapshot not stored:', storeResult.error);
+        // console.log('Will store when subscription becomes available');
         
         // Set up a fallback mechanism to check for subscription later
         setupSubscriptionFallback(userId);
@@ -191,7 +191,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
    * Set up fallback mechanism to check for subscription when it becomes available
    */
   const setupSubscriptionFallback = (userId: string) => {
-    console.log('🔄 Setting up subscription fallback check...');
+    // console.log('🔄 Setting up subscription fallback check...');
     
     // Check every 5 seconds for up to 2 minutes
     const maxChecks = 24; // 24 * 5 seconds = 2 minutes
@@ -199,20 +199,20 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     
     const checkInterval = setInterval(async () => {
       checkCount++;
-      console.log(`🔍 Fallback check ${checkCount}/${maxChecks} for subscription...`);
+      // console.log(`🔍 Fallback check ${checkCount}/${maxChecks} for subscription...`);
       
       try {
         const customerInfo = await Purchases.getCustomerInfo();
         const result = await storeBillingSnapshot(customerInfo);
         
         if (result.success) {
-          console.log('✅ Fallback: Billing snapshot stored successfully');
+          // console.log('✅ Fallback: Billing snapshot stored successfully');
           clearInterval(checkInterval);
           return;
         }
         
         if (checkCount >= maxChecks) {
-          console.log('⚠️ Fallback: Max checks reached, subscription still not available');
+          // console.log('⚠️ Fallback: Max checks reached, subscription still not available');
           clearInterval(checkInterval);
         }
       } catch (error) {
@@ -229,18 +229,18 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
    */
   const storeBillingSnapshotWithRetry = async (customerInfo: any, maxRetries: number = 5, delayMs: number = 2000): Promise<{ success: boolean; error?: string }> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`🔄 Billing snapshot attempt ${attempt}/${maxRetries}`);
+      // console.log(`🔄 Billing snapshot attempt ${attempt}/${maxRetries}`);
       
       // Refresh customer info to get latest entitlements
       const freshCustomerInfo = await Purchases.getCustomerInfo();
       
       const result = await storeBillingSnapshot(freshCustomerInfo);
       if (result.success) {
-        console.log(`✅ Billing snapshot stored successfully on attempt ${attempt}`);
+        // console.log(`✅ Billing snapshot stored successfully on attempt ${attempt}`);
         return result;
       }
       
-      console.log(`⚠️ Attempt ${attempt} failed: ${result.error}`);
+      // console.log(`⚠️ Attempt ${attempt} failed: ${result.error}`);
       
       // If this is the last attempt, return the error
       if (attempt === maxRetries) {
@@ -248,7 +248,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       }
       
       // Wait before retrying
-      console.log(`⏳ Waiting ${delayMs}ms before retry...`);
+      // console.log(`⏳ Waiting ${delayMs}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
     
@@ -265,12 +265,12 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         return { success: false, error: 'No authenticated user' };
       }
 
-      console.log('🔍 Processing RevenueCat customer info:', {
-        hasEntitlements: !!customerInfo.entitlements,
-        hasActiveEntitlements: !!customerInfo.entitlements?.active,
-        hasActiveSubscriptions: !!customerInfo.activeSubscriptions,
-        hasPurchasedProducts: !!customerInfo.allPurchasedProductIdentifiers?.length
-      });
+      // console.log('🔍 Processing RevenueCat customer info:', {
+      //   hasEntitlements: !!customerInfo.entitlements,
+      //   hasActiveEntitlements: !!customerInfo.entitlements?.active,
+      //   hasActiveSubscriptions: !!customerInfo.activeSubscriptions,
+      //   hasPurchasedProducts: !!customerInfo.allPurchasedProductIdentifiers?.length
+      // });
 
       // Extract subscription data using simplified, more reliable logic
       const subscriptionData = extractSubscriptionData(customerInfo);
@@ -288,13 +288,13 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         rc_snapshot: customerInfo.rawData || customerInfo,
       };
 
-      console.log('📊 Final subscription data:', {
-        product_id: finalSubscriptionData.product_id,
-        is_active: finalSubscriptionData.is_active,
-        is_trial: finalSubscriptionData.is_trial,
-        will_renew: finalSubscriptionData.will_renew,
-        current_period_end: finalSubscriptionData.current_period_end
-      });
+      // console.log('📊 Final subscription data:', {
+      //   product_id: finalSubscriptionData.product_id,
+      //   is_active: finalSubscriptionData.is_active,
+      //   is_trial: finalSubscriptionData.is_trial,
+      //   will_renew: finalSubscriptionData.will_renew,
+      //   current_period_end: finalSubscriptionData.current_period_end
+      // });
 
       // Check if this RevenueCat user ID is already associated with a different user
       const { data: existingByRevenueCat, error: rcCheckError } = await supabaseClient
@@ -324,14 +324,14 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       if (existingByRevenueCat) {
         // This RevenueCat user ID is already associated with a different user
         if (existingByRevenueCat.user_id !== finalSubscriptionData.user_id) {
-          console.log('⚠️ Subscription already redeemed by another account:', existingByRevenueCat.user_id);
+          // console.log('⚠️ Subscription already redeemed by another account:', existingByRevenueCat.user_id);
           return { 
             success: false, 
             error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
           };
         } else {
           // Same user - update the existing subscription
-          console.log('✅ Updating existing subscription with same RevenueCat user ID');
+          // console.log('✅ Updating existing subscription with same RevenueCat user ID');
           const { error: updateError } = await supabaseClient
             .from('user_subscriptions')
             .update(finalSubscriptionData)
@@ -341,12 +341,12 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
             console.error('Error updating subscription:', updateError);
             return { success: false, error: updateError.message };
           }
-          console.log('✅ Updated existing subscription entry');
+          // console.log('✅ Updated existing subscription entry');
         }
       } else if (existingActiveSubscription) {
         // There's an active subscription for this user but with different RevenueCat ID
         // This can happen if user purchased on a different device or there was a previous attempt
-        console.log('⚠️ Found existing active subscription with different RevenueCat ID, updating it');
+        // console.log('⚠️ Found existing active subscription with different RevenueCat ID, updating it');
         
         // Re-check if the new RevenueCat ID exists (to catch race conditions with webhooks)
         const { data: recheckByRevenueCat, error: recheckError } = await supabaseClient
@@ -364,14 +364,14 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           // The new RevenueCat ID now exists (possibly inserted by webhook)
           if (recheckByRevenueCat.user_id !== finalSubscriptionData.user_id) {
             // Belongs to a different user - this is an error
-            console.log('⚠️ New RevenueCat ID already linked to another account:', recheckByRevenueCat.user_id);
+            // console.log('⚠️ New RevenueCat ID already linked to another account:', recheckByRevenueCat.user_id);
             return { 
               success: false, 
               error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
             };
           } else {
             // Belongs to the same user - update that record and deactivate the old one
-            console.log('✅ New RevenueCat ID exists for same user, updating that record and deactivating old one');
+            // console.log('✅ New RevenueCat ID exists for same user, updating that record and deactivating old one');
             
             // Update the record with the new RevenueCat ID
             const { error: updateNewError } = await supabaseClient
@@ -394,10 +394,10 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               console.error('Error deactivating old subscription:', deactivateError);
               // Don't fail the whole operation if deactivation fails
             } else {
-              console.log('✅ Deactivated old subscription entry');
+              // console.log('✅ Deactivated old subscription entry');
             }
 
-            console.log('✅ Updated subscription with new RevenueCat ID');
+            // console.log('✅ Updated subscription with new RevenueCat ID');
           }
         } else {
           // New RevenueCat ID doesn't exist - safe to update the old subscription
@@ -409,7 +409,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           if (updateError) {
             // Check if this is a unique constraint violation
             if (updateError.code === '23505') {
-              console.log('⚠️ Unique constraint violation detected, re-checking for race condition...');
+              // console.log('⚠️ Unique constraint violation detected, re-checking for race condition...');
               
               // Re-check if the new ID was inserted between our check and update
               const { data: finalCheck, error: finalCheckError } = await supabaseClient
@@ -426,14 +426,14 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               if (finalCheck) {
                 // The new ID now exists - handle it
                 if (finalCheck.user_id !== finalSubscriptionData.user_id) {
-                  console.log('⚠️ New RevenueCat ID now linked to another account:', finalCheck.user_id);
+                  // console.log('⚠️ New RevenueCat ID now linked to another account:', finalCheck.user_id);
                   return { 
                     success: false, 
                     error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
                   };
                 } else {
                   // Same user - update that record and deactivate old one
-                  console.log('✅ New RevenueCat ID now exists for same user, updating that record');
+                  // console.log('✅ New RevenueCat ID now exists for same user, updating that record');
                   
                   const { error: updateNewError } = await supabaseClient
                     .from('user_subscriptions')
@@ -454,10 +454,10 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
                   if (deactivateError) {
                     console.error('Error deactivating old subscription:', deactivateError);
                   } else {
-                    console.log('✅ Deactivated old subscription entry');
+                    // console.log('✅ Deactivated old subscription entry');
                   }
 
-                  console.log('✅ Updated subscription with new RevenueCat ID after constraint violation');
+                  // console.log('✅ Updated subscription with new RevenueCat ID after constraint violation');
                 }
               } else {
                 // Still doesn't exist - this is unexpected, return the original error
@@ -470,7 +470,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               return { success: false, error: updateError.message };
             }
           } else {
-            console.log('✅ Updated existing active subscription entry');
+            // console.log('✅ Updated existing active subscription entry');
           }
         }
       } else {
@@ -483,11 +483,11 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           console.error('Error inserting new subscription:', insertError);
           return { success: false, error: insertError.message };
         }
-        console.log('✅ Created new subscription entry');
+        // console.log('✅ Created new subscription entry');
       }
 
 
-      console.log('✅ Billing snapshot stored successfully');
+      // console.log('✅ Billing snapshot stored successfully');
       return { success: true };
     } catch (err: any) {
       console.error('Error storing billing snapshot:', err);
@@ -500,15 +500,15 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
    * Enhanced logic with better trial detection
    */
   const extractSubscriptionData = (customerInfo: any) => {
-    console.log('🔍 Full customerInfo for trial detection:', JSON.stringify(customerInfo, null, 2));
+    // console.log('🔍 Full customerInfo for trial detection:', JSON.stringify(customerInfo, null, 2));
     
     // Priority 1: Active entitlements (most reliable)
     const activeEntitlements = customerInfo.entitlements?.active || {};
     const proEntitlement = activeEntitlements['pro'];
     
     if (proEntitlement) {
-      console.log('✅ Using active pro entitlement data');
-      console.log('🔍 Pro entitlement details:', JSON.stringify(proEntitlement, null, 2));
+      // console.log('✅ Using active pro entitlement data');
+      // console.log('🔍 Pro entitlement details:', JSON.stringify(proEntitlement, null, 2));
       
       // Enhanced trial detection - check multiple sources
       let isTrial = false;
@@ -516,7 +516,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       // 1. Check RevenueCat's built-in trial indicators
       if (proEntitlement.periodType === 'trial' || proEntitlement.isInTrialPeriod) {
         isTrial = true;
-        console.log('🔄 Detected trial from RevenueCat indicators');
+        // console.log('🔄 Detected trial from RevenueCat indicators');
       }
       
       // 2. Check if this is a trial based on product identifier
@@ -524,7 +524,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         const productId = proEntitlement.productIdentifier.toLowerCase();
         if (productId.includes('trial') || productId.includes('free')) {
           isTrial = true;
-          console.log('🔄 Detected trial from product identifier:', productId);
+          // console.log('🔄 Detected trial from product identifier:', productId);
         }
       }
       
@@ -535,7 +535,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           const sub = subscription as any;
           if (sub.isTrialPeriod || sub.periodType === 'trial' || sub.isInTrialPeriod) {
             isTrial = true;
-            console.log('🔄 Detected trial from active subscription:', productId);
+            // console.log('🔄 Detected trial from active subscription:', productId);
             break;
           }
         }
@@ -549,7 +549,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         
         if (daysDifference <= 7) {
           isTrial = true;
-          console.log('🔄 Detected trial from short expiration period:', daysDifference, 'days');
+          // console.log('🔄 Detected trial from short expiration period:', daysDifference, 'days');
         }
       }
       
@@ -562,11 +562,11 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         // If purchased within last 2 hours and no explicit trial indicators, assume trial
         if (hoursSincePurchase <= 2) {
           isTrial = true;
-          console.log('🔄 Detected trial from recent purchase (within 2 hours)');
+          // console.log('🔄 Detected trial from recent purchase (within 2 hours)');
         }
       }
       
-      console.log('🎯 Final trial detection result:', isTrial);
+      // console.log('🎯 Final trial detection result:', isTrial);
       
       return {
         entitlement: 'pro',
@@ -585,7 +585,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     const anyProEntitlement = allEntitlements['pro'];
     
     if (anyProEntitlement) {
-      console.log('✅ Using pro entitlement from all entitlements');
+      // console.log('✅ Using pro entitlement from all entitlements');
       return {
         entitlement: 'pro',
         product_id: anyProEntitlement.productIdentifier || 'unknown',
@@ -604,7 +604,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     
     if (activeSubKeys.length > 0) {
       const firstSubscription = activeSubscriptions[activeSubKeys[0]];
-      console.log('⚠️ Using active subscription fallback data');
+      // console.log('⚠️ Using active subscription fallback data');
       
       // Determine if this is a trial based on customer info
       const isTrial = customerInfo.entitlements?.active?.pro?.isInTrialPeriod || 
@@ -630,7 +630,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     );
     
     if (proProduct) {
-      console.log('⚠️ Using purchased product fallback data');
+      // console.log('⚠️ Using purchased product fallback data');
       
       // Enhanced trial detection for fallback
       let isTrial = false;
@@ -643,7 +643,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         
         if (hoursSincePurchase <= 2) {
           isTrial = true;
-          console.log('🔄 Detected trial from recent purchase in fallback');
+          // console.log('🔄 Detected trial from recent purchase in fallback');
         }
       }
       
@@ -654,7 +654,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           const sub = subscription as any;
           if (sub.isTrialPeriod || sub.periodType === 'trial' || sub.isInTrialPeriod) {
             isTrial = true;
-            console.log('🔄 Detected trial from active subscription in fallback:', productId);
+            // console.log('🔄 Detected trial from active subscription in fallback:', productId);
             break;
           }
         }
@@ -672,7 +672,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       };
     }
 
-    console.log('❌ No valid subscription data found');
+    // console.log('❌ No valid subscription data found');
     return null;
   };
 
@@ -712,7 +712,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         return { success: false, error: 'No authenticated user' };
       }
 
-      console.log('🔍 Validating subscription with server...');
+      // console.log('🔍 Validating subscription with server...');
       
       const response = await fetch(`https://cqzutvspbsspgtmcdqyp.supabase.co/functions/v1/subscription-validate`, {
         method: 'POST',
@@ -733,11 +733,11 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       const data = await response.json();
       
       if (data.success && data.data) {
-        console.log('✅ Subscription validated:', data.data);
+        // console.log('✅ Subscription validated:', data.data);
         
         // Update local state if validation shows different data
         if (data.data.needs_attention) {
-          console.warn('⚠️ Subscription needs attention:', data.data.issues);
+          // console.warn('⚠️ Subscription needs attention:', data.data.issues);
         }
         
         return { success: true };
@@ -799,18 +799,18 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
    * Debug function to check current state
    */
   const debugState = () => {
-    console.log('🔍 EntitlementsContext Debug State:', {
-      isAuthenticated,
-      userId: user?.id,
-      customerInfo: customerInfo ? {
-        hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
-        userId: customerInfo.originalAppUserId,
-        isAnonymous: customerInfo.originalAppUserId?.startsWith('$RCAnonymousID'),
-      } : null,
-      linking,
-      linkingAttempted: linkingAttempted.current,
-      isRevenueCatConfigured: isRevenueCatConfigured(),
-    });
+    // console.log('🔍 EntitlementsContext Debug State:', {
+    //   isAuthenticated,
+    //   userId: user?.id,
+    //   customerInfo: customerInfo ? {
+    //     hasProAccess: customerInfo.entitlements?.active?.['pro'] || false,
+    //     userId: customerInfo.originalAppUserId,
+    //     isAnonymous: customerInfo.originalAppUserId?.startsWith('$RCAnonymousID'),
+    //   } : null,
+    //   linking,
+    //   linkingAttempted: linkingAttempted.current,
+    //   isRevenueCatConfigured: isRevenueCatConfigured(),
+    // });
   };
 
   // Set up RevenueCat listener and initial customer info fetch
@@ -825,7 +825,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         const isConfigured = await waitForRevenueCatInitialization();
         
         if (!isConfigured) {
-          console.log('RevenueCat not configured, using mock mode for entitlements');
+          // console.log('RevenueCat not configured, using mock mode for entitlements');
           if (isMounted) {
             // Set mock customer info for development
             setCustomerInfo({
@@ -839,7 +839,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         
         // Double-check that Purchases is available and has the required methods
         if (!Purchases || typeof Purchases.getCustomerInfo !== 'function') {
-          console.log('RevenueCat Purchases object not properly initialized');
+          // console.log('RevenueCat Purchases object not properly initialized');
           if (isMounted) {
             setLoading(false);
           }
@@ -851,10 +851,10 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           const info = await Purchases.getCustomerInfo();
           if (isMounted) {
             setCustomerInfo(info);
-            console.log('Initial customer info loaded:', {
-              hasProAccess: info.entitlements?.active?.['pro'] || false,
-              userId: info.originalAppUserId,
-            });
+            // console.log('Initial customer info loaded:', {
+            //   hasProAccess: info.entitlements?.active?.['pro'] || false,
+            //   userId: info.originalAppUserId,
+            // });
           }
           
           // Set up listener for customer info changes
@@ -862,14 +862,14 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
             Purchases.addCustomerInfoUpdateListener(async (info: any) => {
               if (isMounted) {
                 setCustomerInfo(info);
-                console.log('Customer info updated:', {
-                  hasProAccess: info.entitlements?.active?.['pro'] || false,
-                  userId: info.originalAppUserId,
-                });
+                // console.log('Customer info updated:', {
+                //   hasProAccess: info.entitlements?.active?.['pro'] || false,
+                //   userId: info.originalAppUserId,
+                // });
                 
                 // Auto-store billing snapshot when entitlement becomes active
                 if (info.entitlements?.active?.['pro'] && user?.id) {
-                  console.log('Entitlement became active, storing billing snapshot...');
+                  // console.log('Entitlement became active, storing billing snapshot...');
                   try {
                     await storeBillingSnapshot(info);
                   } catch (error) {
@@ -915,7 +915,7 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       
       const linkUser = async () => {
         try {
-          console.log('🔗 Auto-linking triggered for authenticated user:', user.id);
+          // console.log('🔗 Auto-linking triggered for authenticated user:', user.id);
           debugState(); // Debug current state
           
           // Get fresh customer info to check current state
@@ -923,10 +923,10 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           if (!currentCustomerInfo && isRevenueCatConfigured()) {
             try {
               currentCustomerInfo = await Purchases.getCustomerInfo();
-              console.log('Fetched fresh customer info for linking:', {
-                hasProAccess: currentCustomerInfo.entitlements?.active?.['pro'] || false,
-                userId: currentCustomerInfo.originalAppUserId,
-              });
+              // console.log('Fetched fresh customer info for linking:', {
+              //   hasProAccess: currentCustomerInfo.entitlements?.active?.['pro'] || false,
+              //   userId: currentCustomerInfo.originalAppUserId,
+              // });
             } catch (err) {
               console.error('Error fetching customer info for linking:', err);
               return;
@@ -935,19 +935,19 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           
           // Only link if the RevenueCat user is anonymous (starts with $RCAnonymousID)
           if (currentCustomerInfo?.originalAppUserId && currentCustomerInfo.originalAppUserId.startsWith('$RCAnonymousID')) {
-            console.log('🔗 Auto-linking anonymous RevenueCat user with authenticated user:', user.id);
+            // console.log('🔗 Auto-linking anonymous RevenueCat user with authenticated user:', user.id);
             linkingAttempted.current = user.id; // Mark as attempted
             const linkResult = await linkRevenueCatUser(user.id);
             
             if (linkResult.success) {
-              console.log('✅ Auto-linking successful, storing billing snapshot...');
+              // console.log('✅ Auto-linking successful, storing billing snapshot...');
               // Store billing snapshot after successful linking
               await storeBillingSnapshot(currentCustomerInfo);
             } else {
               console.error('❌ Auto-linking failed:', linkResult.error);
             }
           } else {
-            console.log('RevenueCat user already linked or not anonymous:', currentCustomerInfo?.originalAppUserId);
+            // console.log('RevenueCat user already linked or not anonymous:', currentCustomerInfo?.originalAppUserId);
           }
         } catch (err) {
           console.error('Error auto-linking user:', err);
@@ -964,9 +964,9 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
             // Check if user is not already anonymous before logging out
             if (customerInfo && customerInfo.originalAppUserId && !customerInfo.originalAppUserId.startsWith('$RCAnonymousID')) {
               await Purchases.logOut();
-              console.log('✅ RevenueCat logged out - returned to anonymous user');
+              // console.log('✅ RevenueCat logged out - returned to anonymous user');
             } else {
-              console.log('RevenueCat user is already anonymous, skipping logout');
+              // console.log('RevenueCat user is already anonymous, skipping logout');
             }
             // Clear customer info to reflect anonymous state
             setCustomerInfo(null);
