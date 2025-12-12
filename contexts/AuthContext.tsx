@@ -20,7 +20,7 @@ import { useAuth, AuthHook } from '../hooks/useAuth';
 import { getPendingOnboardingDream, clearPendingOnboardingDream } from '../utils/onboardingFlow';
 import { createDreamFromOnboardingData } from '../utils/onboardingDreamCreation';
 import { supabaseClient } from '../lib/supabaseClient';
-import { identifyUser, resetUser, setUserProperties } from '../lib/mixpanel';
+import { identifyUser, resetUser, setUserProperties, identifySessionReplay } from '../lib/mixpanel';
 
 /**
  * Extended AuthHook interface that includes onboarding dream creation state
@@ -74,6 +74,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Mixpanel Identification
     if (auth.isAuthenticated && auth.user?.id) {
       identifyUser(auth.user.id);
+      // Update Session Replay user identifier when user authenticates
+      identifySessionReplay(auth.user.id);
       if (auth.user.email) {
         setUserProperties({
           $email: auth.user.email,

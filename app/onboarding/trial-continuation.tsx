@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { notificationService } from '../../lib/NotificationService';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Import RevenueCat with fallback to mock
 import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
@@ -43,6 +44,15 @@ const TrialContinuationStep: React.FC = () => {
   const [offeringsLoading, setOfferingsLoading] = useState(true);
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'trial_continuation'
+      });
+    }, [])
+  );
 
   useEffect(() => {
     fetchOfferings();
@@ -182,6 +192,20 @@ const TrialContinuationStep: React.FC = () => {
 
       // Check if user has active entitlement
       if (refreshedCustomerInfo.entitlements?.active?.['pro']) {
+        // Determine purchase type
+        const packageId = packageToPurchase.identifier;
+        const purchaseType = packageId.includes('monthly') || packageId === '$rc_monthly' ? 'monthly' : 
+                            packageId.includes('annual') || packageId === '$rc_annual' ? 'annual' : 'unknown';
+        const priceString = packageToPurchase.product.priceString || '';
+
+        // Track purchase event
+        trackEvent('purchase_completed', {
+          purchase_type: purchaseType,
+          purchase_source: 'trial_continuation',
+          package_id: packageId,
+          price: priceString
+        });
+
         // Show success state briefly before navigating
         setPurchaseSuccess(true);
         
@@ -214,6 +238,21 @@ const TrialContinuationStep: React.FC = () => {
           // User has an active subscription but entitlement might not be active yet
           // This can happen with trial subscriptions
           // console.log('Active subscription found but entitlement not yet active, proceeding anyway');
+          
+          // Determine purchase type
+          const packageId = packageToPurchase.identifier;
+          const purchaseType = packageId.includes('monthly') || packageId === '$rc_monthly' ? 'monthly' : 
+                              packageId.includes('annual') || packageId === '$rc_annual' ? 'annual' : 'unknown';
+          const priceString = packageToPurchase.product.priceString || '';
+
+          // Track purchase event
+          trackEvent('purchase_completed', {
+            purchase_type: purchaseType,
+            purchase_source: 'trial_continuation',
+            package_id: packageId,
+            price: priceString
+          });
+
           setPurchaseSuccess(true);
           
           // Schedule trial reminder notification (24 hours before trial expires)

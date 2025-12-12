@@ -68,6 +68,8 @@ export default {
       "supabaseAnonKey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       "revenueCatApiKey": process.env.EXPO_PUBLIC_REVENUECAT_API_KEY,
       "mixpanelToken": process.env.EXPO_PUBLIC_MIXPANEL_TOKEN,
+      "mixpanelServerURL": process.env.EXPO_PUBLIC_MIXPANEL_SERVER_URL || "https://api.mixpanel.com",
+      "backendUrl": process.env.EXPO_PUBLIC_BACKEND_URL,
       "eas": {
         "projectId": "f92cdd32-9b86-4148-9f96-6eb8a392ca9f"
       }

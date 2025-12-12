@@ -12,6 +12,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 
 const CurrentProgressStep: React.FC = () => {
@@ -33,6 +34,15 @@ const CurrentProgressStep: React.FC = () => {
         setCustomProgress(answer);
       }
     }, [state.answers[4]])
+  );
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'current_progress'
+      });
+    }, [])
   );
 
 

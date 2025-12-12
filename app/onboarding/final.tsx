@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { savePendingOnboardingDream } from '../../utils/onboardingFlow';
 import { trackEvent } from '../../lib/mixpanel';
+import { useFocusEffect } from '@react-navigation/native';
 
 const FinalStep: React.FC = () => {
   const navigation = useNavigation();
@@ -43,8 +44,17 @@ const FinalStep: React.FC = () => {
     saveOnboardingData();
   }, []); // Only run once on mount
 
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'review'
+      });
+    }, [])
+  );
+
   const handleContinue = () => {
-    trackEvent('Onboarding Completed', {
+    trackEvent('onboarding_completed', {
       total_areas: state.generatedAreas.length,
       total_actions: state.generatedActions.length,
     });

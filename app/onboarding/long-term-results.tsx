@@ -6,14 +6,24 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { markOnboardingCompleted } from '../../utils/onboardingFlow';
+import { trackEvent } from '../../lib/mixpanel';
 
 const LongTermResultsStep: React.FC = () => {
   const navigation = useNavigation();
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'long_term_results'
+      });
+    }, [])
+  );
 
   const handleContinue = async () => {
     // Navigate to obstacles page instead of paywall

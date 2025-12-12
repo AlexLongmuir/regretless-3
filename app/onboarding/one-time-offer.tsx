@@ -6,17 +6,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
+import { trackEvent } from '../../lib/mixpanel';
 
 const OneTimeOfferStep: React.FC = () => {
   const navigation = useNavigation();
   const [showOffer, setShowOffer] = useState(false);
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'one_time_offer'
+      });
+    }, [])
+  );
 
   const handleBack = () => {
     navigation.goBack();

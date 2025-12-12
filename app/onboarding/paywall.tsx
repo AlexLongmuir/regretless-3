@@ -7,11 +7,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Import RevenueCat with fallback to mock
 import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
@@ -47,6 +48,15 @@ const PaywallStep: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>('$rc_annual');
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'paywall'
+      });
+    }, [])
+  );
 
   useEffect(() => {
     fetchOfferings();
@@ -98,6 +108,20 @@ const PaywallStep: React.FC = () => {
 
       // Check if user has active entitlement
       if (customerInfo.entitlements.active['pro']) {
+        // Determine purchase type
+        const packageId = packageToPurchase.identifier;
+        const purchaseType = packageId.includes('monthly') || packageId === '$rc_monthly' ? 'monthly' : 
+                            packageId.includes('annual') || packageId === '$rc_annual' ? 'annual' : 'unknown';
+        const priceString = packageToPurchase.product.priceString || '';
+
+        // Track purchase event
+        trackEvent('purchase_completed', {
+          purchase_type: purchaseType,
+          purchase_source: 'paywall',
+          package_id: packageId,
+          price: priceString
+        });
+
         // Navigate to PostPurchaseSignIn
         navigation.navigate('PostPurchaseSignIn' as never);
       } else {

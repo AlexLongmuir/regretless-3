@@ -23,6 +23,14 @@ EXPO_PUBLIC_REVENUECAT_API_KEY=pk_your_revenuecat_api_key_here
 
 # Mixpanel Configuration
 EXPO_PUBLIC_MIXPANEL_TOKEN=your_mixpanel_token_here
+# Optional: Set to 'https://api-eu.mixpanel.com' for EU Data Residency
+# Defaults to 'https://api.mixpanel.com' (US) if not set
+EXPO_PUBLIC_MIXPANEL_SERVER_URL=https://api.mixpanel.com
+
+# Backend API Configuration
+# For local development: http://localhost:3000
+# For production: https://your-backend-domain.com (e.g., https://dreamer-api.vercel.app)
+EXPO_PUBLIC_BACKEND_URL=http://localhost:3000
 
 # OpenAI Configuration (Backend Only)
 OPENAI_API_KEY=sk_your_openai_api_key_here
@@ -74,11 +82,39 @@ OPENAI_API_KEY=sk_your_openai_api_key_here
    ```
 2. Replace `your_actual_mixpanel_token_here` with your actual Mixpanel project token
 
+### EU Data Residency:
+
+To route data to Mixpanel's EU servers for EU Data Residency compliance, add:
+```
+EXPO_PUBLIC_MIXPANEL_SERVER_URL=https://api-eu.mixpanel.com
+```
+
+If not set, the app defaults to US servers (`https://api.mixpanel.com`).
+
+### Session Replay (Beta):
+
+Session Replay is automatically enabled during the onboarding flow to capture user interactions and help identify drop-off points.
+
+**To enable Session Replay:**
+1. Contact your Mixpanel Account Manager to request access to the private beta
+2. Install the Session Replay package:
+   ```bash
+   npm install @mixpanel/react-native-session-replay
+   ```
+3. Run `pod install` in the `ios` directory (for iOS)
+4. Session Replay will automatically start when users enter the onboarding flow
+
+**Privacy & Security:**
+- Text inputs and images are automatically masked for privacy
+- Sensitive screens (payment, profile) should be reviewed for additional masking
+- Session Replay is only active during onboarding by default
+
 ### Important Notes:
 
 - The `EXPO_PUBLIC_` prefix is required for Expo to expose the variable to your app
 - Without a token, Mixpanel will use a no-op implementation (events won't be tracked but won't cause errors)
 - Never commit your actual token to version control
+- The server URL determines where your analytics data is stored (US vs EU)
 
 ## OpenAI API Key (Backend)
 
@@ -104,6 +140,52 @@ OPENAI_API_KEY=sk_your_openai_api_key_here
 - The key is only used on the backend, never exposed to the frontend
 - Keep this key secure and never commit it to version control
 - OpenAI charges $0.006 per minute of audio transcribed
+
+## Backend URL Configuration
+
+### Local Development
+
+For local development, set the backend URL to your local server:
+```bash
+EXPO_PUBLIC_BACKEND_URL=http://localhost:3000
+```
+
+**Note**: When testing on a physical device, use your computer's local IP address instead of `localhost`:
+```bash
+EXPO_PUBLIC_BACKEND_URL=http://192.168.1.100:3000  # Replace with your actual IP
+```
+
+### Production (App Store Release)
+
+Before releasing to the App Store, you need to:
+
+1. **Deploy your backend** to a hosting service:
+   - **Vercel** (recommended for Next.js): Connect your backend folder to Vercel
+   - **Railway**: Deploy the backend folder
+   - **AWS/Google Cloud/Azure**: Deploy as a serverless function or container
+   - Any other hosting service that supports Next.js
+
+2. **Get your production backend URL** (e.g., `https://dreamer-api.vercel.app`)
+
+3. **Set the environment variable in EAS** for production builds:
+   ```bash
+   eas secret:create --scope project --name EXPO_PUBLIC_BACKEND_URL --value https://your-backend-domain.com --type string
+   ```
+
+   Or use the EAS dashboard:
+   - Go to https://expo.dev
+   - Select your project
+   - Go to **Secrets** → **Environment Variables**
+   - Add `EXPO_PUBLIC_BACKEND_URL` with your production backend URL
+
+4. **Verify the build profile** in `eas.json` includes the environment variable (it should automatically use secrets)
+
+### Important Notes:
+
+- The backend URL is baked into your app at build time, not runtime
+- You'll need separate builds for development and production (or use different environment variables)
+- Always test your production backend URL before submitting to the App Store
+- Make sure your backend CORS settings allow requests from your mobile app
 
 ## Security
 

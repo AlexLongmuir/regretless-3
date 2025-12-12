@@ -12,6 +12,7 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { Button } from '../../components/Button';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Helper function to parse time string (e.g., "1h 30m", "30 min", "2 hours")
 const parseTimeString = (timeStr: string): { hours: number; minutes: number } => {
@@ -67,6 +68,15 @@ const TimeCommitmentStep: React.FC = () => {
         setTimePickerDate(newDate);
       }
     }, [state.answers[3]])
+  );
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'time_commitment'
+      });
+    }, [])
   );
 
 

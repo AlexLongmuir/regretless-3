@@ -7,15 +7,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { generateOnboardingActions } from '../../frontend-services/backend-bridge';
+import { trackEvent } from '../../lib/mixpanel';
 
 const ActionsGeneratingStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, setGeneratedActions } = useOnboardingContext();
   const [isLoading, setIsLoading] = useState(true);
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'actions_generating'
+      });
+    }, [])
+  );
 
   useEffect(() => {
     // Check if we already have generated actions to prevent regeneration

@@ -15,6 +15,8 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { generateOnboardingAreas } from '../../frontend-services/backend-bridge';
 import type { Area } from '../../backend/database/types';
+import { useFocusEffect } from '@react-navigation/native';
+import { trackEvent } from '../../lib/mixpanel';
 
 interface AreaSuggestion {
   id: string
@@ -33,6 +35,15 @@ const AreasConfirmStep: React.FC = () => {
   const [newAreaEmoji, setNewAreaEmoji] = useState('🚀');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'areas_setup'
+      });
+    }, [])
+  );
+
   // Convert areas from context to local UI format, sorted by position
   const areaSuggestions: AreaSuggestion[] = state.generatedAreas
     .sort((a, b) => (a.position || 0) - (b.position || 0))
@@ -45,11 +56,12 @@ const AreasConfirmStep: React.FC = () => {
   const emojiOptions = ['🚀', '✍️', '🔧', '📢', '📚', '💡', '🎯', '⚡', '🔥', '💪', '🎨', '📈', '🌟', '🎉', '💎', '🏆'];
 
   const handleContinue = () => {
-    if (state.generatedAreas.length === 0) {
-      Alert.alert('Error', 'No areas generated. Please try again.');
-      return;
-    }
-    navigation.navigate('ActionsGenerating' as never);
+    trackEvent('onboarding_completed', {
+      total_areas: state.generatedAreas.length,
+      total_actions: state.generatedActions.length,
+    });
+    // Navigate to trial offer flow
+    navigation.navigate('TrialOffer' as never);
   };
 
   const handleRegenerate = async () => {

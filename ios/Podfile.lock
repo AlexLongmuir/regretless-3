@@ -275,6 +275,30 @@ PODS:
   - MixpanelReactNative (3.1.2):
     - Mixpanel-swift (= 5.1.0)
     - React-Core
+  - MixpanelReactNativeSessionReplay (0.2.0):
+    - hermes-engine
+    - MixpanelSessionReplay (= 1.1.5)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - MixpanelSessionReplay (1.1.5)
   - PurchasesHybridCommon (17.7.0):
     - RevenueCat (= 5.39.0)
   - RCTDeprecation (0.81.4)
@@ -2435,6 +2459,7 @@ DEPENDENCIES:
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - MixpanelReactNative (from `../node_modules/mixpanel-react-native`)
+  - "MixpanelReactNativeSessionReplay (from `../node_modules/@mixpanel/react-native-session-replay`)"
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
   - RCTTypeSafety (from `../node_modules/react-native/Libraries/TypeSafety`)
@@ -2520,6 +2545,7 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - Mixpanel-swift
+    - MixpanelSessionReplay
     - PurchasesHybridCommon
     - RevenueCat
     - SwiftUIIntrospect
@@ -2590,6 +2616,8 @@ EXTERNAL SOURCES:
     :tag: hermes-2025-07-07-RNv0.81.0-e0fc67142ec0763c6b6153ca2bf96df815539782
   MixpanelReactNative:
     :path: "../node_modules/mixpanel-react-native"
+  MixpanelReactNativeSessionReplay:
+    :path: "../node_modules/@mixpanel/react-native-session-replay"
   RCTDeprecation:
     :path: "../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation"
   RCTRequired:
@@ -2785,6 +2813,8 @@ SPEC CHECKSUMS:
   hermes-engine: 35c763d57c9832d0eef764316ca1c4d043581394
   Mixpanel-swift: 7b26468fc0e2e521104e51d65c4bbf7cab8162f8
   MixpanelReactNative: cdcfe933b8ce89aadd183f17aad3c8529daccb94
+  MixpanelReactNativeSessionReplay: dd187999a866a258b4822523bc795378580a9348
+  MixpanelSessionReplay: d910faaa54e50b5b12388e45342fb4e48ed1fe4a
   PurchasesHybridCommon: 6bc96162fb0c061e1980f474be618c088cfd1428
   RCTDeprecation: 7487d6dda857ccd4cb3dd6ecfccdc3170e85dcbc
   RCTRequired: 54128b7df8be566881d48c7234724a78cb9b6157

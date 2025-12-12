@@ -6,13 +6,14 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader, OnboardingImage } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { getDefaultImages, getDefaultImagesPublic } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Use the individuality image for welcome screen
 const individualityImage = require('../../assets/images/onboarding/20250916_0844_Individuality Amidst Motion_simple_compose_01k58qptvqfr5awmazzyd181js.png');
@@ -64,6 +65,15 @@ const WelcomeStep: React.FC = () => {
 
     preloadImages()
   }, [state.preloadedDefaultImages, setPreloadedDefaultImages])
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'welcome'
+      });
+    }, [])
+  );
 
   const handleContinue = () => {
     navigation.navigate('Name' as never);

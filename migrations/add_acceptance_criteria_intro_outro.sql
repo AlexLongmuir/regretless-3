@@ -17,3 +17,5 @@ COMMENT ON COLUMN actions.acceptance_outro IS 'Closing sentence defining complet
 
 
 
+
+

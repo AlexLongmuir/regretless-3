@@ -6,7 +6,7 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { preloadOnboardingImages, onboardingImages } from '../../utils/preloadOnboardingImages';
@@ -21,8 +21,17 @@ const IntroStep: React.FC = () => {
     preloadOnboardingImages();
   }, []);
 
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'intro'
+      });
+    }, [])
+  );
+
   const handleContinue = () => {
-    trackEvent('Onboarding Started');
+    trackEvent('onboarding_started');
     navigation.navigate('Welcome' as never);
   };
 
@@ -55,10 +64,6 @@ const IntroStep: React.FC = () => {
           
           <Text style={styles.signInText}>
             Already purchased? <Text style={styles.signInLink} onPress={() => navigation.navigate('PostPurchaseSignIn' as never)}>Sign in</Text>
-          </Text>
-          
-          <Text style={styles.skipText} onPress={() => navigation.navigate('TrialOffer' as never)}>
-            Skip to purchase
           </Text>
         </View>
       </View>

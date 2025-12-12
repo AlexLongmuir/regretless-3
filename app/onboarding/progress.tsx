@@ -6,12 +6,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Icon } from '../../components/Icon';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { generateOnboardingAreas } from '../../frontend-services/backend-bridge';
+import { trackEvent } from '../../lib/mixpanel';
 
 const progressMessages = [
   "Analyzing your responses...",
@@ -28,6 +29,15 @@ const ProgressStep: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
   const animatedValue = useRef(new Animated.Value(0)).current;
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'progress'
+      });
+    }, [])
+  );
 
   // Helper function to map onboarding answers to dream parameters for areas only
   const mapOnboardingAnswersToDreamParams = () => {

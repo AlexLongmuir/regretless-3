@@ -6,12 +6,13 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 const lifeOptions = [
   { emoji: '💔', text: 'Feeling lost and overwhelmed' },
@@ -26,6 +27,15 @@ const CurrentLifeStep: React.FC = () => {
   const { state, updateAnswer } = useOnboardingContext();
   
   const selectedAnswer = state.answers[1]; // Question ID 1 for current life
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'current_life'
+      });
+    }, [])
+  );
 
   const handleOptionSelect = (text: string) => {
     updateAnswer(1, text);

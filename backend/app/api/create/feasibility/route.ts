@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateJson, GEMINI_MODEL } from '../../../../lib/ai/gemini'
-import { FEASIBILITY_SYSTEM } from '../../../../lib/ai/prompts'
-import { FEASIBILITY_SCHEMA } from '../../../../lib/ai/schemas'
+import { GOAL_FEASIBILITY_SYSTEM } from '../../../../lib/ai/prompts'
+import { GOAL_FEASIBILITY_SCHEMA } from '../../../../lib/ai/schemas'
 import { saveAIEvent } from '../../../../lib/ai/telemetry'
 import { supabaseServer, supabaseServerAuth } from '../../../../lib/supabaseServer'
 
@@ -52,9 +52,9 @@ Please provide:
 2. An assessment of whether the timeline is realistic and a suggested end date if needed`
 
     const { data, usage } = await generateJson({
-      system: FEASIBILITY_SYSTEM,
+      system: GOAL_FEASIBILITY_SYSTEM,
       messages: [{ text: prompt }],
-      schema: FEASIBILITY_SCHEMA,
+      schema: GOAL_FEASIBILITY_SCHEMA,
       maxOutputTokens: 800,
       modelId: GEMINI_MODEL // Using Flash Lite model without thinking
     })

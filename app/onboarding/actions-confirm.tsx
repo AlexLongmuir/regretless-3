@@ -14,6 +14,7 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { generateOnboardingActions } from '../../frontend-services/backend-bridge';
 import type { Area, Action } from '../../backend/database/types';
+import { trackEvent } from '../../lib/mixpanel';
 
 interface ActionCard {
   id: string
@@ -34,6 +35,15 @@ const ActionsConfirmStep: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [currentAreaIndex, setCurrentAreaIndex] = useState(0);
+  
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'actions_confirm'
+      });
+    }, [])
+  );
   
   // Get current area and its actions
   const currentArea = state.generatedAreas[currentAreaIndex];

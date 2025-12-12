@@ -6,12 +6,13 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { EmojiListRow } from '../../components';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 const obstacleOptions = [
   { emoji: '⏰', text: 'Procrastination and time mismanagement' },
@@ -27,6 +28,15 @@ const ObstaclesStep: React.FC = () => {
   const { state, updateAnswer } = useOnboardingContext();
   
   const selectedAnswer = state.answers[10]; // Question ID 10 for obstacles
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'obstacles'
+      });
+    }, [])
+  );
 
   const handleOptionSelect = (text: string) => {
     updateAnswer(10, text);

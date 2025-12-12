@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, Platform, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { BlurView } from 'expo-blur';
@@ -21,6 +21,7 @@ import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { updateSubscriptionStatus, getPendingOnboardingDream, clearPendingOnboardingDream } from '../../utils/onboardingFlow';
 import { createDreamFromOnboardingData } from '../../utils/onboardingDreamCreation';
 import { supabaseClient } from '../../lib/supabaseClient';
+import { trackEvent } from '../../lib/mixpanel';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
@@ -37,6 +38,15 @@ const PostPurchaseSignInStep: React.FC = () => {
   } = useEntitlementsContext();
 
   const [isCreatingDream, setIsCreatingDream] = useState(false);
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'post_purchase_signin'
+      });
+    }, [])
+  );
 
   // Function to create dream from onboarding data (uses shared utility)
   const createDreamFromOnboarding = async (token: string) => {

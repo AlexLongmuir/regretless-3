@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, FlatList, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
@@ -17,6 +17,7 @@ import { Button } from '../../components/Button';
 import { getDefaultImages, getDefaultImagesPublic, uploadDreamImage, type DreamImage } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { theme } from '../../utils/theme';
+import { trackEvent } from '../../lib/mixpanel';
 
 const DreamImageStep: React.FC = () => {
   const navigation = useNavigation();
@@ -26,6 +27,15 @@ const DreamImageStep: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'dream_image'
+      });
+    }, [])
+  );
 
   // Update selectedImage when dreamImageUrl changes from context
   useEffect(() => {

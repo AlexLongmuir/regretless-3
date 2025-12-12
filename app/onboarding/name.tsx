@@ -12,6 +12,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { OnboardingHeader, OnboardingImage } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Use the golden city sunrise image for name screen
 const cityImage = require('../../assets/images/onboarding/20250916_0840_Golden City Sunrise_simple_compose_01k58qf6d3ekhv8gkph5ac0ygy.png');
@@ -29,6 +30,15 @@ const NameStep: React.FC = () => {
         setName(state.name);
       }
     }, [state.name])
+  );
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'name'
+      });
+    }, [])
   );
 
   const handleContinue = () => {

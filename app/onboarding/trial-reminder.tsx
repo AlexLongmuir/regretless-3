@@ -6,16 +6,26 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../lib/NotificationService';
+import { trackEvent } from '../../lib/mixpanel';
 
 const TrialReminderStep: React.FC = () => {
   const navigation = useNavigation();
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'trial_reminder'
+      });
+    }, [])
+  );
 
   const handleBack = () => {
     navigation.goBack();

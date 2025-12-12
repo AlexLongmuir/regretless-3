@@ -6,12 +6,13 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader, OnboardingImage } from '../../components/onboarding';
 import { markOnboardingCompleted } from '../../utils/onboardingFlow';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Use the silhouette moving forward image for understanding screen
 const silhouetteImage = require('../../assets/images/onboarding/20250916_0855_Silhouette Moving Forward_simple_compose_01k58r9xcefs5rm7mgk7c0b9r5.png');
@@ -19,6 +20,15 @@ const silhouetteImage = require('../../assets/images/onboarding/20250916_0855_Si
 const UnderstandingStep: React.FC = () => {
   const navigation = useNavigation();
   const { state } = useOnboardingContext();
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'understanding'
+      });
+    }, [])
+  );
 
   const handleContinue = () => {
     navigation.navigate('CurrentLife' as never);

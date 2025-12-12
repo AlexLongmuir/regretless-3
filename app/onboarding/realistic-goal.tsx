@@ -6,11 +6,12 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader, OnboardingImage } from '../../components/onboarding';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 // Use the golden hour energy image for realistic goal screen
 const goldenHourImage = require('../../assets/images/onboarding/20250916_0844_Golden-Hour Energy_simple_compose_01k58qq3znfbt9k5x9xktgcb5t.png');
@@ -21,6 +22,15 @@ const RealisticGoalStep: React.FC = () => {
   
   // Get the dream from the context (question ID 2)
   const userDream = state.answers[2] || 'your dream';
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'realistic_goal'
+      });
+    }, [])
+  );
 
   const handleContinue = () => {
     navigation.navigate('DreamImage' as never);

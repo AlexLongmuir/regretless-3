@@ -59,8 +59,10 @@ export default function App() {
         
         // Initialize Mixpanel (will use no-op if no token provided)
         const mixpanelToken = Constants.expoConfig?.extra?.mixpanelToken;
+        const mixpanelServerURL = Constants.expoConfig?.extra?.mixpanelServerURL;
         console.log('📊 Mixpanel Token being used:', mixpanelToken ? mixpanelToken.substring(0, 15) + '...' : 'NOT SET');
-        await initializeMixpanel(mixpanelToken);
+        console.log('🌍 Mixpanel Server URL:', mixpanelServerURL || 'https://api.mixpanel.com (US default)');
+        await initializeMixpanel(mixpanelToken, mixpanelServerURL);
         
         // Log Mixpanel status for debugging
         const mixpanelStatus = getMixpanelStatus();

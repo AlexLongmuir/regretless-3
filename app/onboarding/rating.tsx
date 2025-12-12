@@ -7,13 +7,23 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import * as StoreReview from 'expo-store-review';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
+import { trackEvent } from '../../lib/mixpanel';
 
 const RatingStep: React.FC = () => {
   const navigation = useNavigation();
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'rating'
+      });
+    }, [])
+  );
 
   useEffect(() => {
     const promptForReview = async () => {

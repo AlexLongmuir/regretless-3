@@ -437,12 +437,12 @@ const AppNavigator = () => {
      * This fires when user clicks a link while app is in background/foreground
      */
     const handleUrlEvent = async (event: { url: string }) => {
-      console.log('Received URL while app running:', event.url);
-      console.log('URL includes auth/callback:', event.url.includes('auth/callback'));
+      // console.log('Received URL while app running:', event.url);
+      // console.log('URL includes auth/callback:', event.url.includes('auth/callback'));
       
       // Check if this is an auth callback URL
       if (event.url.includes('auth/callback')) {
-        console.log('Processing auth callback URL...');
+        // console.log('Processing auth callback URL...');
         await handleAuthRedirect(event.url);
       }
     };
@@ -455,7 +455,7 @@ const AppNavigator = () => {
       const initialUrl = await Linking.getInitialURL();
       
       if (initialUrl) {
-        console.log('App launched with URL:', initialUrl);
+        // console.log('App launched with URL:', initialUrl);
         
         // Check if this is an auth callback URL
         if (initialUrl.includes('auth/callback')) {

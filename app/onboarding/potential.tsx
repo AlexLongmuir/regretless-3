@@ -6,13 +6,23 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
+import { trackEvent } from '../../lib/mixpanel';
 
 const PotentialStep: React.FC = () => {
   const navigation = useNavigation();
+
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'potential'
+      });
+    }, [])
+  );
 
   const handleContinue = () => {
     navigation.navigate('Rating' as never);

@@ -13,8 +13,10 @@
  * and allows for easy management of the step-by-step process.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { startSessionReplay, stopSessionReplay, isMixpanelConfigured } from '../lib/mixpanel';
+import { useAuthContext } from '../contexts/AuthContext';
 
 // Import onboarding flow screens
 import IntroStep from '../app/onboarding/intro';
@@ -57,8 +59,48 @@ const OnboardingStack = createNativeStackNavigator();
  * This navigator manages the step-by-step process of onboarding new users.
  * Each screen represents a step in the flow, and users can navigate
  * forward and backward through the steps.
+ * 
+ * Session Replay is automatically enabled during onboarding to capture user interactions
+ * and help identify drop-off points and user experience issues.
  */
 const OnboardingNavigator = () => {
+  const { user } = useAuthContext();
+
+  // Start Session Replay when onboarding begins
+  useEffect(() => {
+    const enableSessionReplay = async () => {
+      if (!isMixpanelConfigured()) {
+        console.log('[OnboardingNavigator] Mixpanel not configured, skipping Session Replay');
+        return;
+      }
+
+      try {
+        // Use user ID if available, otherwise use anonymous
+        const distinctId = user?.id || 'anonymous-onboarding';
+        
+        // Start Session Replay with configuration optimized for onboarding
+        await startSessionReplay(distinctId, {
+          recordingSessionsPercent: 100, // Record all onboarding sessions
+          autoStartRecording: true,
+          enableLogging: __DEV__, // Enable logging in development
+        });
+        
+        console.log('[OnboardingNavigator] ✅ Session Replay enabled for onboarding');
+      } catch (error) {
+        console.error('[OnboardingNavigator] ❌ Failed to start Session Replay:', error);
+      }
+    };
+
+    enableSessionReplay();
+
+    // Stop Session Replay when onboarding navigator unmounts
+    return () => {
+      stopSessionReplay().catch((error) => {
+        console.error('[OnboardingNavigator] ❌ Failed to stop Session Replay:', error);
+      });
+    };
+  }, [user?.id]);
+
   return (
     <OnboardingStack.Navigator 
       screenOptions={{ 

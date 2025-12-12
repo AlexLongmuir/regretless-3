@@ -16,6 +16,7 @@ import { DreamInputActions } from '../../components/DreamInputActions';
 import { CelebritySelector, preloadCelebrities, preloadCelebrityDreams } from '../../components/CelebritySelector';
 import { DreamboardUpload } from '../../components/DreamboardUpload';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
+import { trackEvent } from '../../lib/mixpanel';
 
 const dreamPresets = [
   { emoji: '💰', text: 'Launch my online business that generates £1,000 / month' },
@@ -80,6 +81,15 @@ const MainDreamStep: React.FC = () => {
     }, [state.answers[2]])
   );
 
+  // Track step view when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('onboarding_step_viewed', {
+        step_name: 'dream_setup'
+      });
+    }, [])
+  );
+
   const handlePresetSelect = (text: string) => {
     setSelectedAnswer(text);
     updateAnswer(2, text);
@@ -99,11 +109,13 @@ const MainDreamStep: React.FC = () => {
   };
 
   const handleContinue = () => {
+    trackEvent('onboarding_started');
     Keyboard.dismiss(); // Close keyboard when continuing
     if (selectedAnswer || customDream.trim()) {
       navigation.navigate('RealisticGoal' as never);
     }
   };
+
 
   const handleGenerated = (dreams: { title: string; emoji?: string }[]) => {
     setPersonalized(prev => {
