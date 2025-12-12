@@ -23,6 +23,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as AuthSession from 'expo-auth-session';
+import { trackEvent } from '../lib/mixpanel';
 
 // Define the shape of our auth state and operations
 export interface AuthState {
@@ -271,6 +272,12 @@ export const useAuth = (): AuthHook => {
 
       if (data?.user) {
         console.log('Apple Sign In completed successfully:', data.user.email);
+        
+        // Track sign in event
+        trackEvent('sign_in', {
+          provider: 'apple'
+        });
+        
         // User state will be updated by the auth state change listener
         return { success: true };
       } else {
@@ -449,6 +456,14 @@ export const useAuth = (): AuthHook => {
       if (result.type === 'success' && result.url) {
         // The URL contains authentication tokens - process them
         const authResult = await handleAuthRedirect(result.url);
+        
+        // Track sign in event if successful
+        if (authResult.success) {
+          trackEvent('sign_in', {
+            provider: provider
+          });
+        }
+        
         return authResult;
       } else if (result.type === 'cancel') {
         // User cancelled the OAuth flow

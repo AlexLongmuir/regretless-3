@@ -71,13 +71,15 @@ const TrialOfferStep: React.FC = () => {
       <OnboardingHeader onBack={handleBack} rightElement={restoreButton} />
       
       <View style={styles.content}>
-        <Text style={styles.title}>We want you to try Dreamer for free</Text>
-        
-        <Image 
-          source={require('../../assets/images/onboarding/screenshots/WholeApp.png')} 
-          style={styles.screenshot}
-          resizeMode="contain"
-        />
+        <View style={styles.topSection}>
+          <Text style={styles.title}>We want you to try Dreamer for free</Text>
+          
+          <Image 
+            source={require('../../assets/images/onboarding/screenshots/WholeApp.png')} 
+            style={styles.screenshot}
+            resizeMode="contain"
+          />
+        </View>
         
         <View style={styles.offerSection}>
           <Text style={styles.noPaymentText}>✓ No Payment Due Now</Text>
@@ -107,6 +109,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
+    justifyContent: 'space-between',
+  },
+  topSection: {
+    flex: 1,
+    justifyContent: 'center',
   },
   title: {
     fontFamily: theme.typography.fontFamily.system,
@@ -120,7 +128,6 @@ const styles = StyleSheet.create({
   screenshot: {
     width: '100%',
     maxHeight: SCREEN_HEIGHT * 0.6,
-    marginBottom: theme.spacing.lg,
   },
   offerSection: {
     alignItems: 'center',

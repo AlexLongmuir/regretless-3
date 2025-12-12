@@ -157,8 +157,13 @@ export interface UpsertActionsResponse {
 }
 
 async function post(path: string, body: unknown, token?: string) {
+  // Normalize URL to avoid double slashes
+  const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const url = `${baseUrl}${normalizedPath}`
+  
   console.log('🌐 [BACKEND-BRIDGE] Making API call:', {
-    url: `${API_BASE}${path}`,
+    url,
     hasToken: !!token,
     body: JSON.stringify(body, null, 2)
   })
@@ -167,11 +172,18 @@ async function post(path: string, body: unknown, token?: string) {
   if (token) headers['Authorization'] = `Bearer ${token}`
   
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    // Add timeout to fetch request (60 seconds for AI generation)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
+    
+    const res = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     })
+    
+    clearTimeout(timeoutId)
     
     console.log('📡 [BACKEND-BRIDGE] Response status:', res.status)
     
@@ -185,6 +197,10 @@ async function post(path: string, body: unknown, token?: string) {
     console.log('✅ [BACKEND-BRIDGE] API Success:', result)
     return result
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('⏱️ [BACKEND-BRIDGE] Request timeout after 60s')
+      throw new Error('Request timeout - the server took too long to respond')
+    }
     console.log('💥 [BACKEND-BRIDGE] Network/Parse Error:', error)
     throw error
   }

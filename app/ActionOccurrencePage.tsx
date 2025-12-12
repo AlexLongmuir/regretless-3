@@ -763,8 +763,8 @@ const ActionOccurrencePage = () => {
       setIsCompleted(true);
       showToast('Success', 'Action completed successfully!');
       
-      // Track Action Completed event
-      trackEvent('Action Completed', {
+      // Track action completed event
+      trackEvent('action_completed', {
         action_id: params.occurrenceId,
         action_title: actionData?.title || params?.actionTitle,
         dream_title: dreamAreaData?.dreamTitle || params?.dreamTitle,
@@ -1480,7 +1480,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             <Button
               title={
                 isSubmitting 
-                  ? (isGeneratingReview ? "Generating AI Review..." : "Submitting...") 
+                  ? "Submitting..." 
                   : (isCompleted ? "Re-submit" : "Mark as Done")
               }
               variant="black"

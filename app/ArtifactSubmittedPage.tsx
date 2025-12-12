@@ -3,7 +3,6 @@ import { View, Text, Image, ScrollView, StyleSheet } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Button } from '../components/Button'
-import { AIRatingRing } from '../components'
 import { theme } from '../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation'
 import { useData } from '../contexts/DataContext'
@@ -65,14 +64,6 @@ export default function ArtifactSubmittedPage() {
     
     checkCompletion();
   }, [params.occurrenceId, checkDreamCompletion]);
-
-  // Helper function to derive category from rating
-  const getCategoryFromRating = (rating: number): 'okay' | 'good' | 'very_good' | 'excellent' => {
-    if (rating >= 90) return 'excellent';
-    if (rating >= 75) return 'very_good';
-    if (rating >= 50) return 'good';
-    return 'okay';
-  };
 
   const handleDone = () => {
     if (isDreamComplete && dreamId) {
@@ -179,38 +170,6 @@ export default function ArtifactSubmittedPage() {
             </View>
           </View>
         </View>
-
-        {/* AI Review Section */}
-        {params.aiRating !== null && params.aiRating !== undefined ? (
-          <View style={styles.aiReviewSection}>
-            <Text style={styles.sectionTitle}>AI Review</Text>
-            <View style={styles.aiReviewContent}>
-              <AIRatingRing 
-                rating={params.aiRating} 
-                category={getCategoryFromRating(params.aiRating)} 
-                size={80} 
-                strokeWidth={6} 
-              />
-              {params.aiFeedback && (
-                <Text style={styles.aiFeedback}>{params.aiFeedback}</Text>
-              )}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.aiReviewSection}>
-            <Text style={styles.sectionTitle}>AI Review & Potential Improvements</Text>
-            <View style={styles.aiReviewContent}>
-              <View style={styles.progressCircle}>
-                <Text style={styles.progressText}>Okay</Text>
-              </View>
-              <View style={styles.improvementsList}>
-                <Text style={styles.improvementItem}>1. 100-200 words</Text>
-                <Text style={styles.improvementItem}>2. Key CTA</Text>
-                <Text style={styles.improvementItem}>3. Something else</Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Submitted Content */}
         {(params.artifacts && params.artifacts.length > 0) || params.note ? (
@@ -334,51 +293,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.grey[600],
   },
-  aiReviewSection: {
-    paddingHorizontal: 32,
-    marginBottom: 32,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.grey[900],
     marginBottom: 16,
-  },
-  aiReviewContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    width: '100%',
-  },
-  aiFeedback: {
-    fontSize: 14,
-    color: theme.colors.black,
-    textAlign: 'left',
-    lineHeight: 20,
-    flex: 1,
-  },
-  progressCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: theme.colors.disabled.inactive,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background.card,
-  },
-  progressText: {
-    fontSize: 12,
-    color: theme.colors.grey[600],
-    fontWeight: '600',
-  },
-  improvementsList: {
-    flex: 1,
-  },
-  improvementItem: {
-    fontSize: 16,
-    color: theme.colors.grey[700],
-    marginBottom: 4,
   },
   submittedContent: {
     paddingHorizontal: 32,

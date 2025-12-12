@@ -61,6 +61,7 @@ const ProgressStep: React.FC = () => {
   useEffect(() => {
     // Check if we already have generated content to prevent regeneration
     if (state.generatedAreas.length > 0) {
+      setIsGenerationComplete(true);
       return;
     }
 
@@ -69,6 +70,7 @@ const ProgressStep: React.FC = () => {
         const dreamParams = mapOnboardingAnswersToDreamParams();
         
         console.log('🎯 [ONBOARDING] Starting areas generation with params:', dreamParams);
+        console.log('🌐 [ONBOARDING] API URL:', process.env.EXPO_PUBLIC_BACKEND_URL);
         
         // Generate areas using real AI
         const areas = await generateOnboardingAreas({
@@ -85,10 +87,18 @@ const ProgressStep: React.FC = () => {
           // Mark generation as complete
           setIsGenerationComplete(true);
           console.log('🎉 [ONBOARDING] Areas generation complete - ready to navigate');
+        } else {
+          // No areas returned, mark as complete anyway to allow navigation
+          console.warn('⚠️ [ONBOARDING] No areas returned from generation');
+          setIsGenerationComplete(true);
         }
       } catch (error) {
         console.error('❌ [ONBOARDING] Failed to generate areas:', error);
-        // Continue with progress even if generation fails
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('❌ [ONBOARDING] Error details:', errorMessage);
+        
+        // Continue with progress even if generation fails - user can retry later
+        // This prevents the UI from getting stuck
         setIsGenerationComplete(true);
       }
     };
@@ -114,6 +124,8 @@ const ProgressStep: React.FC = () => {
       });
     }, 2000);
 
+    let progressIntervalCleared = false;
+
     // Progress update with inverse exponential curve
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
@@ -122,7 +134,8 @@ const ProgressStep: React.FC = () => {
         const increment = 3 / Math.pow(1 + prev / 20, 1.5);
         const newProgress = Math.min(prev + increment, 100);
         
-        if (newProgress >= 100 && isGenerationComplete) {
+        if (newProgress >= 100 && isGenerationComplete && !progressIntervalCleared) {
+          progressIntervalCleared = true;
           clearInterval(progressInterval);
           // Auto-navigate to areas confirmation only after generation is complete
           setTimeout(() => {
@@ -141,6 +154,17 @@ const ProgressStep: React.FC = () => {
       progressAnimation.stop();
     };
   }, [navigation, animatedValue, isGenerationComplete]);
+
+  // Separate effect to handle navigation when generation completes after progress reaches 100%
+  useEffect(() => {
+    if (isGenerationComplete && progress >= 100) {
+      // Generation completed and progress is already at 100%, navigate immediately
+      const timeout = setTimeout(() => {
+        navigation.navigate('AreasConfirm' as never);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isGenerationComplete, progress, navigation]);
 
   const handleBack = () => {
     navigation.goBack();

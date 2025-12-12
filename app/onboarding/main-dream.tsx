@@ -109,7 +109,6 @@ const MainDreamStep: React.FC = () => {
   };
 
   const handleContinue = () => {
-    trackEvent('onboarding_started');
     Keyboard.dismiss(); // Close keyboard when continuing
     if (selectedAnswer || customDream.trim()) {
       navigation.navigate('RealisticGoal' as never);

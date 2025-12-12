@@ -15,6 +15,7 @@ async function getUser(req: Request) {
 
 export async function POST(req: Request) {
   const startTime = Date.now()
+  console.log('🚀 [GENERATE-AREAS] Request received at', new Date().toISOString())
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -22,7 +23,19 @@ export async function POST(req: Request) {
     
     // Allow unauthenticated access for onboarding preview
     const isOnboarding = !token || !user
+    
+    console.log('🔐 [GENERATE-AREAS] Auth check:', { isOnboarding, hasToken: !!token, hasUser: !!user })
 
+    const requestBody = await req.json()
+    console.log('📥 [GENERATE-AREAS] Request body received:', {
+      title: requestBody.title,
+      hasBaseline: !!requestBody.baseline,
+      hasObstacles: !!requestBody.obstacles,
+      hasEnjoyment: !!requestBody.enjoyment,
+      hasFeedback: !!requestBody.feedback,
+      hasOriginalAreas: !!requestBody.original_areas
+    })
+    
     const { 
       dream_id, 
       title, 
@@ -33,7 +46,7 @@ export async function POST(req: Request) {
       enjoyment,
       feedback,
       original_areas
-    } = await req.json()
+    } = requestBody
     
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
