@@ -14,7 +14,7 @@ export default {
     },
     "scheme": "dreamer",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.dreamerapp.app",
       "usesAppleSignIn": true,
       "infoPlist": {

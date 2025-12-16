@@ -14,9 +14,11 @@
  */
 
 import React, { useEffect } from 'react';
+import { View, Image } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { startSessionReplay, stopSessionReplay, isMixpanelConfigured } from '../lib/mixpanel';
 import { useAuthContext } from '../contexts/AuthContext';
+import { onboardingImages, preloadOnboardingImages } from '../utils/preloadOnboardingImages';
 
 // Import onboarding flow screens
 import IntroStep from '../app/onboarding/intro';
@@ -66,6 +68,13 @@ const OnboardingStack = createNativeStackNavigator();
 const OnboardingNavigator = () => {
   const { user } = useAuthContext();
 
+  // Preload images immediately when navigator mounts
+  // This ensures images are ready before users navigate to screens
+  useEffect(() => {
+    // Preload all onboarding images in the background
+    preloadOnboardingImages();
+  }, []);
+
   // Start Session Replay when onboarding begins
   useEffect(() => {
     const enableSessionReplay = async () => {
@@ -102,211 +111,221 @@ const OnboardingNavigator = () => {
   }, [user?.id]);
 
   return (
-    <OnboardingStack.Navigator 
-      screenOptions={{ 
-        headerShown: false,
-        gestureEnabled: true,
-        animation: 'slide_from_right',
-        animationDuration: 300
-      }}
-    >
-      <OnboardingStack.Screen 
-        name="Intro" 
-        component={IntroStep}
-        options={{
+    <>
+      <OnboardingStack.Navigator 
+        screenOptions={{ 
           headerShown: false,
+          gestureEnabled: true,
+          animation: 'slide_from_right',
+          animationDuration: 300
         }}
-      />
-      <OnboardingStack.Screen 
-        name="Welcome" 
-        component={WelcomeStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Name" 
-        component={NameStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Understanding" 
-        component={UnderstandingStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="CurrentLife" 
-        component={CurrentLifeStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="MainDream" 
-        component={MainDreamStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="RealisticGoal" 
-        component={RealisticGoalStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="DreamImage" 
-        component={DreamImageStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="TimeCommitment" 
-        component={TimeCommitmentStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="CurrentProgress" 
-        component={CurrentProgressStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="AchievementComparison" 
-        component={AchievementComparisonStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="LongTermResults" 
-        component={LongTermResultsStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Obstacles" 
-        component={ObstaclesStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Motivation" 
-        component={MotivationStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Potential" 
-        component={PotentialStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Rating" 
-        component={RatingStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Generating" 
-        component={GeneratingStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Progress" 
-        component={ProgressStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="AreasConfirm" 
-        component={AreasConfirmStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="ActionsGenerating" 
-        component={ActionsGeneratingStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="ActionsConfirm" 
-        component={ActionsConfirmStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Final" 
-        component={FinalStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="Paywall" 
-        component={PaywallStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="PostPurchaseSignIn" 
-        component={PostPurchaseSignInStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="TrialOffer" 
-        component={TrialOfferStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="TrialReminder" 
-        component={TrialReminderStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="TrialContinuation" 
-        component={TrialContinuationStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <OnboardingStack.Screen 
-        name="OneTimeOffer" 
-        component={OneTimeOfferStep}
-        options={{
-          headerShown: false,
-        }}
-      />
-    </OnboardingStack.Navigator>
+      >
+        <OnboardingStack.Screen 
+          name="Intro" 
+          component={IntroStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Welcome" 
+          component={WelcomeStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Name" 
+          component={NameStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Understanding" 
+          component={UnderstandingStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="CurrentLife" 
+          component={CurrentLifeStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="MainDream" 
+          component={MainDreamStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="RealisticGoal" 
+          component={RealisticGoalStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="DreamImage" 
+          component={DreamImageStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="TimeCommitment" 
+          component={TimeCommitmentStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="CurrentProgress" 
+          component={CurrentProgressStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="AchievementComparison" 
+          component={AchievementComparisonStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="LongTermResults" 
+          component={LongTermResultsStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Obstacles" 
+          component={ObstaclesStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Motivation" 
+          component={MotivationStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Potential" 
+          component={PotentialStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Rating" 
+          component={RatingStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Generating" 
+          component={GeneratingStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Progress" 
+          component={ProgressStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="AreasConfirm" 
+          component={AreasConfirmStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="ActionsGenerating" 
+          component={ActionsGeneratingStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="ActionsConfirm" 
+          component={ActionsConfirmStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Final" 
+          component={FinalStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="Paywall" 
+          component={PaywallStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="PostPurchaseSignIn" 
+          component={PostPurchaseSignInStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="TrialOffer" 
+          component={TrialOfferStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="TrialReminder" 
+          component={TrialReminderStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="TrialContinuation" 
+          component={TrialContinuationStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="OneTimeOffer" 
+          component={OneTimeOfferStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+      </OnboardingStack.Navigator>
+      
+      {/* Force load critical first few images by rendering them invisibly */}
+      {/* This is more reliable than Image.prefetch() for local assets */}
+      <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <Image source={onboardingImages.individualityImage} fadeDuration={0} />
+        <Image source={onboardingImages.cityImage} fadeDuration={0} />
+        <Image source={onboardingImages.silhouetteImage} fadeDuration={0} />
+      </View>
+    </>
   );
 };
 

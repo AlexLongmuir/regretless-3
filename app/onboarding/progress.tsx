@@ -1,34 +1,94 @@
 /**
  * Progress Step - We're setting everything up for you
  * 
- * Shows progress with variable messages and 10s delay before auto-navigation
+ * Shows progress with sequential category loading and checkmarks
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { OnboardingHeader } from '../../components/onboarding';
-import { Icon } from '../../components/Icon';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { generateOnboardingAreas } from '../../frontend-services/backend-bridge';
 import { trackEvent } from '../../lib/mixpanel';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const progressMessages = [
-  "Analyzing your responses...",
-  "Generating personalized recommendations...",
-  "Creating your custom plan...",
-  "Optimizing for your goals...",
-  "Finalizing your results...",
+type CategoryStatus = 'pending' | 'loading' | 'completed';
+
+interface Category {
+  id: number;
+  text: string;
+  status: CategoryStatus;
+}
+
+const CATEGORIES: Omit<Category, 'status'>[] = [
+  { id: 1, text: "Analyzing your dream and creating a personalized plan" },
+  { id: 2, text: "Breaking your goal into manageable areas and phases" },
+  { id: 3, text: "Generating actionable steps tailored to your schedule" },
+  { id: 4, text: "Setting up progress tracking and guidance" },
+  { id: 5, text: "Finalizing your custom dream achievement system" },
 ];
 
 const ProgressStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, setGeneratedAreas } = useOnboardingContext();
-  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [categories, setCategories] = useState<Category[]>(
+    CATEGORIES.map(cat => ({ ...cat, status: 'pending' as CategoryStatus }))
+  );
   const [isGenerationComplete, setIsGenerationComplete] = useState(false);
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  const startAnimationSequence = () => {
+    const startNextCategory = (index: number) => {
+      if (index >= CATEGORIES.length) {
+        // All categories completed, wait for generation to complete before navigating
+        return;
+      }
+
+      // Set current category to loading
+      setCategories(prev => 
+        prev.map((cat, i) => 
+          i === index ? { ...cat, status: 'loading' } : cat
+        )
+      );
+
+      // After 4.5 seconds, mark as completed and move to next (30 seconds total for 5 categories)
+      const loadingTimer = setTimeout(() => {
+        setCategories(prev => 
+          prev.map((cat, i) => 
+            i === index ? { ...cat, status: 'completed' } : cat
+          )
+        );
+
+        // Start next category after a delay
+        const nextTimer = setTimeout(() => {
+          startNextCategory(index + 1);
+        }, 2000);
+        timersRef.current.push(nextTimer);
+      }, 4500);
+      
+      timersRef.current.push(loadingTimer);
+    };
+
+    // Start with first category after initial delay
+    const initialTimer = setTimeout(() => {
+      startNextCategory(0);
+    }, 500);
+    timersRef.current.push(initialTimer);
+  };
+
+  const resetAndStartAnimation = () => {
+    // Clear any existing timers
+    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current = [];
+    
+    // Reset state
+    setCategories(CATEGORIES.map(cat => ({ ...cat, status: 'pending' as CategoryStatus })));
+    
+    // Start animation sequence
+    startAnimationSequence();
+  };
 
   // Track step view when screen is focused
   useFocusEffect(
@@ -36,6 +96,15 @@ const ProgressStep: React.FC = () => {
       trackEvent('onboarding_step_viewed', {
         step_name: 'progress'
       });
+      
+      // Reset and start animation when screen is focused
+      resetAndStartAnimation();
+      
+      return () => {
+        // Cleanup timers when screen loses focus
+        timersRef.current.forEach(timer => clearTimeout(timer));
+        timersRef.current = [];
+      };
     }, [])
   );
 
@@ -107,73 +176,49 @@ const ProgressStep: React.FC = () => {
     generateContent();
   }, []); // Empty dependency array - only run once on mount
 
-  // Progress animation effect (separate from generation)
+  // Auto-navigate when all categories are completed and generation is done
   useEffect(() => {
-    // Progress animation over 10 seconds
-    const progressAnimation = Animated.timing(animatedValue, {
-      toValue: 1,
-      duration: 10000,
-      useNativeDriver: false,
-    });
-
-    // Message rotation every 2 seconds (5 messages over 10 seconds)
-    const messageInterval = setInterval(() => {
-      setCurrentMessageIndex((prev) => {
-        const nextIndex = prev + 1;
-        return nextIndex < progressMessages.length ? nextIndex : prev;
-      });
-    }, 2000);
-
-    let progressIntervalCleared = false;
-
-    // Progress update with inverse exponential curve
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        // Inverse exponential: fast at start, slow at end
-        // Using formula: increment = 3 / (1 + prev/20)^1.5 for ~10 second completion
-        const increment = 3 / Math.pow(1 + prev / 20, 1.5);
-        const newProgress = Math.min(prev + increment, 100);
-        
-        if (newProgress >= 100 && isGenerationComplete && !progressIntervalCleared) {
-          progressIntervalCleared = true;
-          clearInterval(progressInterval);
-          // Auto-navigate to areas confirmation only after generation is complete
-          setTimeout(() => {
-            navigation.navigate('AreasConfirm' as never);
-          }, 500);
-        }
-        return newProgress;
-      });
-    }, 50);
-
-    progressAnimation.start();
-
-    return () => {
-      clearInterval(messageInterval);
-      clearInterval(progressInterval);
-      progressAnimation.stop();
-    };
-  }, [navigation, animatedValue, isGenerationComplete]);
-
-  // Separate effect to handle navigation when generation completes after progress reaches 100%
-  useEffect(() => {
-    if (isGenerationComplete && progress >= 100) {
-      // Generation completed and progress is already at 100%, navigate immediately
-      const timeout = setTimeout(() => {
+    const allCompleted = categories.every(cat => cat.status === 'completed');
+    if (allCompleted && isGenerationComplete) {
+      const timer = setTimeout(() => {
         navigation.navigate('AreasConfirm' as never);
-      }, 500);
-      return () => clearTimeout(timeout);
+      }, 1000);
+      timersRef.current.push(timer);
+      return () => clearTimeout(timer);
     }
-  }, [isGenerationComplete, progress, navigation]);
+  }, [categories, isGenerationComplete, navigation]);
 
   const handleBack = () => {
+    // Clear timers when navigating back
+    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current = [];
     navigation.goBack();
   };
 
-  const progressWidth = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  const renderStatusIndicator = (status: CategoryStatus) => {
+    switch (status) {
+      case 'completed':
+        return (
+          <View style={styles.checkmarkContainer}>
+            <Icon name="check" size={16} color="#FFFFFF" />
+          </View>
+        );
+      case 'loading':
+        return (
+          <View style={styles.spinnerContainer}>
+            <ActivityIndicator size="small" color={theme.colors.grey[600]} />
+          </View>
+        );
+      case 'pending':
+      default:
+        return <View style={styles.pendingContainer} />;
+    }
+  };
+
+  const getCategoryTextColor = (status: CategoryStatus) => {
+    // All text is black regardless of status
+    return theme.colors.grey[900]; // Black
+  };
 
   return (
     <View style={styles.container}>
@@ -183,102 +228,30 @@ const ProgressStep: React.FC = () => {
       />
       
       <View style={styles.content}>
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
-          <Text style={styles.progressTitle}>We're setting everything up for you</Text>
-        </View>
-
-        <View style={styles.messageContainer}>
-          <Text style={styles.currentMessage}>
-            {progressMessages[currentMessageIndex]}
-          </Text>
-        </View>
-
-        <View style={styles.detailsContainer}>
-          <Text style={styles.detailsTitle}>Finalising Results</Text>
-          
-          <View style={styles.checklistContainer}>
-            <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 2 && styles.checkboxChecked]}>
-                {progress > 2 && <Icon name="check" size={10} color="white" />}
-              </View>
-              <Text style={styles.checklistText}>Creating your personalized dream plan</Text>
+        <Text style={styles.title}>
+          We're setting everything up for you
+        </Text>
+        
+        <View style={styles.categoriesContainer}>
+          {categories.map((category) => (
+            <View 
+              key={category.id} 
+              style={[
+                styles.categoryCard,
+                { opacity: category.status === 'pending' ? 0.5 : 1 }
+              ]}
+            >
+              <Text 
+                style={[
+                  styles.categoryText,
+                  { color: getCategoryTextColor(category.status) }
+                ]}
+              >
+                {category.text}
+              </Text>
+              {renderStatusIndicator(category.status)}
             </View>
-            <View style={styles.checklistSubItems}>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 5 && styles.checkboxChecked]}>
-                  {progress > 5 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Goal areas and timeline</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 8 && styles.checkboxChecked]}>
-                  {progress > 8 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Daily action recommendations</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 12 && styles.checkboxChecked]}>
-                  {progress > 12 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Progress tracking system</Text>
-              </View>
-            </View>
-            
-            <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 18 && styles.checkboxChecked]}>
-                {progress > 18 && <Icon name="check" size={10} color="white" />}
-              </View>
-              <Text style={styles.checklistText}>Setting up your daily workflow</Text>
-            </View>
-            <View style={styles.checklistSubItems}>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 25 && styles.checkboxChecked]}>
-                  {progress > 25 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Today's action cards</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 35 && styles.checkboxChecked]}>
-                  {progress > 35 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Progress photo gallery</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 50 && styles.checkboxChecked]}>
-                  {progress > 50 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Streak tracking</Text>
-              </View>
-            </View>
-            
-            <View style={styles.checklistItem}>
-              <View style={[styles.checkbox, progress > 70 && styles.checkboxChecked]}>
-                {progress > 70 && <Icon name="check" size={10} color="white" />}
-              </View>
-              <Text style={styles.checklistText}>Preparing your progress dashboard</Text>
-            </View>
-            <View style={styles.checklistSubItems}>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 85 && styles.checkboxChecked]}>
-                  {progress > 85 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Weekly/monthly analytics</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 93 && styles.checkboxChecked]}>
-                  {progress > 93 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>Achievement milestones</Text>
-              </View>
-              <View style={styles.checklistItem}>
-                <View style={[styles.checkbox, progress > 97 && styles.checkboxChecked]}>
-                  {progress > 97 && <Icon name="check" size={10} color="white" />}
-                </View>
-                <Text style={styles.checklistText}>AI-powered insights</Text>
-              </View>
-            </View>
-          </View>
+          ))}
         </View>
       </View>
     </View>
@@ -292,87 +265,72 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing['2xl'],
   },
-  progressContainer: {
-    alignItems: 'center',
-    marginBottom: theme.spacing['3xl'],
-  },
-  progressPercentage: {
+  title: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 48,
+    fontSize: theme.typography.fontSize.title1,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[900],
-    marginBottom: theme.spacing.md,
-  },
-  progressTitle: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[700],
-    textAlign: 'center',
-  },
-  messageContainer: {
-    alignItems: 'center',
+    lineHeight: theme.typography.lineHeight.title1,
+    color: theme.colors.grey[900], // Black
     marginBottom: theme.spacing['2xl'],
-    minHeight: 40,
+    paddingHorizontal: theme.spacing.sm,
   },
-  currentMessage: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    color: theme.colors.grey[600],
-    textAlign: 'center',
+  categoriesContainer: {
+    gap: theme.spacing.md,
+    paddingHorizontal: 0,
   },
-  detailsContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: theme.spacing.lg,
+  categoryCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.xl,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    paddingLeft: theme.spacing.md,
+    paddingRight: theme.spacing.md,
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  detailsTitle: {
+  categoryText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[900],
-    marginBottom: theme.spacing.md,
-  },
-  checklistContainer: {
-    gap: theme.spacing.sm,
-  },
-  checklistItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  checkbox: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: theme.colors.grey[300],
+    fontSize: theme.typography.fontSize.subheadline,
+    lineHeight: theme.typography.lineHeight.subheadline,
+    flex: 1,
     marginRight: theme.spacing.sm,
-    justifyContent: 'center',
+  },
+  checkmarkContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.black,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: theme.colors.primary[600],
-    borderColor: theme.colors.primary[600],
+  spinnerContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.grey[200],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  checklistText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.footnote,
-    color: theme.colors.grey[700],
-  },
-  checklistSubItems: {
-    marginLeft: 24,
+  pendingContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.grey[200],
+    borderWidth: 1,
+    borderColor: theme.colors.grey[300],
   },
 });
 
