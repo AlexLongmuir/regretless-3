@@ -1,5 +1,4 @@
 {
-  "buildCommand": "cd backend && npm install && npm run build",
-  "installCommand": "cd backend && npm install",
-  "outputDirectory": "backend/.next"
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next"
 }
