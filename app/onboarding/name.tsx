@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, TextInput, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, TextInput, Keyboard, Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -16,6 +16,9 @@ import { trackEvent } from '../../lib/mixpanel';
 
 // Use the golden city sunrise image for name screen
 const cityImage = require('../../assets/images/onboarding/20250916_0840_Golden City Sunrise_simple_compose_01k58qf6d3ekhv8gkph5ac0ygy.png');
+
+// Preload the Understanding screen's image so it's ready when user navigates
+const silhouetteImage = require('../../assets/images/onboarding/20250916_0855_Silhouette Moving Forward_simple_compose_01k58r9xcefs5rm7mgk7c0b9r5.png');
 
 const NameStep: React.FC = () => {
   const navigation = useNavigation();
@@ -100,6 +103,11 @@ const NameStep: React.FC = () => {
           disabled={!name.trim()}
           style={styles.button}
         />
+      </View>
+      
+      {/* Preload Understanding screen's image invisibly so it's ready instantly on navigation */}
+      <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <Image source={silhouetteImage} fadeDuration={0} />
       </View>
     </KeyboardAvoidingView>
   );

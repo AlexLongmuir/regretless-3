@@ -22,6 +22,7 @@ import { updateSubscriptionStatus, getPendingOnboardingDream, clearPendingOnboar
 import { createDreamFromOnboardingData } from '../../utils/onboardingDreamCreation';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { trackEvent } from '../../lib/mixpanel';
+import { sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
@@ -301,7 +302,7 @@ const PostPurchaseSignInStep: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Google Sign In error:', error);
-      Alert.alert('Sign In Error', error.message || 'Something went wrong');
+      Alert.alert('Sign In Error', sanitizeErrorMessage(error, 'Something went wrong. Please try again.'));
     }
   };
 
@@ -318,7 +319,7 @@ const PostPurchaseSignInStep: React.FC = () => {
         Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
       }
     } catch (error: any) {
-      Alert.alert('Restore Error', error.message || 'Something went wrong');
+      Alert.alert('Restore Error', sanitizeErrorMessage(error, 'Something went wrong. Please try again.'));
     }
   };
 

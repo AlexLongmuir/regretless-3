@@ -13,9 +13,7 @@ import { OnboardingHeader, OnboardingImage } from '../../components/onboarding';
 import { markOnboardingCompleted } from '../../utils/onboardingFlow';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { trackEvent } from '../../lib/mixpanel';
-
-// Use the silhouette moving forward image for understanding screen
-const silhouetteImage = require('../../assets/images/onboarding/20250916_0855_Silhouette Moving Forward_simple_compose_01k58r9xcefs5rm7mgk7c0b9r5.png');
+import { onboardingImages } from '../../utils/preloadOnboardingImages';
 
 const UnderstandingStep: React.FC = () => {
   const navigation = useNavigation();
@@ -50,7 +48,7 @@ const UnderstandingStep: React.FC = () => {
         <Text style={styles.subtitle}>Answer all questions honestly</Text>
         
         <View style={styles.imageContainer}>
-          <OnboardingImage source={silhouetteImage} borderRadius={10} />
+          <OnboardingImage source={onboardingImages.silhouetteImage} borderRadius={10} />
         </View>
         
         <Text style={styles.description}>

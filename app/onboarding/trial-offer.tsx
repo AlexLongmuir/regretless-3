@@ -12,6 +12,7 @@ import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { trackEvent } from '../../lib/mixpanel';
+import { sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 const TrialOfferStep: React.FC = () => {
   const navigation = useNavigation();
@@ -46,7 +47,7 @@ const TrialOfferStep: React.FC = () => {
         Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
       }
     } catch (error: any) {
-      Alert.alert('Restore Error', error.message || 'Something went wrong');
+      Alert.alert('Restore Error', sanitizeErrorMessage(error, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }

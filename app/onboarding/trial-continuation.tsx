@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
+import * as WebBrowser from 'expo-web-browser';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
@@ -16,6 +17,7 @@ import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { notificationService } from '../../lib/NotificationService';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { trackEvent } from '../../lib/mixpanel';
+import { sanitizePurchaseErrorMessage, sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 // Import RevenueCat with fallback to mock
 import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
@@ -280,12 +282,27 @@ const TrialContinuationStep: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error('Purchase error:', error);
-      if (error.userCancelled) {
-        // User cancelled, no action needed
+      // Check for underlying StoreKit errors (like "No active account")
+      const underlyingError = error.underlyingErrorMessage || error.message || '';
+      const hasNoAccountError = underlyingError.includes('No active account') || 
+                                underlyingError.includes('ASDErrorDomain') ||
+                                error.code === 'STORE_PROBLEM' ||
+                                error.code === 'NETWORK_ERROR';
+      
+      if (error.userCancelled && !hasNoAccountError) {
+        // User actually cancelled - no action needed, don't log as error
         // console.log('User cancelled purchase');
+      } else if (hasNoAccountError) {
+        // No Apple account signed in - provide helpful error message
+        console.error('Purchase error: No Apple account signed in', error);
+        Alert.alert(
+          'Sign In Required', 
+          sanitizePurchaseErrorMessage(error, true)
+        );
       } else {
-        Alert.alert('Purchase Error', error.message || 'Something went wrong');
+        // Other purchase errors
+        console.error('Purchase error:', error);
+        Alert.alert('Purchase Error', sanitizePurchaseErrorMessage(error, false));
       }
     } finally {
       setLoading(false);
@@ -317,9 +334,35 @@ const TrialContinuationStep: React.FC = () => {
         Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
       }
     } catch (error: any) {
-      Alert.alert('Restore Error', error.message || 'Something went wrong');
+      Alert.alert('Restore Error', sanitizeErrorMessage(error, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenTerms = async () => {
+    try {
+      await WebBrowser.openBrowserAsync('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+        controlsColor: theme.colors.grey[900],
+        enableBarCollapsing: false,
+        showTitle: true,
+      });
+    } catch (error) {
+      console.error('Error opening terms:', error);
+    }
+  };
+
+  const handleOpenPrivacy = async () => {
+    try {
+      await WebBrowser.openBrowserAsync('https://www.notion.so/dreamerapp/Dreamer-Support-2c54af3195c3801dafd7dd198a42d7d5', {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+        controlsColor: theme.colors.grey[900],
+        enableBarCollapsing: false,
+        showTitle: true,
+      });
+    } catch (error) {
+      console.error('Error opening privacy:', error);
     }
   };
 
@@ -489,6 +532,12 @@ const TrialContinuationStep: React.FC = () => {
                 ? "£14.99 per month" 
                 : "3 days free, then £39.99 per year (£3.33 / month)"
             }
+          </Text>
+          <Text style={styles.legalText}>
+            Auto-renews after trial unless cancelled. Manage in Apple ID settings.{'\n'}
+            <Text style={styles.linkText} onPress={handleOpenPrivacy}>Privacy</Text>
+            {' · '}
+            <Text style={styles.linkText} onPress={handleOpenTerms}>Terms</Text>
           </Text>
         </View>
       </View>
@@ -727,6 +776,18 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.regular as any,
     color: theme.colors.grey[600],
     textAlign: 'center',
+  },
+  legalText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.caption2,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[600],
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  linkText: {
+    color: theme.colors.grey[600],
+    textDecorationLine: 'underline',
   },
   restoreButtonWrapper: {
     width: 80,

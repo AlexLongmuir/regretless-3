@@ -139,7 +139,9 @@ const ProgressStep: React.FC = () => {
         const dreamParams = mapOnboardingAnswersToDreamParams();
         
         console.log('🎯 [ONBOARDING] Starting areas generation with params:', dreamParams);
-        console.log('🌐 [ONBOARDING] API URL:', process.env.EXPO_PUBLIC_BACKEND_URL);
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('🌐 [ONBOARDING] API URL:', process.env.EXPO_PUBLIC_BACKEND_URL);
+        }
         
         // Generate areas using real AI
         const areas = await generateOnboardingAreas({

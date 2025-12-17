@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer, supabaseServerAuth } from '../../../../lib/supabaseServer'
+import { scheduleActionsForDream } from '../../../../lib/scheduling/scheduleActionsForDream'
 
 async function getUser(req: Request) {
   const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -54,39 +55,15 @@ export async function POST(req: Request) {
     }
 
     // Schedule actions for the dream
-    let schedulingResult = null
-    try {
-      const authHeader = req.headers.get('authorization')
-      const scheduleResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/create/schedule-actions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authHeader || ''
-        },
-        body: JSON.stringify({ dream_id })
-      })
+    const schedulingResult = await scheduleActionsForDream(dream_id, user.id, token)
 
-      if (scheduleResponse.ok) {
-        schedulingResult = await scheduleResponse.json()
-      } else {
-        const scheduleError = await scheduleResponse.json()
-        console.error('Scheduling failed:', scheduleError)
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'Dream activated but scheduling failed',
-            details: scheduleError
-          },
-          { status: 500 }
-        )
-      }
-    } catch (scheduleError) {
-      console.error('Scheduling error:', scheduleError)
+    if (!schedulingResult.success) {
+      console.error('Scheduling failed:', schedulingResult.error, schedulingResult.details)
       return NextResponse.json(
         { 
           success: false,
           error: 'Dream activated but scheduling failed',
-          details: scheduleError instanceof Error ? scheduleError.message : 'Unknown scheduling error'
+          details: schedulingResult.error || schedulingResult.details
         },
         { status: 500 }
       )
@@ -95,7 +72,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true,
       message: 'Dream activated and actions scheduled',
-      scheduling: schedulingResult
+      scheduling: {
+        scheduled_count: schedulingResult.scheduled_count,
+        warnings: schedulingResult.warnings,
+        auto_compacted: schedulingResult.auto_compacted,
+        too_tight: schedulingResult.too_tight,
+        recommended_end: schedulingResult.recommended_end
+      }
     })
 
   } catch (error) {

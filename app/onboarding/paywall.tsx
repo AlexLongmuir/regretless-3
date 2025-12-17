@@ -13,6 +13,7 @@ import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { trackEvent } from '../../lib/mixpanel';
+import { sanitizePurchaseErrorMessage, sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 // Import RevenueCat with fallback to mock
 import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
@@ -128,10 +129,26 @@ const PaywallStep: React.FC = () => {
         Alert.alert('Purchase Failed', 'Please try again or contact support.');
       }
     } catch (error: any) {
-      if (error.userCancelled) {
-        // User cancelled, no action needed
+      // Check for underlying StoreKit errors (like "No active account")
+      const underlyingError = error.underlyingErrorMessage || error.message || '';
+      const hasNoAccountError = underlyingError.includes('No active account') || 
+                                underlyingError.includes('ASDErrorDomain') ||
+                                error.code === 'STORE_PROBLEM' ||
+                                error.code === 'NETWORK_ERROR';
+      
+      if (error.userCancelled && !hasNoAccountError) {
+        // User actually cancelled - no action needed
+      } else if (hasNoAccountError) {
+        // No Apple account signed in - provide helpful error message
+        console.error('Purchase error: No Apple account signed in', error);
+        Alert.alert(
+          'Sign In Required', 
+          sanitizePurchaseErrorMessage(error, true)
+        );
       } else {
-        Alert.alert('Purchase Error', error.message || 'Something went wrong');
+        // Other purchase errors
+        console.error('Purchase error:', error);
+        Alert.alert('Purchase Error', sanitizePurchaseErrorMessage(error, false));
       }
     } finally {
       setLoading(false);
@@ -149,7 +166,7 @@ const PaywallStep: React.FC = () => {
         Alert.alert('No Purchases', result.error || 'No active subscriptions found.');
       }
     } catch (error: any) {
-      Alert.alert('Restore Error', error.message || 'Something went wrong');
+      Alert.alert('Restore Error', sanitizeErrorMessage(error, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,7 @@ import { upsertActions } from '../frontend-services/backend-bridge';
 import type { Dream, Action, ActionOccurrence, Area } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
+import { sanitizeErrorMessage } from '../utils/errorSanitizer';
 
 interface AreaPageProps {
   route?: {
@@ -306,7 +307,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
       Alert.alert('Success', 'Action created successfully!');
     } catch (error) {
       console.error('Error adding action:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create action');
+      Alert.alert('Error', sanitizeErrorMessage(error, 'Failed to create action. Please try again.'));
     }
   };
 
