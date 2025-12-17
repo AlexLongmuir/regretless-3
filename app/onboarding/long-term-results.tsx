@@ -36,7 +36,7 @@ const LongTermResultsStep: React.FC = () => {
 
   // Data for finishing odds comparison
   const beforeRate = 50; // 1x (baseline)
-  const afterRate = 100; // 2x (doubled)
+  const afterRate = 100; // a2x (doubled)
   const improvement = afterRate - beforeRate; // 50% improvement
 
   return (
