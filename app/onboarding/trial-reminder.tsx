@@ -4,7 +4,7 @@
  * Shows bell icon with notification badge and reminder setup
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
@@ -13,10 +13,13 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationService } from '../../lib/NotificationService';
 import { trackEvent } from '../../lib/mixpanel';
+import Purchases, { isRevenueCatConfigured } from '../../lib/revenueCat';
 
 const TrialReminderStep: React.FC = () => {
   const navigation = useNavigation();
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
+  const [offering, setOffering] = useState<any | null>(null);
+  const [offeringsLoading, setOfferingsLoading] = useState(true);
 
   // Track step view when screen is focused
   useFocusEffect(
@@ -26,6 +29,67 @@ const TrialReminderStep: React.FC = () => {
       });
     }, [])
   );
+
+  useEffect(() => {
+    fetchOfferings();
+  }, []);
+
+  const fetchOfferings = async () => {
+    try {
+      setOfferingsLoading(true);
+      
+      // Check if RevenueCat is properly configured
+      if (!isRevenueCatConfigured()) {
+        // Set mock offering for development
+        setOffering({
+          identifier: 'mock-offering',
+          availablePackages: [
+            {
+              identifier: '$rc_annual',
+              product: { identifier: 'annual_dreamer', priceString: '£39.99' }
+            },
+            {
+              identifier: '$rc_monthly', 
+              product: { identifier: 'monthly_dreamer', priceString: '£14.99' }
+            }
+          ]
+        });
+        setOfferingsLoading(false);
+        return;
+      }
+      
+      const offerings = await Purchases.getOfferings();
+      
+      // First try to get offering with identifier "default"
+      if (offerings.all && offerings.all['default']) {
+        setOffering(offerings.all['default']);
+      } else if (offerings.current) {
+        // Fallback to current offering if "default" not found
+        setOffering(offerings.current);
+      } else {
+        // Use the first available offering if default/current is null
+        const availableOfferings = Object.values(offerings.all || {});
+        if (availableOfferings.length > 0) {
+          setOffering(availableOfferings[0] as any);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching offerings:', error);
+    } finally {
+      setOfferingsLoading(false);
+    }
+  };
+
+  // Get annual price from offerings
+  const annualPrice = useMemo(() => {
+    if (!offering?.availablePackages) return '£39.99';
+    
+    const annualPackage = offering.availablePackages.find(
+      (pkg: any) => pkg.identifier === '$rc_annual' || pkg.identifier.includes('annual')
+    );
+    
+    return annualPackage?.product?.priceString || '£39.99';
+  }, [offering]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -92,7 +156,7 @@ const TrialReminderStep: React.FC = () => {
             disabled={isRequestingPermissions}
           />
           <Text style={styles.pricingText}>
-            Just £39.99 per year (£3.33 / month)
+            3-day free trial then {annualPrice} per year unless cancelled
           </Text>
         </View>
       </View>
@@ -165,7 +229,7 @@ const styles = StyleSheet.create({
   pricingText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption1,
-    fontWeight: theme.typography.fontWeight.regular as any,
+    fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.grey[600],
     textAlign: 'center',
   },
