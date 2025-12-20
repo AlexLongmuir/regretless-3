@@ -15,6 +15,7 @@ import {
   Linking,
   Pressable
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -54,7 +55,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     difficulty: 'medium' as 'easy' | 'medium' | 'hard',
     repeat_every_days: undefined as number | undefined,
     slice_count_target: undefined as number | undefined,
-    acceptance_criteria: [] as string[],
+    acceptance_criteria: [] as { title: string; description: string }[],
     acceptance_intro: '' as string | undefined,
     acceptance_outro: '' as string | undefined,
     dream_image: '',
@@ -127,7 +128,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     const newIndex = (formData.acceptance_criteria || []).length;
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: [...(prev.acceptance_criteria || []), '']
+      acceptance_criteria: [...(prev.acceptance_criteria || []), { title: '', description: '' }]
     }));
     setFocusedCriterionIndex(newIndex);
     setTimeout(() => {
@@ -135,10 +136,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     }, 200);
   };
 
-  const updateCriterion = (index: number, value: string) => {
+  const updateCriterion = (index: number, field: 'title' | 'description', value: string) => {
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => i === index ? value : c) || []
+      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => 
+        i === index ? { ...c, [field]: value } : c
+      ) || []
     }));
   };
 
@@ -298,27 +301,51 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
             {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
-              <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+              <View key={index} style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
+                    Step {index + 1}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeCriterion(index)}>
+                    <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                  </TouchableOpacity>
+                </View>
+                
                 <TextInput
-                  value={criterion}
-                  onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Bullet ${index + 1}`}
-                  placeholderTextColor={theme.colors.grey[500]}
-                  autoFocus={focusedCriterionIndex === index}
-                  onFocus={() => setFocusedCriterionIndex(index)}
+                  value={criterion.title}
+                  onChangeText={(text) => updateCriterion(index, 'title', text)}
+                  placeholder="Short title (e.g. 'Read 10 pages')"
+                  placeholderTextColor={theme.colors.text.placeholder}
                   style={{
-                    flex: 1,
                     backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
-                    fontSize: 16,
-                    marginRight: 8,
-                    color: theme.colors.text.primary
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
                   }}
                 />
-                <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
-                </TouchableOpacity>
+                
+                <TextInput
+                  value={criterion.description}
+                  onChangeText={(text) => updateCriterion(index, 'description', text)}
+                  placeholder="Description (e.g. 'Focus on understanding key concepts...')"
+                  placeholderTextColor={theme.colors.text.placeholder}
+                  multiline
+                  style={{
+                    backgroundColor: theme.colors.background.card,
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    minHeight: 60,
+                    textAlignVertical: 'top',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
+                  }}
+                />
               </View>
             ))}
 
@@ -479,7 +506,7 @@ const ActionOccurrencePage = () => {
     note?: string;
     aiRating?: number;
     aiFeedback?: string;
-    acceptanceCriteria?: string[];
+    acceptanceCriteria?: { title: string; description: string }[];
   } | undefined;
   
   // Find the actual occurrence data from DataContext
@@ -897,6 +924,16 @@ const ActionOccurrencePage = () => {
 
   // Get dream and area data from the occurrence
   const dreamAreaData = useMemo(() => {
+    // First try params (passed from navigation)
+    if (params?.dreamTitle || params?.areaName) {
+      return {
+        dreamTitle: params.dreamTitle,
+        areaName: params.areaName,
+        areaEmoji: params.areaEmoji
+      };
+    }
+    
+    // Try from actionData with nested areas relationship
     if (actionData && actionData.areas) {
       return {
         dreamTitle: actionData.areas.dreams?.title,
@@ -917,8 +954,29 @@ const ActionOccurrencePage = () => {
       }
     }
     
+    // Last resort: try to find from dream detail cache
+    if (occurrenceData?.action_id) {
+      for (const dreamId in state.dreamDetail) {
+        const dreamDetail = state.dreamDetail[dreamId];
+        if (dreamDetail) {
+          const action = dreamDetail.actions.find(a => a.id === occurrenceData.action_id);
+          if (action) {
+            // Find the area for this action
+            const area = dreamDetail.areas.find((a: any) => a.id === action.area_id);
+            if (area && dreamDetail.dream) {
+              return {
+                dreamTitle: dreamDetail.dream.title,
+                areaName: area.title,
+                areaEmoji: area.icon
+              };
+            }
+          }
+        }
+      }
+    }
+    
     return null;
-  }, [actionData, occurrenceData]);
+  }, [actionData, occurrenceData, params, state.dreamDetail]);
 
   const generateAIDiscussionPrompt = () => {
     const dreamTitle = dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream';
@@ -937,7 +995,10 @@ const ActionOccurrencePage = () => {
       ? [
           intro ? `Intro: ${intro}` : null,
           acceptanceCriteria.length > 0 
-            ? acceptanceCriteria.map((criteria: string, index: number) => `${index + 1}. ${criteria}`).join('\n')
+            ? acceptanceCriteria.map((criteria: any, index: number) => {
+                if (typeof criteria === 'string') return `${index + 1}. ${criteria}`;
+                return `${index + 1}. ${criteria.title}: ${criteria.description}`;
+              }).join('\n')
             : null,
           outro ? `Outro: ${outro}` : null
         ].filter(Boolean).join('\n\n')
@@ -1081,7 +1142,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       }
 
       // Prepare updates for the action
-      const updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[]; acceptance_intro?: string; acceptance_outro?: string } = {};
+      const updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: { title: string; description: string }[]; acceptance_intro?: string; acceptance_outro?: string } = {};
       
       if (updatedAction.title !== actionData.title) updates.title = updatedAction.title;
       if (updatedAction.est_minutes !== actionData.est_minutes) updates.est_minutes = updatedAction.est_minutes;
@@ -1187,12 +1248,44 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           {/* Header */}
           <View style={styles.header}>
         <IconButton
-          icon="chevron_left"
+          icon="close"
           onPress={() => navigation.goBack()}
           variant="secondary"
           size="md"
         />
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            onPress={handleAIDiscussion}
+            style={{
+              height: 40,
+              borderRadius: 20,
+              overflow: 'hidden',
+              marginRight: 8,
+            }}
+          >
+            <BlurView 
+              intensity={100} 
+              tint="light" 
+              style={{
+                height: 40,
+                paddingHorizontal: 16,
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                borderWidth: 0.5,
+                borderColor: 'rgba(255, 255, 255, 0.8)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ 
+                fontSize: 14, 
+                fontWeight: '600', 
+                color: theme.colors.grey[900] 
+              }}>
+                Plan with AI
+              </Text>
+            </BlurView>
+          </TouchableOpacity>
+          
           <View ref={menuButtonRef}>
             <IconButton
               icon="more_horiz"
@@ -1223,60 +1316,62 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <View style={styles.imageContainer}>
-            {(dreamAreaData?.areaEmoji || params?.areaEmoji) ? (
-              <View style={styles.emojiContainer}>
-                <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
-              </View>
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Ionicons name="flag" size={48} color={theme.colors.grey[500]} />
-              </View>
-            )}
-          </View>
-          
           <View style={styles.heroContent}>
-            {dreamAreaData?.dreamTitle && (
-              <Pressable onPress={() => {
-                // Navigate to dream page - we need to get the dream ID from the action data
-                const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
-                if (dreamId) {
-                  (navigation as any).navigate('Tabs', {
-                    screen: 'Dreams',
-                    params: {
-                      screen: 'Dream',
-                      params: { dreamId }
+            {/* Icon and Title Row */}
+            <View style={styles.iconTitleRow}>
+              {(dreamAreaData?.areaEmoji || params?.areaEmoji) ? (
+                <View style={styles.iconContainer}>
+                  <Text style={styles.iconText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+                </View>
+              ) : (
+                <View style={styles.iconPlaceholder}>
+                  <Ionicons name="flag" size={24} color={theme.colors.grey[500]} />
+                </View>
+              )}
+              <View style={styles.titleColumn}>
+                {dreamAreaData?.dreamTitle && (
+                  <Pressable onPress={() => {
+                    // Navigate to dream page - we need to get the dream ID from the action data
+                    const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                    if (dreamId) {
+                      (navigation as any).navigate('Tabs', {
+                        screen: 'Dreams',
+                        params: {
+                          screen: 'Dream',
+                          params: { dreamId }
+                        }
+                      });
                     }
-                  });
-                }
-              }}>
-                <Text style={styles.dreamTitle}>{dreamAreaData.dreamTitle}</Text>
-              </Pressable>
-            )}
-            {dreamAreaData?.areaName && (
-              <Pressable onPress={() => {
-                // Navigate to area page - we need to get the area ID from the action data
-                const areaId = actionData?.areas?.id || actionData?.area_id;
-                const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
-                if (areaId && dreamId) {
-                  (navigation as any).navigate('Tabs', {
-                    screen: 'Dreams',
-                    params: {
-                      screen: 'Area',
-                      params: { 
-                        areaId, 
-                        areaTitle: dreamAreaData.areaName,
-                        areaEmoji: dreamAreaData.areaEmoji,
-                        dreamId,
-                        dreamTitle: dreamAreaData.dreamTitle
-                      }
+                  }}>
+                    <Text style={styles.dreamTitle}>{dreamAreaData.dreamTitle}</Text>
+                  </Pressable>
+                )}
+                {dreamAreaData?.areaName && (
+                  <Pressable onPress={() => {
+                    // Navigate to area page - we need to get the area ID from the action data
+                    const areaId = actionData?.areas?.id || actionData?.area_id;
+                    const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                    if (areaId && dreamId) {
+                      (navigation as any).navigate('Tabs', {
+                        screen: 'Dreams',
+                        params: {
+                          screen: 'Area',
+                          params: { 
+                            areaId, 
+                            areaTitle: dreamAreaData.areaName,
+                            areaEmoji: dreamAreaData.areaEmoji,
+                            dreamId,
+                            dreamTitle: dreamAreaData.dreamTitle
+                          }
+                        }
+                      });
                     }
-                  });
-                }
-              }}>
-                <Text style={styles.areaTitle}>{dreamAreaData.areaName}</Text>
-              </Pressable>
-            )}
+                  }}>
+                    <Text style={styles.areaTitle}>{dreamAreaData.areaName}</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
             <Text style={styles.actionTitle}>{actionData?.title || params?.actionTitle || 'Action'}</Text>
             
             {/* Due Date or Completed Date */}
@@ -1316,47 +1411,148 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           </View>
         </View>
 
+        {/* Intro - Outside To Dos box */}
+        {(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && (
+          <View style={{ 
+            paddingHorizontal: 24,
+            paddingBottom: 12,
+          }}>
+            <Text style={{ 
+              fontSize: 14, 
+              color: theme.colors.grey[600],
+            }}>
+              {actionData?.acceptance_intro || (params as any)?.acceptanceIntro}
+            </Text>
+          </View>
+        )}
+
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
-          <View style={styles.criteriaList}>
-            {/* Intro */}
-            {(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && (
-              <Text style={styles.criteriaIntro}>
-                {actionData?.acceptance_intro || (params as any)?.acceptanceIntro}
+          <View style={{ 
+            backgroundColor: '#FFFFFF', 
+            borderRadius: 12, 
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: theme.colors.grey[200],
+          }}>
+            {/* Header Row */}
+            <View style={{ 
+              backgroundColor: '#000000', // Black
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+            }}>
+              <Text style={{ 
+                color: '#FFFFFF', 
+                fontSize: 12, 
+                fontWeight: '700',
+                letterSpacing: 1,
+              }}>
+                To Dos
               </Text>
-            )}
-            
+            </View>
+
             {/* Bullets */}
-            {((actionData?.acceptance_criteria && actionData.acceptance_criteria.length > 0) || (params?.acceptanceCriteria && params.acceptanceCriteria.length > 0)) ? (
-              (actionData?.acceptance_criteria || params?.acceptanceCriteria || []).map((criteria: string, index: number) => (
-                <Text key={index} style={styles.criteriaItem}>
-                  • {criteria}
-                </Text>
+            {(() => {
+              // Normalize acceptance_criteria: convert string arrays to object arrays
+              const rawCriteria = actionData?.acceptance_criteria || params?.acceptanceCriteria || [];
+              let normalizedCriteria: { title: string; description: string }[] = [];
+              
+              if (Array.isArray(rawCriteria) && rawCriteria.length > 0) {
+                normalizedCriteria = rawCriteria.map((criterion: any) => {
+                  if (typeof criterion === 'string') {
+                    return { title: criterion, description: '' };
+                  } else if (criterion && typeof criterion === 'object' && 'title' in criterion) {
+                    return { title: criterion.title || '', description: criterion.description || '' };
+                  }
+                  return { title: '', description: '' };
+                });
+              }
+              
+              return normalizedCriteria.length > 0 ? (
+                normalizedCriteria.map((criteria: { title: string; description: string }, index: number) => (
+                <View key={index} style={{ 
+                  flexDirection: 'row', 
+                  borderBottomWidth: 0,
+                  borderBottomColor: theme.colors.grey[100],
+                }}>
+                  {/* Number Column */}
+                  <View style={{ 
+                    width: 50, 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    paddingVertical: 16,
+                  }}>
+                    <Text style={{ 
+                      fontSize: 16, 
+                      fontWeight: '700', 
+                      color: '#000000' 
+                    }}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                  
+                  {/* Vertical Divider */}
+                  <View style={{
+                    width: 1,
+                    backgroundColor: theme.colors.grey[100],
+                    marginVertical: 12,
+                  }} />
+                  
+                  {/* Text Column */}
+                  <View style={{ 
+                    flex: 1, 
+                    justifyContent: 'center', 
+                    padding: 16,
+                  }}>
+                    <View>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        fontWeight: '700', 
+                        color: theme.colors.grey[900],
+                        lineHeight: 20,
+                        marginBottom: criteria.description ? 4 : 0
+                      }}>
+                        {criteria.title}
+                      </Text>
+                      {criteria.description ? (
+                        <Text style={{ 
+                          fontSize: 14, 
+                          fontWeight: '400', 
+                          color: theme.colors.grey[500],
+                          lineHeight: 20,
+                        }}>
+                          {criteria.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
               ))
-            ) : !(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && !(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) ? (
-              <Text style={styles.criteriaItem}>No specific criteria defined</Text>
-            ) : null}
-            
-            {/* Outro */}
-            {(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) && (
-              <Text style={[styles.criteriaOutro, (actionData?.acceptance_criteria && actionData.acceptance_criteria.length > 0) || (params?.acceptanceCriteria && params.acceptanceCriteria.length > 0) ? styles.criteriaOutroWithBullets : null]}>
-                {actionData?.acceptance_outro || (params as any)?.acceptanceOutro}
-              </Text>
-            )}
+              ) : (
+                <View style={{ padding: 16 }}>
+                  <Text style={{ color: theme.colors.grey[500] }}>No specific criteria defined</Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
 
-        {/* AI Help Section */}
-        <View style={styles.aiHelpSection}>
-          <Text style={styles.aiHelpSecondaryText}>Need help? Get AI to draft your steps.</Text>
-          <Button
-            title="Plan with AI"
-            onPress={handleAIDiscussion}
-            variant="secondary"
-            size="md"
-            style={{ borderRadius: theme.radius.xl }}
-          />
-        </View>
+        {/* Outro - Outside To Dos box */}
+        {(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) && (
+          <View style={{ 
+            paddingHorizontal: 24,
+            paddingTop: 12,
+          }}>
+            <Text style={{ 
+              fontSize: 14, 
+              color: theme.colors.grey[600],
+            }}>
+              {actionData?.acceptance_outro || (params as any)?.acceptanceOutro}
+            </Text>
+          </View>
+        )}
+
+        {/* AI Help Section - REMOVED */}
 
         {/* AI Review Section */}
         {aiRating !== null && (
@@ -1398,7 +1594,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       </SafeAreaView>
       
       {/* Bottom Section - Floating above nav bar */}
-      <View style={[styles.bottomSection, { bottom: BOTTOM_NAV_HEIGHT + insets.bottom }]}>
+      <View style={[styles.bottomSection, { bottom: insets.bottom }]}>
           {/* Uploaded Images Row */}
           {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || params?.occurrenceId === 'mock-occ-1' || ((params?.actionTitle || (occurrenceData as any)?.action_title || '').toLowerCase().includes('high protein')))) && (
             <View style={styles.uploadedImagesRow}>
@@ -1514,7 +1710,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   headerRight: {
-    width: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   menuButton: {
     // IconButton handles its own styling
@@ -1531,37 +1728,38 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     marginBottom: 8,
   },
-  imageContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 16,
-    overflow: 'hidden',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  emojiContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emojiText: {
-    fontSize: 120,
-  },
-  dreamImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: theme.colors.grey[200],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   heroContent: {
     alignItems: 'flex-start',
     paddingHorizontal: 0,
+  },
+  iconTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  iconText: {
+    fontSize: 32,
+  },
+  iconPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: theme.colors.grey[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  titleColumn: {
+    flex: 1,
   },
   dreamTitle: {
     fontSize: 12,
@@ -1709,6 +1907,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 80,
     height: 80,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   uploadText: {
     fontSize: 12,
@@ -1724,6 +1930,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 80,
     textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   actionButtons: {
     width: '100%',

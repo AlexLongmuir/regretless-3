@@ -907,9 +907,18 @@ Current streak for a dream:
 ### acceptance_criteria (in actions table)
 ```json
 [
-  "Complete 30 minutes of focused practice",
-  "Record progress in practice journal",
-  "Identify one area for improvement"
+  {
+    "title": "Practice 30 mins",
+    "description": "Complete 30 minutes of focused practice without interruptions."
+  },
+  {
+    "title": "Log progress",
+    "description": "Record your progress in the practice journal, noting what went well."
+  },
+  {
+    "title": "Identify improvement",
+    "description": "Identify one specific area for improvement for the next session."
+  }
 ]
 ```
 

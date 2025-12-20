@@ -15,7 +15,7 @@ interface ActionCard {
   difficulty?: 'easy' | 'medium' | 'hard'
   repeat_every_days?: number
   slice_count_target?: number
-  acceptance_criteria?: string[]
+  acceptance_criteria?: { title: string; description: string }[]
   acceptance_intro?: string
   acceptance_outro?: string
   dream_image?: string
@@ -366,7 +366,8 @@ export function ActionChip({
             fontWeight: 'bold',
             color: theme.colors.text.primary,
             marginBottom: 8,
-            lineHeight: 18
+            lineHeight: 18,
+            flexShrink: 1
           }}>
             {action.title}
           </Text>
@@ -420,7 +421,7 @@ export function ActionChip({
                 marginBottom: 4,
                 lineHeight: 16
               }}>
-                • {criterion}
+                • {criterion.title}
               </Text>
             ))}
           </View>
@@ -501,14 +502,16 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
   const addCriterion = () => {
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: [...(prev.acceptance_criteria || []), '']
+      acceptance_criteria: [...(prev.acceptance_criteria || []), { title: '', description: '' }]
     }))
   }
 
-  const updateCriterion = (index: number, value: string) => {
+  const updateCriterion = (index: number, field: 'title' | 'description', value: string) => {
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => i === index ? value : c) || []
+      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => 
+        i === index ? { ...c, [field]: value } : c
+      ) || []
     }))
   }
 
@@ -687,23 +690,51 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
             {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
-              <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+              <View key={index} style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
+                    Step {index + 1}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeCriterion(index)}>
+                    <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                  </TouchableOpacity>
+                </View>
+                
                 <TextInput
-                  value={criterion}
-                  onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Bullet ${index + 1}`}
+                  value={criterion.title}
+                  onChangeText={(text) => updateCriterion(index, 'title', text)}
+                  placeholder="Short title (e.g. 'Read 10 pages')"
+                  placeholderTextColor={theme.colors.text.placeholder}
                   style={{
-                    flex: 1,
                     backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
-                    fontSize: 16,
-                    marginRight: 8
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
                   }}
                 />
-                <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
-                </TouchableOpacity>
+                
+                <TextInput
+                  value={criterion.description}
+                  onChangeText={(text) => updateCriterion(index, 'description', text)}
+                  placeholder="Description (e.g. 'Focus on understanding key concepts...')"
+                  placeholderTextColor={theme.colors.text.placeholder}
+                  multiline
+                  style={{
+                    backgroundColor: theme.colors.background.card,
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    minHeight: 60,
+                    textAlignVertical: 'top',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
+                  }}
+                />
               </View>
             ))}
 
@@ -826,7 +857,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
     const newIndex = (formData.acceptance_criteria || []).length
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: [...(prev.acceptance_criteria || []), '']
+      acceptance_criteria: [...(prev.acceptance_criteria || []), { title: '', description: '' }]
     }))
     setFocusedCriterionIndex(newIndex)
     // Scroll to bottom after a brief delay to show the new input
@@ -835,10 +866,12 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
     }, 300)
   }
 
-  const updateCriterion = (index: number, value: string) => {
+  const updateCriterion = (index: number, field: 'title' | 'description', value: string) => {
     setFormData(prev => ({
       ...prev,
-      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => i === index ? value : c) || []
+      acceptance_criteria: prev.acceptance_criteria?.map((c, i) => 
+        i === index ? { ...c, [field]: value } : c
+      ) || []
     }))
   }
 
@@ -1065,27 +1098,51 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
 
             {/* Bullets */}
             {(formData.acceptance_criteria || []).map((criterion, index) => (
-              <View key={index} style={{ flexDirection: 'row', marginBottom: 8, alignItems: 'center' }}>
+              <View key={index} style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
+                    Step {index + 1}
+                  </Text>
+                  <TouchableOpacity onPress={() => removeCriterion(index)}>
+                    <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                  </TouchableOpacity>
+                </View>
+                
                 <TextInput
-                  value={criterion}
-                  onChangeText={(text) => updateCriterion(index, text)}
-                  placeholder={`Bullet ${index + 1}`}
+                  value={criterion.title}
+                  onChangeText={(text) => updateCriterion(index, 'title', text)}
+                  placeholder="Short title (e.g. 'Read 10 pages')"
                   placeholderTextColor={theme.colors.text.placeholder}
-                  autoFocus={focusedCriterionIndex === index}
-                  onFocus={() => setFocusedCriterionIndex(index)}
                   style={{
-                    flex: 1,
                     backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
                     padding: 12,
-                    fontSize: 16,
-                    marginRight: 8,
-                    color: theme.colors.text.primary
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
                   }}
                 />
-                <TouchableOpacity onPress={() => removeCriterion(index)}>
-                  <Ionicons name="close-circle" size={24} color={theme.colors.icon.error} />
-                </TouchableOpacity>
+                
+                <TextInput
+                  value={criterion.description}
+                  onChangeText={(text) => updateCriterion(index, 'description', text)}
+                  placeholder="Description (e.g. 'Focus on understanding key concepts...')"
+                  placeholderTextColor={theme.colors.text.placeholder}
+                  multiline
+                  style={{
+                    backgroundColor: theme.colors.background.card,
+                    borderRadius: 8,
+                    padding: 12,
+                    fontSize: 14,
+                    color: theme.colors.text.primary,
+                    minHeight: 60,
+                    textAlignVertical: 'top',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.default
+                  }}
+                />
               </View>
             ))}
 

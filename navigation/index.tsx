@@ -118,11 +118,6 @@ const DreamsStackNavigator = () => {
         component={AreaPage}
         options={{ presentation: 'card' }}
       />
-      <DreamsStack.Screen 
-        name="ActionOccurrence" 
-        component={ActionOccurrencePage}
-        options={{ presentation: 'card' }}
-      />
     </DreamsStack.Navigator>
   );
 };
@@ -139,11 +134,6 @@ const TodayStackNavigator = () => {
       <TodayStack.Screen name="TodayList">
         {(props) => <TodayPage {...props} scrollRef={scrollRefs.Today} />}
       </TodayStack.Screen>
-      <TodayStack.Screen 
-        name="ActionOccurrence" 
-        component={ActionOccurrencePage}
-        options={{ presentation: 'card' }}
-      />
     </TodayStack.Navigator>
   );
 };
@@ -335,6 +325,11 @@ const MainNavigator = ({
         <MainStack.Screen 
           name="Tabs" 
           component={TabNavigator}
+        />
+        <MainStack.Screen 
+          name="ActionOccurrence" 
+          component={ActionOccurrencePage}
+          options={{ presentation: 'modal' }}
         />
         <MainStack.Screen 
           name="ArtifactSubmitted" 

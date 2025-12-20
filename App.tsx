@@ -29,7 +29,7 @@
 
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
 import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
@@ -41,6 +41,19 @@ import { DataProvider } from './contexts/DataContext';
 import { notificationService } from './lib/NotificationService';
 import { initializeRevenueCat } from './lib/revenueCat';
 import { initializeMixpanel, getMixpanelStatus } from './lib/mixpanel';
+import { MobileContainer } from './components/MobileContainer';
+
+// Globally disable font scaling to ensure consistent UI across devices
+// This overrides system accessibility settings to maintain the "virtual iPhone" layout on iPad
+if (Text.defaultProps == null) {
+  (Text as any).defaultProps = {};
+}
+(Text as any).defaultProps.allowFontScaling = false;
+
+if ((TextInput as any).defaultProps == null) {
+  (TextInput as any).defaultProps = {};
+}
+(TextInput as any).defaultProps.allowFontScaling = false;
 
 export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -94,12 +107,14 @@ export default function App() {
       <EntitlementsProvider>
         <SessionProvider>
           <DataProvider>
-            <ToastProvider>
-              <CreateDreamProvider>
-                <Navigation />
-              </CreateDreamProvider>
-              <StatusBar style="auto" />
-            </ToastProvider>
+            <MobileContainer>
+              <ToastProvider>
+                <CreateDreamProvider>
+                  <Navigation />
+                </CreateDreamProvider>
+                <StatusBar style="auto" />
+              </ToastProvider>
+            </MobileContainer>
           </DataProvider>
         </SessionProvider>
       </EntitlementsProvider>

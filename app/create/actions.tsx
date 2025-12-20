@@ -15,7 +15,7 @@ interface ActionCard {
   est_minutes?: number
   difficulty?: 'easy' | 'medium' | 'hard'
   repeat_every_days?: 1 | 2 | 3
-  acceptance_criteria?: string[]
+  acceptance_criteria?: { title: string; description: string }[]
   acceptance_intro?: string
   acceptance_outro?: string
   dream_image?: string
@@ -54,19 +54,38 @@ export default function ActionsStep() {
   // Convert current area actions to local UI format, sorted by position
   const actionCards: ActionCard[] = currentAreaActions
     .sort((a, b) => (a.position || 0) - (b.position || 0))
-    .map(action => ({
-      id: action.id,
-      title: action.title,
-      est_minutes: action.est_minutes || 0,
-      difficulty: action.difficulty,
-      repeat_every_days: action.repeat_every_days ? Math.ceil(7 / action.repeat_every_days) as 1 | 2 | 3 : undefined,
-      slice_count_target: action.slice_count_target,
-      acceptance_criteria: action.acceptance_criteria || [],
-      acceptance_intro: (action as any).acceptance_intro,
-      acceptance_outro: (action as any).acceptance_outro,
-      dream_image: image_url || undefined, // Use dream image for all actions
-      hideEditButtons: true // Hide edit buttons in create flow
-    }))
+    .map(action => {
+      // Normalize acceptance_criteria: convert string arrays to object arrays
+      let normalizedCriteria: { title: string; description: string }[] = []
+      if (action.acceptance_criteria) {
+        if (Array.isArray(action.acceptance_criteria)) {
+          normalizedCriteria = action.acceptance_criteria.map((criterion: any) => {
+            if (typeof criterion === 'string') {
+              // Convert string to object with title and empty description
+              return { title: criterion, description: '' }
+            } else if (criterion && typeof criterion === 'object' && 'title' in criterion) {
+              // Already in object format
+              return { title: criterion.title || '', description: criterion.description || '' }
+            }
+            return { title: '', description: '' }
+          })
+        }
+      }
+      
+      return {
+        id: action.id,
+        title: action.title,
+        est_minutes: action.est_minutes || 0,
+        difficulty: action.difficulty,
+        repeat_every_days: action.repeat_every_days ? Math.ceil(7 / action.repeat_every_days) as 1 | 2 | 3 : undefined,
+        slice_count_target: action.slice_count_target,
+        acceptance_criteria: normalizedCriteria,
+        acceptance_intro: (action as any).acceptance_intro,
+        acceptance_outro: (action as any).acceptance_outro,
+        dream_image: image_url || undefined, // Use dream image for all actions
+        hideEditButtons: true // Hide edit buttons in create flow
+      }
+    })
 
   useFocusEffect(
     React.useCallback(() => {

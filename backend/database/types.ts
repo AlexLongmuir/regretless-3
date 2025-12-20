@@ -74,6 +74,11 @@ export interface Area {
   updated_at: string;
 }
 
+export interface AcceptanceCriterion {
+  title: string;
+  description: string;
+}
+
 export interface Action {
   id: string;
   user_id: string;
@@ -84,7 +89,7 @@ export interface Action {
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
   slice_count_target?: number;
-  acceptance_criteria?: string[];
+  acceptance_criteria?: AcceptanceCriterion[];
   acceptance_intro?: string;
   acceptance_outro?: string;
   position: number;
@@ -408,7 +413,7 @@ export interface CreateActionForm {
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
-  acceptance_criteria?: string[];
+  acceptance_criteria?: AcceptanceCriterion[];
   acceptance_intro?: string;
   acceptance_outro?: string;
 }

@@ -64,22 +64,43 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
   // Show loading if: not current date AND (no cached data OR actively fetching) AND (loading in state OR local loading OR actively fetching)
   const isLoading = !isCurrentDate && (!hasCachedData || isFetchingDate) && (isDataLoading || showLoading || isFetchingDate);
   const actionOccurrences: ActionOccurrenceItem[] = (todayData?.occurrences || [])
-    .map(occurrence => ({
-      id: occurrence.id,
-      title: (occurrence as any).actions?.title || 'Untitled Action',
-      est_minutes: (occurrence as any).actions?.est_minutes || 30,
-      difficulty: (occurrence as any).actions?.difficulty,
-      repeat_every_days: (occurrence as any).actions?.repeat_every_days,
-      slice_count_target: (occurrence as any).actions?.slice_count_target,
-      acceptance_criteria: (occurrence as any).actions?.acceptance_criteria || [],
-      due_on: occurrence.due_on,
-      completed_at: occurrence.completed_at,
-      is_done: occurrence.is_done,
-      is_overdue: occurrence.is_overdue,
-      occurrence_no: occurrence.occurrence_no,
-      dream_image: (occurrence as any).actions?.areas?.dreams?.image_url || '🎯', // Use dream image if available
-      hideEditButtons: true
-    }));
+    .map(occurrence => {
+      const action = (occurrence as any).actions;
+      
+      // Normalize acceptance_criteria: convert string arrays to object arrays
+      let normalizedCriteria: { title: string; description: string }[] = []
+      if (action?.acceptance_criteria) {
+        if (Array.isArray(action.acceptance_criteria)) {
+          normalizedCriteria = action.acceptance_criteria.map((criterion: any) => {
+            if (typeof criterion === 'string') {
+              // Convert string to object with title and empty description
+              return { title: criterion, description: '' }
+            } else if (criterion && typeof criterion === 'object' && 'title' in criterion) {
+              // Already in object format
+              return { title: criterion.title || '', description: criterion.description || '' }
+            }
+            return { title: '', description: '' }
+          })
+        }
+      }
+      
+      return {
+        id: occurrence.id,
+        title: action?.title || 'Untitled Action',
+        est_minutes: action?.est_minutes || 30,
+        difficulty: action?.difficulty,
+        repeat_every_days: action?.repeat_every_days,
+        slice_count_target: action?.slice_count_target,
+        acceptance_criteria: normalizedCriteria,
+        due_on: occurrence.due_on,
+        completed_at: occurrence.completed_at,
+        is_done: occurrence.is_done,
+        is_overdue: occurrence.is_overdue,
+        occurrence_no: occurrence.occurrence_no,
+        dream_image: action?.areas?.dreams?.image_url || '🎯', // Use dream image if available
+        hideEditButtons: true
+      };
+    });
 
   // Sort tasks by creation date (most recent first)
   const sortedActionOccurrences = [...actionOccurrences].sort((a, b) => {

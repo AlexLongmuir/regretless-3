@@ -373,7 +373,7 @@ export const deleteActionOccurrence = (occurrenceId: string, token?: string): Pr
 export const updateActionOccurrence = (occurrenceId: string, updates: { note?: string; due_on?: string }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
   put('/api/action-occurrences/update', { occurrenceId, updates }, token)
 
-export const updateAction = (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: string[] }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
+export const updateAction = (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: { title: string; description: string }[] }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
   put('/api/actions/update', { actionId, updates }, token)
 
 export const updateArea = (areaId: string, updates: { title?: string; icon?: string; position?: number }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 

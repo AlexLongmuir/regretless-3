@@ -21,7 +21,14 @@ export const PLAN_SCHEMA = {
                   acceptance_criteria: {
                     type: "array",
                     maxItems: 3,
-                    items: { type: "string" }
+                    items: { 
+                      type: "object",
+                      properties: {
+                        title: { type: "string", description: "Short, bold, scannable summary of the criteria (max 5 words)" },
+                        description: { type: "string", description: "1-2 sentence detailed explanation of what needs to be done" }
+                      },
+                      required: ["title", "description"]
+                    }
                   },
                 },
                 required: ["title","est_minutes","difficulty","acceptance_criteria"]
@@ -115,7 +122,14 @@ export const ACTIONS_SCHEMA = {
           slice_count_target: { type: "integer" },
           acceptance_criteria: {
             type: "array",
-            items: { type: "string" }
+            items: { 
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Short, bold, scannable summary of the criteria (max 5 words)" },
+                description: { type: "string", description: "1-2 sentence detailed explanation of what needs to be done" }
+              },
+              required: ["title", "description"]
+            }
           },
           acceptance_intro: { type: "string" },
           acceptance_outro: { type: "string" },

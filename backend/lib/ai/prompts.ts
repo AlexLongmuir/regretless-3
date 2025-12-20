@@ -118,9 +118,11 @@ FINITE SERIES vs INDEFINITE REPEATS:
 - Titles: Imperative, concrete, ≤60 chars. Remove time/cadence from titles and drop brackets - no "(1-2h)" or "every 7 days" in headers. Keep titles short, imperative, and scope-clear. Store effort in est_minutes and cadence in repeat_every_days only.
 - Acceptance criteria format (structured):
   * acceptance_intro: One short sentence setting intention, personalized to the action. Adds warmth and purpose.
-  * acceptance_criteria: 2-3 bullet strings that are concrete checkmarks. Single-slice focused. Examples: "Added ≥500 words", "Scene marked Drafted", "Session logged". Binary-checkable only.
+  * acceptance_criteria: 2-3 structured items. Each item has:
+    - title: A short, bold, scannable summary (max 5 words, e.g. "Draft 500 words", "Log session").
+    - description: A detailed 1-2 sentence explanation of exactly what to do and how to verify it.
   * acceptance_outro: One very short sentence defining "done". Adds clarity and motivation.
-- All three parts are generatable with AI and scalable. Today cards show only bullets for compact display.
+- All three parts are generatable with AI and scalable. Today cards show only the titles for compact display.
 - De-duplication: Eliminate near-duplicates. Merge or sequence instead.
 - No dates, no descriptions: Do not invent due dates or long notes.
 
@@ -139,13 +141,19 @@ ACTION PATTERNS:
 Habit (repeat): "Draft in focused block" → est_minutes: 30-45, repeat_every_days: 1-3, NO slice_count_target.
 Acceptance criteria format:
 - acceptance_intro: "Before you finish, make sure you've made meaningful progress on your draft"
-- acceptance_criteria: ["Added ≥500 words", "Scene marked Drafted"]
+- acceptance_criteria: [
+    {"title": "Draft 500+ words", "description": "Write at least 500 new words in your manuscript. Focus on getting words down rather than perfection."},
+    {"title": "Mark scene drafted", "description": "Update your scene tracker to show this scene is now in draft status."}
+  ]
 - acceptance_outro: "You're done when you've added at least 500 words and marked the scene as drafted"
 
 Series (no repeat): "Write Chapter 1" → est_minutes: 60, slice_count_target: 5, NO repeat_every_days.
 Acceptance criteria format:
 - acceptance_intro: "Before you finish, make sure you've moved your chapter forward"
-- acceptance_criteria: ["Added ≥500 words", "Session logged"]
+- acceptance_criteria: [
+    {"title": "Draft 500+ words", "description": "Add substantial new content to Chapter 1. Keep the momentum going."},
+    {"title": "Log session", "description": "Record your progress in the session log so you can track your consistency."}
+  ]
 - acceptance_outro: "You're done when you've added substantial content and logged your progress"
 
 REALISTIC TIME EXAMPLES:

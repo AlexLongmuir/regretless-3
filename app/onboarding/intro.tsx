@@ -131,15 +131,6 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: theme.colors.grey[900],
   },
-  skipText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.subheadline,
-    fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[600],
-    textAlign: 'center',
-    marginTop: theme.spacing.md,
-    textDecorationLine: 'underline',
-  },
 });
 
 export default IntroStep;

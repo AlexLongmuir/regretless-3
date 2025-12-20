@@ -4,7 +4,7 @@
  * Shows timeline progression and subscription options
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
@@ -68,6 +68,7 @@ const TrialContinuationStep: React.FC = () => {
       if (!isRevenueCatConfigured()) {
 // console.log('RevenueCat not configured, using mock offerings');
         // Set mock offering for development
+        // Use generic fallback prices that will be replaced by actual RevenueCat prices
         setOffering({
           identifier: 'mock-offering',
           availablePackages: [
@@ -366,6 +367,29 @@ const TrialContinuationStep: React.FC = () => {
     }
   };
 
+  // Helper function to parse priceString and extract numeric value
+  const parsePrice = (priceString: string): { numeric: number; currency: string } => {
+    if (!priceString) return { numeric: 0, currency: '' };
+    
+    // Remove common currency symbols and extract numeric value
+    const cleaned = priceString.replace(/[£$€¥,]/g, '').trim();
+    const numeric = parseFloat(cleaned) || 0;
+    
+    // Extract currency symbol (assume it's at the start)
+    const currencyMatch = priceString.match(/[£$€¥]/);
+    const currency = currencyMatch ? currencyMatch[0] : '';
+    
+    return { numeric, currency };
+  };
+
+  // Helper function to format monthly equivalent
+  const formatMonthlyEquivalent = (annualPriceString: string): string => {
+    const { numeric, currency } = parsePrice(annualPriceString);
+    if (numeric === 0) return '';
+    const monthly = numeric / 12;
+    return `${currency}${monthly.toFixed(2)}`;
+  };
+
   // Calculate billing date (3 days from now)
   const getBillingDate = () => {
     const date = new Date();
@@ -376,6 +400,83 @@ const TrialContinuationStep: React.FC = () => {
       year: 'numeric' 
     });
   };
+
+  // Compute pricing plans from RevenueCat offerings
+  const pricingPlans = useMemo(() => {
+    if (!offering?.availablePackages || offering.availablePackages.length === 0) {
+      // Fallback to default values while loading
+      return [
+        {
+          id: '$rc_monthly',
+          title: 'Monthly',
+          price: 'Loading...',
+          priceSubtitle: undefined,
+          selected: selectedPlan === '$rc_monthly',
+        },
+        {
+          id: '$rc_annual',
+          title: 'Yearly',
+          price: 'Loading...',
+          priceSubtitle: undefined,
+          badge: '3 DAYS FREE',
+          selected: selectedPlan === '$rc_annual',
+        },
+      ];
+    }
+
+    const plans: any[] = [];
+    
+    for (const pkg of offering.availablePackages) {
+      const priceString = pkg.product?.priceString || '';
+      
+      if (pkg.identifier === '$rc_monthly' || pkg.identifier.includes('monthly')) {
+        plans.push({
+          id: '$rc_monthly',
+          title: 'Monthly',
+          price: priceString ? `${priceString}/month` : 'Loading...',
+          priceSubtitle: undefined,
+          selected: selectedPlan === '$rc_monthly',
+        });
+      } else if (pkg.identifier === '$rc_annual' || pkg.identifier.includes('annual')) {
+        const monthlyEquivalent = formatMonthlyEquivalent(priceString);
+        plans.push({
+          id: '$rc_annual',
+          title: 'Yearly',
+          price: priceString ? `${priceString} / year` : 'Loading...',
+          priceSubtitle: monthlyEquivalent ? `${monthlyEquivalent} per month, billed annually` : undefined,
+          badge: '3 DAYS FREE',
+          selected: selectedPlan === '$rc_annual',
+        });
+      }
+    }
+
+    // Ensure we have both plans, even if one is missing
+    const hasMonthly = plans.some(p => p.id === '$rc_monthly');
+    const hasAnnual = plans.some(p => p.id === '$rc_annual');
+
+    if (!hasMonthly) {
+      plans.unshift({
+        id: '$rc_monthly',
+        title: 'Monthly',
+        price: 'Loading...',
+        priceSubtitle: undefined,
+        selected: selectedPlan === '$rc_monthly',
+      });
+    }
+
+    if (!hasAnnual) {
+      plans.push({
+        id: '$rc_annual',
+        title: 'Yearly',
+        price: 'Loading...',
+        priceSubtitle: undefined,
+        badge: '3 DAYS FREE',
+        selected: selectedPlan === '$rc_annual',
+      });
+    }
+
+    return plans;
+  }, [offering, selectedPlan]);
 
   const timelineItems = [
     {
@@ -404,21 +505,6 @@ const TrialContinuationStep: React.FC = () => {
     },
   ];
 
-  const pricingPlans = [
-    {
-      id: '$rc_monthly',
-      title: 'Monthly',
-      price: '£14.99/mo',
-      selected: selectedPlan === '$rc_monthly',
-    },
-    {
-      id: '$rc_annual',
-      title: 'Yearly',
-      price: '£3.33/mo',
-      badge: '3 DAYS FREE',
-      selected: selectedPlan === '$rc_annual',
-    },
-  ];
 
   // Create Restore button matching IconButton style
   const restoreButton = (
@@ -446,7 +532,10 @@ const TrialContinuationStep: React.FC = () => {
           
           <View style={styles.timelineContainer}>
             {timelineItems.map((item, index) => (
-              <View key={item.id} style={styles.timelineItem}>
+              <View key={item.id} style={[
+                styles.timelineItem,
+                index === 1 && styles.timelineItemReducedMargin
+              ]}>
                 <View style={styles.timelineLeft}>
                   <View style={[
                     styles.timelineIconContainer,
@@ -502,6 +591,14 @@ const TrialContinuationStep: React.FC = () => {
                   ]}>
                     {plan.price}
                   </Text>
+                  {plan.priceSubtitle && (
+                    <Text style={[
+                      styles.pricingPriceSubtitle,
+                      plan.selected && styles.selectedPricingPriceSubtitle
+                    ]}>
+                      {plan.priceSubtitle}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -528,13 +625,32 @@ const TrialContinuationStep: React.FC = () => {
           <Text style={styles.pricingText}>
             {purchaseSuccess 
               ? "Redirecting to sign in..." 
-              : selectedPlan === '$rc_monthly' 
-                ? "£14.99 per month" 
-                : "3 days free, then £39.99 per year (£3.33 / month)"
+              : (() => {
+                  if (!offering?.availablePackages) return "Loading pricing...";
+                  
+                  const selectedPackage = offering.availablePackages.find(
+                    (pkg: any) => pkg.identifier === selectedPlan
+                  );
+                  
+                  if (!selectedPackage?.product?.priceString) {
+                    return selectedPlan === '$rc_monthly' 
+                      ? "Loading pricing..." 
+                      : "3 days free, then loading pricing...";
+                  }
+                  
+                  const priceString = selectedPackage.product.priceString;
+                  
+                  if (selectedPlan === '$rc_monthly') {
+                    return `${priceString} per month`;
+                  } else {
+                    const monthlyEquivalent = formatMonthlyEquivalent(priceString);
+                    return `3 days free, then ${priceString} per year${monthlyEquivalent ? ` (${monthlyEquivalent} / month)` : ''}`;
+                  }
+                })()
             }
           </Text>
           <Text style={styles.legalText}>
-            Auto-renews after trial unless cancelled. Manage in Apple ID settings.{'\n'}
+            Auto-renews unless cancelled in Apple ID settings.{'\n'}
             <Text style={styles.linkText} onPress={handleOpenPrivacy}>Privacy</Text>
             {' · '}
             <Text style={styles.linkText} onPress={handleOpenTerms}>Terms</Text>
@@ -628,6 +744,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: theme.spacing.sm,
+  },
+  timelineItemReducedMargin: {
+    marginBottom: theme.spacing.xs,
   },
   timelineLeft: {
     alignItems: 'center',
@@ -741,6 +860,16 @@ const styles = StyleSheet.create({
   },
   selectedPricingPrice: {
     color: theme.colors.grey[900],
+  },
+  pricingPriceSubtitle: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.caption2,
+    fontWeight: theme.typography.fontWeight.regular as any,
+    color: theme.colors.grey[500],
+    marginTop: theme.spacing.xs,
+  },
+  selectedPricingPriceSubtitle: {
+    color: theme.colors.grey[600],
   },
   radioButton: {
     width: 20,

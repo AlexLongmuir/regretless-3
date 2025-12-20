@@ -95,7 +95,7 @@ CRITICAL RULES:
 - Indefinite repeats: For ongoing habits, set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
-- Acceptance criteria: ≤2 bullets, single-slice focused. Examples: "Added ≥500 words", "Scene marked Drafted".
+- Acceptance criteria: Provide a list of 1-2 criteria objects with 'title' and 'description'.
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 
 Note: Only regenerate actions for the area listed above.`
@@ -115,7 +115,7 @@ CRITICAL RULES:
 - Indefinite repeats: For ongoing habits, set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
-- Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 bullet strings), and acceptance_outro (one sentence defining "done").
+- Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 objects with title and description), and acceptance_outro (one sentence defining "done").
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 - Avoid overlapping actions across areas.
 

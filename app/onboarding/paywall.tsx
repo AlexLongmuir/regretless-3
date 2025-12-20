@@ -5,7 +5,7 @@
  * Handles purchase flow and navigation to PostPurchaseSignIn
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
@@ -48,6 +48,7 @@ const PaywallStep: React.FC = () => {
   const { restorePurchases } = useEntitlementsContext();
   const [loading, setLoading] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  const [offeringsLoading, setOfferingsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string>('$rc_annual');
 
   // Track step view when screen is focused
@@ -65,9 +66,11 @@ const PaywallStep: React.FC = () => {
 
   const fetchOfferings = async () => {
     try {
+      setOfferingsLoading(true);
       // Check if RevenueCat is properly configured
       if (!isRevenueCatConfigured()) {
         console.log('RevenueCat not configured, skipping fetch offerings');
+        setOfferingsLoading(false);
         return;
       }
       
@@ -81,7 +84,24 @@ const PaywallStep: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching offerings:', error);
+    } finally {
+      setOfferingsLoading(false);
     }
+  };
+
+  // Helper function to parse priceString and extract numeric value
+  const parsePrice = (priceString: string): { numeric: number; currency: string } => {
+    if (!priceString) return { numeric: 0, currency: '' };
+    
+    // Remove common currency symbols and extract numeric value
+    const cleaned = priceString.replace(/[£$€¥,]/g, '').trim();
+    const numeric = parseFloat(cleaned) || 0;
+    
+    // Extract currency symbol (assume it's at the start)
+    const currencyMatch = priceString.match(/[£$€¥]/);
+    const currency = currencyMatch ? currencyMatch[0] : '';
+    
+    return { numeric, currency };
   };
 
   const handlePurchase = async () => {
@@ -172,25 +192,89 @@ const PaywallStep: React.FC = () => {
     }
   };
 
-  // Mock pricing data - in real implementation, this would come from RevenueCat
-  const pricingOptions: PricingOption[] = [
-    {
-      id: '$rc_monthly',
-      title: 'Monthly',
-      subtitle: 'Perfect for trying out',
-      price: '$9.99',
-      period: '/month',
-    },
-    {
-      id: '$rc_annual',
-      title: 'Annual',
-      subtitle: 'Best value',
-      price: '$79.99',
-      period: '/year',
-      savings: 'Save 33%',
-      popular: true,
-    },
-  ];
+  // Compute pricing options from RevenueCat offerings
+  const pricingOptions: PricingOption[] = useMemo(() => {
+    if (!offering?.availablePackages || offering.availablePackages.length === 0) {
+      // Fallback to default values while loading
+      return [
+        {
+          id: '$rc_monthly',
+          title: 'Monthly',
+          subtitle: 'Perfect for trying out',
+          price: 'Loading...',
+          period: '/month',
+        },
+        {
+          id: '$rc_annual',
+          title: 'Annual',
+          subtitle: 'Best value',
+          price: 'Loading...',
+          period: '/year',
+          savings: 'Save 33%',
+          popular: true,
+        },
+      ];
+    }
+
+    const options: PricingOption[] = [];
+    let monthlyPrice: number | null = null;
+    let annualPrice: number | null = null;
+    
+    for (const pkg of offering.availablePackages) {
+      const priceString = pkg.product?.priceString || '';
+      const { numeric } = parsePrice(priceString);
+      
+      if (pkg.identifier === '$rc_monthly' || pkg.identifier.includes('monthly')) {
+        monthlyPrice = numeric;
+        options.push({
+          id: '$rc_monthly',
+          title: 'Monthly',
+          subtitle: 'Perfect for trying out',
+          price: priceString || 'Loading...',
+          period: '/month',
+        });
+      } else if (pkg.identifier === '$rc_annual' || pkg.identifier.includes('annual')) {
+        annualPrice = numeric;
+        options.push({
+          id: '$rc_annual',
+          title: 'Annual',
+          subtitle: 'Best value',
+          price: priceString || 'Loading...',
+          period: '/year',
+          savings: monthlyPrice && annualPrice ? `Save ${Math.round((1 - annualPrice / (monthlyPrice * 12)) * 100)}%` : 'Save 33%',
+          popular: true,
+        });
+      }
+    }
+
+    // Ensure we have both options, even if one is missing
+    const hasMonthly = options.some(o => o.id === '$rc_monthly');
+    const hasAnnual = options.some(o => o.id === '$rc_annual');
+
+    if (!hasMonthly) {
+      options.unshift({
+        id: '$rc_monthly',
+        title: 'Monthly',
+        subtitle: 'Perfect for trying out',
+        price: 'Loading...',
+        period: '/month',
+      });
+    }
+
+    if (!hasAnnual) {
+      options.push({
+        id: '$rc_annual',
+        title: 'Annual',
+        subtitle: 'Best value',
+        price: 'Loading...',
+        period: '/year',
+        savings: 'Save 33%',
+        popular: true,
+      });
+    }
+
+    return options;
+  }, [offering]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -250,16 +334,41 @@ const PaywallStep: React.FC = () => {
         </View>
 
         <Text style={styles.trialText}>
-          Start with a 3-day free trial, then {selectedPlan === '$rc_annual' ? '$79.99/year' : '$9.99/month'}
+          {(() => {
+            if (!offering?.availablePackages) {
+              return 'Start with a 3-day free trial, then loading pricing...';
+            }
+            
+            const selectedPackage = offering.availablePackages.find(
+              (pkg: any) => pkg.identifier === selectedPlan
+            );
+            
+            if (!selectedPackage?.product?.priceString) {
+              return selectedPlan === '$rc_annual' 
+                ? 'Start with a 3-day free trial, then loading pricing...' 
+                : 'Start with a 3-day free trial, then loading pricing...';
+            }
+            
+            const priceString = selectedPackage.product.priceString;
+            const period = selectedPlan === '$rc_annual' ? '/year' : '/month';
+            
+            return `Start with a 3-day free trial, then ${priceString}${period}`;
+          })()}
         </Text>
       </View>
 
       <View style={styles.footer}>
         <Button
-          title={loading ? "Processing..." : "Start Free Trial"}
+          title={
+            loading 
+              ? "Processing..." 
+              : offeringsLoading 
+                ? "Loading subscription options..." 
+                : "Start Free Trial"
+          }
           onPress={handlePurchase}
           variant="black"
-          disabled={loading}
+          disabled={loading || offeringsLoading}
           style={styles.button}
         />
         

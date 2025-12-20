@@ -89,6 +89,23 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
             const action = areaActions.find((a: Action) => a.id === occurrence.action_id);
             if (!action) return null;
             
+            // Normalize acceptance_criteria: convert string arrays to object arrays
+            let normalizedCriteria: { title: string; description: string }[] = []
+            if (action.acceptance_criteria) {
+              if (Array.isArray(action.acceptance_criteria)) {
+                normalizedCriteria = action.acceptance_criteria.map((criterion: any) => {
+                  if (typeof criterion === 'string') {
+                    // Convert string to object with title and empty description
+                    return { title: criterion, description: '' }
+                  } else if (criterion && typeof criterion === 'object' && 'title' in criterion) {
+                    // Already in object format
+                    return { title: criterion.title || '', description: criterion.description || '' }
+                  }
+                  return { title: '', description: '' }
+                })
+              }
+            }
+            
             return {
               id: occurrence.id,
               title: action.title,
@@ -96,7 +113,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
               difficulty: action.difficulty,
               repeat_every_days: action.repeat_every_days,
               slice_count_target: action.slice_count_target,
-              acceptance_criteria: action.acceptance_criteria || [],
+              acceptance_criteria: normalizedCriteria,
               dream_image: dreamData.dream?.image_url,
               // Occurrence-specific fields
               occurrence_no: occurrence.occurrence_no,
