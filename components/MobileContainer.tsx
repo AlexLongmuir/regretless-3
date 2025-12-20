@@ -11,7 +11,7 @@ const PHONE_WIDTH = 393;
 const PHONE_HEIGHT = 852;
 
 // Debug flag - set to false to hide overlay
-const SHOW_DEBUG_OVERLAY = true;
+const SHOW_DEBUG_OVERLAY = false;
 
 // Fake metrics to simulate iPhone 14/15 Pro safe areas (Dynamic Island + Home Indicator)
 const IPHONE_METRICS = {

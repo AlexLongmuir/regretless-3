@@ -155,7 +155,7 @@ export async function generateJson(opts: {
             }
           } else {
             // This is likely a truncated action, close it with minimal required fields
-            fixedText += ',\n    {\n      "area_id": "truncated",\n      "title": "Complete remaining actions",\n      "est_minutes": 60,\n      "difficulty": "medium",\n      "acceptance_criteria": ["Action completed"],\n      "position": 999\n    }';
+            fixedText += ',\n    {\n      "area_id": "truncated",\n      "title": "Complete remaining actions",\n      "est_minutes": 60,\n      "difficulty": "medium",\n      "acceptance_criteria": [{"title": "Action completed", "description": "Complete the remaining actions"}],\n      "position": 999\n    }';
           }
         }
         

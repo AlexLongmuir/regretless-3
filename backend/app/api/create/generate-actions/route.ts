@@ -95,7 +95,7 @@ CRITICAL RULES:
 - Indefinite repeats: For ongoing habits, set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
-- Acceptance criteria: Provide a list of 1-2 criteria objects with 'title' and 'description'.
+- Acceptance criteria: Provide 2-3 structured objects, each with 'title' (short, max 5 words) and 'description' (1-2 sentences explaining what to do and how to verify it). Example: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 
 Note: Only regenerate actions for the area listed above.`
@@ -115,7 +115,7 @@ CRITICAL RULES:
 - Indefinite repeats: For ongoing habits, set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
-- Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 objects with title and description), and acceptance_outro (one sentence defining "done").
+- Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 structured objects, each with 'title' - short max 5 words, and 'description' - 1-2 sentences explaining what to do and how to verify it), and acceptance_outro (one sentence defining "done"). Example criteria: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 - Avoid overlapping actions across areas.
 
@@ -189,6 +189,27 @@ Each action should be atomic, measurable, and bounded.`
         }
       }
 
+      // Normalize acceptance_criteria: ensure it's an array of objects with title and description
+      let normalizedCriteria: { title: string; description: string }[] = []
+      if (action.acceptance_criteria && Array.isArray(action.acceptance_criteria)) {
+        normalizedCriteria = action.acceptance_criteria.map((criterion: any) => {
+          if (typeof criterion === 'string') {
+            // Convert string to object with title and empty description
+            console.warn(`⚠️ Found string acceptance criterion, converting to object: "${criterion}"`)
+            return { title: criterion, description: '' }
+          } else if (criterion && typeof criterion === 'object' && 'title' in criterion) {
+            // Already in object format, ensure both fields exist
+            return { 
+              title: criterion.title || '', 
+              description: criterion.description || '' 
+            }
+          }
+          // Invalid format, skip
+          console.warn(`⚠️ Invalid acceptance criterion format, skipping:`, criterion)
+          return { title: '', description: '' }
+        }).filter(c => c.title) // Remove empty criteria
+      }
+
       return {
         id: `temp-action-${Date.now()}-${index}`, // Temporary ID for onboarding
         user_id: user?.id || 'temp',
@@ -199,7 +220,7 @@ Each action should be atomic, measurable, and bounded.`
         difficulty: action.difficulty,
         repeat_every_days: action.repeat_every_days || null,
         slice_count_target: action.slice_count_target || null,
-        acceptance_criteria: action.acceptance_criteria || [],
+        acceptance_criteria: normalizedCriteria,
         acceptance_intro: action.acceptance_intro || null,
         acceptance_outro: action.acceptance_outro || null,
         position: action.position,

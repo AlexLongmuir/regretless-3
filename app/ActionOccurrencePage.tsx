@@ -1411,21 +1411,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           </View>
         </View>
 
-        {/* Intro - Outside To Dos box */}
-        {(actionData?.acceptance_intro || (params as any)?.acceptanceIntro) && (
-          <View style={{ 
-            paddingHorizontal: 24,
-            paddingBottom: 12,
-          }}>
-            <Text style={{ 
-              fontSize: 14, 
-              color: theme.colors.grey[600],
-            }}>
-              {actionData?.acceptance_intro || (params as any)?.acceptanceIntro}
-            </Text>
-          </View>
-        )}
-
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
           <View style={{ 
@@ -1536,21 +1521,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             })()}
           </View>
         </View>
-
-        {/* Outro - Outside To Dos box */}
-        {(actionData?.acceptance_outro || (params as any)?.acceptanceOutro) && (
-          <View style={{ 
-            paddingHorizontal: 24,
-            paddingTop: 12,
-          }}>
-            <Text style={{ 
-              fontSize: 14, 
-              color: theme.colors.grey[600],
-            }}>
-              {actionData?.acceptance_outro || (params as any)?.acceptanceOutro}
-            </Text>
-          </View>
-        )}
 
         {/* AI Help Section - REMOVED */}
 

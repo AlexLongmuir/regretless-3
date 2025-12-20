@@ -16,8 +16,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
                BuildableName = "Dreamer.app"
-               BlueprintName = "dreamer3"
-               ReferencedContainer = "container:dreamer3.xcodeproj">
+               BlueprintName = "Dreamer"
+               ReferencedContainer = "container:Dreamer.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "dreamer3Tests.xctest"
-               BlueprintName = "dreamer3Tests"
-               ReferencedContainer = "container:dreamer3.xcodeproj">
+               BuildableName = "DreamerTests.xctest"
+               BlueprintName = "DreamerTests"
+               ReferencedContainer = "container:Dreamer.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -56,8 +56,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
             BuildableName = "Dreamer.app"
-            BlueprintName = "dreamer3"
-            ReferencedContainer = "container:dreamer3.xcodeproj">
+            BlueprintName = "Dreamer"
+            ReferencedContainer = "container:Dreamer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -73,8 +73,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
             BuildableName = "Dreamer.app"
-            BlueprintName = "dreamer3"
-            ReferencedContainer = "container:dreamer3.xcodeproj">
+            BlueprintName = "Dreamer"
+            ReferencedContainer = "container:Dreamer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

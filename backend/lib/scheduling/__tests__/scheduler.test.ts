@@ -42,7 +42,7 @@ const createMockAction = (overrides: Partial<Action> = {}): Action => ({
   est_minutes: 30,
   difficulty: 'medium',
   repeat_every_days: undefined,
-  acceptance_criteria: ['Complete the task'],
+  acceptance_criteria: [{ title: 'Complete the task', description: 'Finish the assigned task successfully' }],
   position: 1,
   is_active: true,
   deleted_at: undefined,
