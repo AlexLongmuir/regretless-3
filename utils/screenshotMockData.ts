@@ -130,9 +130,18 @@ const mockOccurrences: ActionOccurrenceStatus[] = [
       recurrence_rule: 'RRULE:FREQ=WEEKLY',
       acceptance_intro: "Take a moment to plan meals that will fuel your body and support your fitness goals this week",
       acceptance_criteria: [
-        'Find 3 cookable high-protein meals',
-        'Pick one simple fallback meal',
-        'Set daily "protein anchors" (snacks/quick wins)'
+        { 
+          title: 'Find 3 high-protein meals', 
+          description: 'Select 3 recipes that fit your schedule. Aim for 30-40g protein per meal.' 
+        },
+        { 
+          title: 'Pick one fallback meal', 
+          description: 'Choose one quick meal you can prepare in under 15 minutes for busy days.' 
+        },
+        { 
+          title: 'Set daily protein anchors', 
+          description: 'Choose 2-3 quick protein snacks you can grab throughout the day.' 
+        }
       ],
       acceptance_outro: "You're done when you have a clear, actionable plan for the week ahead",
       areas: {
@@ -288,9 +297,18 @@ const area2ActionsData = [
     recurrence_rule: 'RRULE:FREQ=WEEKLY',
     intro: "Take a moment to plan meals that will fuel your body and support your fitness goals this week",
     criteria: [
-      "Find 3 cookable high-protein meals",
-      "Pick one simple fallback meal",
-      "Set daily 'protein anchors' (snacks/quick wins)"
+      { 
+        title: 'Find 3 high-protein meals', 
+        description: 'Select 3 recipes that fit your schedule. Aim for 30-40g protein per meal.' 
+      },
+      { 
+        title: 'Pick one fallback meal', 
+        description: 'Choose one quick meal you can prepare in under 15 minutes for busy days.' 
+      },
+      { 
+        title: 'Set daily protein anchors', 
+        description: 'Identify 2-3 quick protein snacks (Greek yogurt, protein shake, hard-boiled eggs) you can grab throughout the day.' 
+      }
     ],
     outro: "You're done when you have a clear, actionable plan for the week ahead"
   },

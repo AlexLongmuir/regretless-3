@@ -13,6 +13,8 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { markOnboardingCompleted } from '../../utils/onboardingFlow';
 import { trackEvent } from '../../lib/mixpanel';
 
+import { ResponsiveContainer } from '../../components/ResponsiveContainer';
+
 const LongTermResultsStep: React.FC = () => {
   const navigation = useNavigation();
 
@@ -46,51 +48,56 @@ const LongTermResultsStep: React.FC = () => {
         showProgress={true}
       />
       
-      <View style={styles.content}>
-        <Text style={styles.title}>Dreamer nudges nearly double your finishing odds</Text>
-        
-        <View style={styles.chartContainer}>
-          {/* Labels above chart */}
-          <View style={styles.chartLabels}>
-            <Text style={styles.chartLabel}>Without Dreamer</Text>
-            <Text style={styles.chartLabel}>With Dreamer</Text>
+      <ResponsiveContainer
+        scrollable={true}
+        footer={
+          <View style={styles.footer}>
+            <Button
+              title="Continue"
+              onPress={handleContinue}
+              variant="black"
+              style={styles.button}
+            />
           </View>
+        }
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Dreamer nudges nearly double your finishing odds</Text>
           
-          <View style={styles.barChart}>
-            {/* Before bar */}
-            <View style={styles.barGroup}>
-              <View style={styles.barContainer}>
-                <View style={[styles.bar, styles.beforeBar, { height: `${beforeRate}%` }]}>
-                  <Text style={[styles.barValue, styles.beforeBarValue]}>1x</Text>
+          <View style={styles.chartContainer}>
+            {/* Labels above chart */}
+            <View style={styles.chartLabels}>
+              <Text style={styles.chartLabel}>Without Dreamer</Text>
+              <Text style={styles.chartLabel}>With Dreamer</Text>
+            </View>
+            
+            <View style={styles.barChart}>
+              {/* Before bar */}
+              <View style={styles.barGroup}>
+                <View style={styles.barContainer}>
+                  <View style={[styles.bar, styles.beforeBar, { height: `${beforeRate}%` }]}>
+                    <Text style={[styles.barValue, styles.beforeBarValue]}>1x</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* After bar */}
+              <View style={styles.barGroup}>
+                <View style={styles.barContainer}>
+                  <View style={[styles.bar, styles.afterBar, { height: `${afterRate}%` }]}>
+                    <Text style={styles.barValue}>2x</Text>
+                  </View>
                 </View>
               </View>
             </View>
 
-            {/* After bar */}
-            <View style={styles.barGroup}>
-              <View style={styles.barContainer}>
-                <View style={[styles.bar, styles.afterBar, { height: `${afterRate}%` }]}>
-                  <Text style={styles.barValue}>2x</Text>
-                </View>
-              </View>
+            {/* Improvement indicator */}
+            <View style={styles.improvementIndicator}>
+              <Text style={styles.improvementText}>Randomised trials show reminders nearly double your chance of completion</Text>
             </View>
-          </View>
-
-          {/* Improvement indicator */}
-          <View style={styles.improvementIndicator}>
-            <Text style={styles.improvementText}>Randomised trials show reminders nearly double your chance of completion</Text>
           </View>
         </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          variant="black"
-          style={styles.button}
-        />
-      </View>
+      </ResponsiveContainer>
     </View>
   );
 };

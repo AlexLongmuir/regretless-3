@@ -982,6 +982,7 @@ const ActionOccurrencePage = () => {
     const dreamTitle = dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream';
     const areaName = dreamAreaData?.areaName || params?.areaName || 'Area';
     const actionTitle = actionData?.title || params?.actionTitle || 'Action';
+    const actionDescription = params?.actionDescription || '';
     const estimatedTime = actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time estimate');
     const difficulty = actionData?.difficulty || params?.difficulty || 'easy';
     const dueDate = currentDueDate ? formatDate(currentDueDate) : 'No due date';
@@ -1009,7 +1010,7 @@ const ActionOccurrencePage = () => {
 
 DREAM: ${dreamTitle}
 AREA: ${areaName}
-ACTION: ${actionTitle}
+ACTION: ${actionTitle}${actionDescription ? `\nACTION DESCRIPTION: ${actionDescription}` : ''}
 TIME ESTIMATE: ${estimatedTime}
 DIFFICULTY: ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
 DUE DATE: ${dueDate}
@@ -1440,6 +1441,17 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             {(() => {
               // Normalize acceptance_criteria: convert string arrays to object arrays
               const rawCriteria = actionData?.acceptance_criteria || params?.acceptanceCriteria || [];
+              
+              // Debug log for screenshot mode
+              if (isScreenshotMode && params?.occurrenceId === 'mock-occ-1') {
+                console.log('🔍 [SCREENSHOT] Acceptance criteria debug:', {
+                  rawCriteria,
+                  actionData: actionData?.acceptance_criteria,
+                  params: params?.acceptanceCriteria,
+                  actionDataKeys: actionData ? Object.keys(actionData) : null
+                });
+              }
+              
               let normalizedCriteria: { title: string; description: string }[] = [];
               
               if (Array.isArray(rawCriteria) && rawCriteria.length > 0) {
@@ -1465,7 +1477,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                     width: 50, 
                     justifyContent: 'center', 
                     alignItems: 'center',
-                    paddingVertical: 16,
+                    paddingVertical: 8,
                   }}>
                     <Text style={{ 
                       fontSize: 16, 
@@ -1480,14 +1492,15 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                   <View style={{
                     width: 1,
                     backgroundColor: theme.colors.grey[100],
-                    marginVertical: 12,
+                    marginVertical: 6,
                   }} />
                   
                   {/* Text Column */}
                   <View style={{ 
                     flex: 1, 
                     justifyContent: 'center', 
-                    padding: 16,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
                   }}>
                     <View>
                       <Text style={{ 

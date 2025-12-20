@@ -18,6 +18,8 @@ import { trackEvent } from '../../lib/mixpanel';
 // Use the individuality image for welcome screen
 const individualityImage = require('../../assets/images/onboarding/20250916_0844_Individuality Amidst Motion_simple_compose_01k58qptvqfr5awmazzyd181js.png');
 
+import { ResponsiveContainer } from '../../components/ResponsiveContainer';
+
 const WelcomeStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, setPreloadedDefaultImages } = useOnboardingContext();
@@ -87,21 +89,26 @@ const WelcomeStep: React.FC = () => {
         onBack={() => navigation.goBack()}
       />
       
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to Dreamer</Text>
-        <Text style={styles.subtitle}>Where your dreams are made real</Text>
-        
-        <OnboardingImage source={individualityImage} borderRadius={10} />
-      </View>
-
-      <View style={styles.footer}>
-        <Button
-          title="Continue"
-          onPress={handleContinue}
-          variant="black"
-          style={styles.button}
-        />
-      </View>
+      <ResponsiveContainer
+        scrollable={true}
+        footer={
+          <View style={styles.footer}>
+            <Button
+              title="Continue"
+              onPress={handleContinue}
+              variant="black"
+              style={styles.button}
+            />
+          </View>
+        }
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Welcome to Dreamer</Text>
+          <Text style={styles.subtitle}>Where your dreams are made real</Text>
+          
+          <OnboardingImage source={individualityImage} borderRadius={10} />
+        </View>
+      </ResponsiveContainer>
     </View>
   );
 };
