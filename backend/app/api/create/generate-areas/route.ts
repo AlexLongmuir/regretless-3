@@ -13,6 +13,44 @@ async function getUser(req: Request) {
   return data.user ?? null
 }
 
+// Handle OPTIONS for CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
+}
+
+// Handle GET requests (for testing/debugging)
+export async function GET() {
+  return NextResponse.json(
+    { 
+      error: 'Method not allowed',
+      message: 'This endpoint only accepts POST requests',
+      endpoint: '/api/create/generate-areas',
+      requiredMethod: 'POST',
+      example: {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer <token>' // Optional for onboarding
+        },
+        body: {
+          title: 'Your dream title',
+          baseline: 'Optional baseline',
+          obstacles: 'Optional obstacles',
+          enjoyment: 'Optional enjoyment'
+        }
+      }
+    },
+    { status: 405 }
+  )
+}
+
 export async function POST(req: Request) {
   const startTime = Date.now()
   console.log('🚀 [GENERATE-AREAS] Request received at', new Date().toISOString())
@@ -110,7 +148,16 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
       usage = result.usage
       console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
     } catch (aiError) {
-      console.error('❌ AI generation failed:', aiError)
+      // Enhanced error logging for Vercel visibility
+      console.error('[GENERATE-AREAS] AI generation failed');
+      console.error('[GENERATE-AREAS] Error message:', aiError instanceof Error ? aiError.message : String(aiError));
+      console.error('[GENERATE-AREAS] Error stack:', aiError instanceof Error ? aiError.stack : 'N/A');
+      console.error('[GENERATE-AREAS] Error details:', JSON.stringify({
+        name: aiError instanceof Error ? aiError.name : 'Unknown',
+        message: aiError instanceof Error ? aiError.message : String(aiError),
+        timestamp: new Date().toISOString()
+      }));
+      
       const aiErrorMessage = aiError instanceof Error ? aiError.message : String(aiError)
       throw new Error(`AI generation failed: ${aiErrorMessage}`)
     }
@@ -205,10 +252,22 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
     return NextResponse.json(savedAreas ?? [])
 
   } catch (error) {
-    console.error('❌ Areas generation error:', error)
+    // Enhanced error logging for Vercel visibility
+    console.error('[GENERATE-AREAS] Top-level error caught');
+    console.error('[GENERATE-AREAS] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[GENERATE-AREAS] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[GENERATE-AREAS] Error stack:', error instanceof Error ? error.stack : 'N/A');
+    
+    // Log structured error details
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers.get('x-vercel-id') || 'unknown'
+    };
+    console.error('[GENERATE-AREAS] Structured error:', JSON.stringify(errorDetails, null, 2));
+    
     const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorStack = error instanceof Error ? error.stack : undefined
-    console.error('❌ Error details:', { message: errorMessage, stack: errorStack })
     return NextResponse.json(
       { error: 'Failed to generate areas', details: errorMessage }, 
       { status: 500 }

@@ -19,10 +19,17 @@ export const THINKING_BUDGETS = {
 const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export function getModel(systemInstruction?: string, modelId = GEMINI_MODEL) {
-  return client.getGenerativeModel({
-    model: modelId,
-    ...(systemInstruction ? { systemInstruction } : {}),
-  });
+  try {
+    const model = client.getGenerativeModel({
+      model: modelId,
+      ...(systemInstruction ? { systemInstruction } : {}),
+    });
+    console.log(`[GEMINI] Initialized model: ${modelId}`);
+    return model;
+  } catch (error) {
+    console.error(`[GEMINI] Failed to initialize model ${modelId}:`, error);
+    throw new Error(`Failed to initialize Gemini model: ${modelId}. Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**
@@ -182,22 +189,60 @@ export async function generateJson(opts: {
     const parsedData = JSON.parse(cleanedText);
     return { data: parsedData, usage };
   } catch (parseError) {
-    console.error('❌ JSON Parse Error:', parseError);
-    console.error('❌ Raw text that failed to parse:', text);
+    // Log error details in multiple statements to ensure Vercel captures them
+    console.error('[GEMINI] JSON Parse Error:', parseError instanceof Error ? parseError.message : String(parseError));
+    console.error('[GEMINI] Parse error stack:', parseError instanceof Error ? parseError.stack : 'N/A');
+    console.error('[GEMINI] Raw text length:', text.length);
     
-    // Try one more cleanup attempt
+    // Split long text into chunks for Vercel logging (Vercel truncates very long logs)
+    const chunkSize = 500;
+    for (let i = 0; i < text.length; i += chunkSize) {
+      const chunk = text.substring(i, i + chunkSize);
+      console.error(`[GEMINI] Raw text chunk ${Math.floor(i / chunkSize) + 1}:`, chunk);
+    }
+    
+    // Also log first and last parts separately for quick debugging
+    console.error('[GEMINI] First 500 chars:', text.substring(0, 500));
+    if (text.length > 500) {
+      console.error('[GEMINI] Last 500 chars:', text.substring(text.length - 500));
+    }
+    
+    // Try one more cleanup attempt with more aggressive fixes
+    let aggressiveCleanup: string;
     try {
-      // More aggressive cleanup
-      let aggressiveCleanup = text
+      // More aggressive cleanup - handle common AI JSON mistakes
+      aggressiveCleanup = text
+        // Fix unquoted property names (e.g., { title: "..." } -> { "title": "..." })
+        .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
+        // Fix property names with quotes but wrong format
         .replace(/,\s*\n\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, ',\n      "$1":')
         .replace(/([0-9]+)\s*\n\s*,\s*\n\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1,\n      "$2":')
+        // Remove trailing commas
         .replace(/,(\s*[}\]])/g, '$1')
+        // Fix missing commas between properties
+        .replace(/(")\s*\n\s*("[a-zA-Z_])/g, '$1,\n      $2')
+        .replace(/([0-9])\s*\n\s*("[a-zA-Z_])/g, '$1,\n      $2')
+        .replace(/(})\s*\n\s*({)/g, '$1,\n      $2')
+        // Fix newlines in string values (shouldn't happen but handle it)
+        .replace(/:\s*"([^"]*)\n([^"]*)"/g, ': "$1 $2"')
       
       const parsedData = JSON.parse(aggressiveCleanup);
       console.log('✅ Successfully parsed after aggressive cleanup');
       return { data: parsedData, usage };
     } catch (secondParseError) {
-      console.error('❌ Second parse attempt also failed:', secondParseError);
+      console.error('[GEMINI] Second parse attempt failed:', secondParseError instanceof Error ? secondParseError.message : String(secondParseError));
+      console.error('[GEMINI] Second parse stack:', secondParseError instanceof Error ? secondParseError.stack : 'N/A');
+      
+      if (aggressiveCleanup) {
+        // Log cleaned text in chunks
+        const chunkSize = 500;
+        for (let i = 0; i < aggressiveCleanup.length; i += chunkSize) {
+          const chunk = aggressiveCleanup.substring(i, i + chunkSize);
+          console.error(`[GEMINI] Cleaned text chunk ${Math.floor(i / chunkSize) + 1}:`, chunk);
+        }
+      } else {
+        console.error('[GEMINI] No cleaned text available');
+      }
       
       // For AI review specifically, provide a fallback response
       if (opts.schema && opts.schema.properties && opts.schema.properties.rating && opts.schema.properties.feedback) {
@@ -211,7 +256,9 @@ export async function generateJson(opts: {
         };
       }
       
-      throw new Error(`AI returned invalid JSON: ${parseError.message}`);
+      // Include both error messages for better debugging
+      const errorDetails = `First error: ${parseError.message}; Second error: ${secondParseError instanceof Error ? secondParseError.message : String(secondParseError)}`;
+      throw new Error(`AI returned invalid JSON: ${errorDetails}`);
     }
   }
 }

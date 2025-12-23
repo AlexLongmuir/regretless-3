@@ -54,35 +54,74 @@ interface RevenueCatWebhookEvent {
 async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase: any) {
   const { event: eventData } = event;
 
+  // Normalize environment to uppercase
+  const environment = (eventData.environment || 'PRODUCTION').toUpperCase();
+  
   console.log('🔄 Processing RevenueCat webhook:', {
     type: eventData.type,
     app_user_id: eventData.app_user_id,
     product_id: eventData.product_id,
     is_trial_period: eventData.is_trial_period,
-    expiration_at_ms: eventData.expiration_at_ms
+    expiration_at_ms: eventData.expiration_at_ms,
+    environment: environment
   });
 
-  // Find user by RevenueCat app_user_id (look for any existing subscription)
+  // Find user by RevenueCat app_user_id to get the internal user_id
+  // We need to find the user_id associated with this RevenueCat ID
+  // Try both rc_app_user_id and rc_original_app_user_id to handle aliases
   const { data: existingSubscriptions, error: fetchError } = await supabase
     .from('user_subscriptions')
-    .select('user_id, rc_app_user_id, is_trial, is_active')
-    .eq('rc_app_user_id', eventData.app_user_id);
+    .select('user_id, rc_app_user_id, rc_original_app_user_id, is_trial, is_active, id')
+    .or(`rc_app_user_id.eq.${eventData.app_user_id},rc_original_app_user_id.eq.${eventData.app_user_id}`)
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (fetchError) {
     console.error('❌ Error fetching user subscriptions:', fetchError);
     return { success: false, error: 'Database error' };
   }
 
-  if (!existingSubscriptions || existingSubscriptions.length === 0) {
-    console.error('❌ User not found for RevenueCat app_user_id:', eventData.app_user_id);
-    return { success: false, error: 'User not found' };
-  }
+  let userId: string | null = null;
 
-  const userId = existingSubscriptions[0].user_id;
+  if (existingSubscriptions && existingSubscriptions.length > 0) {
+    userId = existingSubscriptions[0].user_id;
+  } else {
+    // No subscription record exists yet - this can happen when:
+    // 1. User purchased before logging in (anonymous purchase)
+    // 2. Webhook arrives before app syncs
+    // 3. RevenueCat app_user_id doesn't match any existing subscription
+    
+    console.log('⚠️ No subscription record found for rc_app_user_id:', eventData.app_user_id);
+    
+    // Check if the RevenueCat app_user_id is a UUID (might be a Supabase user_id)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const mightBeUserId = uuidRegex.test(eventData.app_user_id);
+    
+    if (mightBeUserId) {
+      // Try to verify if it's a valid user_id using RPC or direct query
+      // For now, we'll attempt to create a subscription record with this as user_id
+      // If it fails due to foreign key constraint, we know it's not a valid user_id
+      console.log('⚠️ rc_app_user_id looks like a UUID, attempting to use as user_id...');
+      userId = eventData.app_user_id; // Will be validated by foreign key constraint on insert
+    } else {
+      // Anonymous ID or other format - can't determine user_id
+      console.log('⚠️ rc_app_user_id is not a UUID format, cannot determine user_id');
+      console.log('⚠️ This webhook will be processed when the user logs in and syncs.');
+      // Return success so RevenueCat doesn't keep retrying
+      // The app will sync when the user logs in via storeBillingSnapshot
+      return { 
+        success: true, 
+        skipped: true, 
+        message: 'User not found - will be processed when user logs in and syncs' 
+      };
+    }
+  }
 
   // Determine subscription status based on event type
   let isActive = true;
-  let isTrial = eventData.is_trial_period;
+  // Default to false, then check various sources for trial detection
+  // Ensure isTrial is always a boolean (handle null/undefined)
+  let isTrial = Boolean(eventData.is_trial_period);
   let willRenew = true;
 
   // Enhanced trial detection - check multiple sources
@@ -102,6 +141,15 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
     isTrial = true;
     console.log('🔄 Detected trial from zero price');
   }
+
+  // Ensure isTrial is always a boolean (never null/undefined)
+  isTrial = Boolean(isTrial);
+  
+  // Ensure willRenew is always a boolean (never null/undefined)
+  willRenew = Boolean(willRenew);
+  
+  // Ensure isActive is always a boolean (never null/undefined)
+  isActive = Boolean(isActive);
 
   switch (eventData.type) {
     case 'INITIAL_PURCHASE':
@@ -139,7 +187,9 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
     
     default:
       console.log('⚠️ Unknown event type:', eventData.type);
-      return { success: false, error: 'Unknown event type' };
+      // For unknown events, we might still want to update the snapshot if we can
+      // But safest to not change active status if unsure, or treat as update
+      break;
   }
 
   // Calculate proper expiration date for trials
@@ -159,123 +209,94 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
     currentPeriodEnd = new Date(eventData.expiration_at_ms);
   }
 
-  // Prepare subscription data
+  // Ensure we have a valid user_id before proceeding
+  if (!userId) {
+    console.error('❌ No user_id available for subscription');
+    return { success: false, error: 'User ID is required' };
+  }
+
+  // Normalize store value (ensure it's always valid)
+  let store = 'app_store'; // default
+  if (eventData.store) {
+    const storeLower = eventData.store.toLowerCase();
+    if (storeLower === 'app_store' || storeLower === 'ios') {
+      store = 'app_store';
+    } else if (storeLower === 'play_store' || storeLower === 'android') {
+      store = 'play_store';
+    } else if (storeLower === 'stripe') {
+      store = 'stripe';
+    }
+  }
+
+  // Prepare subscription data for upsert
   const subscriptionData = {
     user_id: userId,
     rc_app_user_id: eventData.app_user_id,
-    rc_original_app_user_id: eventData.original_app_user_id,
-    entitlement: eventData.entitlement_id || 'pro',
-    product_id: eventData.product_id,
-    store: eventData.store,
+    rc_original_app_user_id: eventData.original_app_user_id || eventData.app_user_id,
+    entitlement: eventData.entitlement_id || eventData.entitlement_ids?.[0] || 'pro',
+    product_id: eventData.product_id || 'unknown',
+    store: store,
     is_active: isActive,
     is_trial: isTrial,
     will_renew: willRenew,
     current_period_end: currentPeriodEnd.toISOString(),
     original_purchase_at: new Date(eventData.purchased_at_ms).toISOString(),
-    rc_snapshot: eventData
+    rc_snapshot: eventData,
+    environment: environment // Store normalized environment
   };
 
-  // Handle different event types with new schema approach
+  // Handle special cases for trial conversions
   if (eventData.type === 'INITIAL_PURCHASE' && !isTrial) {
-    // This is a trial conversion - deactivate the trial entry first
+    // This is a trial conversion - deactivate any existing trial entries first
     const { error: deactivateError } = await supabase
       .from('user_subscriptions')
       .update({ is_active: false })
-      .eq('rc_app_user_id', eventData.app_user_id)
+      .eq('user_id', userId)
       .eq('is_trial', true)
       .eq('is_active', true);
 
     if (deactivateError) {
       console.error('❌ Error deactivating trial entry:', deactivateError);
+      // Continue anyway - upsert will create the paid subscription
     } else {
       console.log('✅ Deactivated trial entry for conversion');
     }
-
-    // Insert new paid subscription entry
-    const { error: insertError } = await supabase
-      .from('user_subscriptions')
-      .insert(subscriptionData);
-
-    if (insertError) {
-      console.error('❌ Error inserting paid subscription:', insertError);
-      return { success: false, error: insertError.message };
-    }
-  } else if (eventData.type === 'INITIAL_PURCHASE' && isTrial) {
-    // This is a new trial - check if user already has an active trial
-    const { data: existingTrial } = await supabase
-      .from('user_subscriptions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('is_trial', true)
-      .eq('is_active', true)
-      .single();
-
-    if (existingTrial) {
-      // Update existing trial
-      const { error: updateError } = await supabase
-        .from('user_subscriptions')
-        .update(subscriptionData)
-        .eq('id', existingTrial.id);
-
-      if (updateError) {
-        console.error('❌ Error updating existing trial:', updateError);
-        return { success: false, error: updateError.message };
-      }
-      console.log('✅ Updated existing trial');
-    } else {
-      // Insert new trial entry
-      const { error: insertError } = await supabase
-        .from('user_subscriptions')
-        .insert(subscriptionData);
-
-      if (insertError) {
-        console.error('❌ Error inserting new trial:', insertError);
-        return { success: false, error: insertError.message };
-      }
-      console.log('✅ Created new trial entry');
-    }
-  } else {
-    // For other event types (RENEWAL, CANCELLATION, etc.), update the most recent active subscription
-    const { data: activeSubscription } = await supabase
-      .from('user_subscriptions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (activeSubscription) {
-      const { error: updateError } = await supabase
-        .from('user_subscriptions')
-        .update(subscriptionData)
-        .eq('id', activeSubscription.id);
-
-      if (updateError) {
-        console.error('❌ Error updating subscription:', updateError);
-        return { success: false, error: updateError.message };
-      }
-      console.log('✅ Updated existing subscription');
-    } else {
-      // No active subscription found, create new one
-      const { error: insertError } = await supabase
-        .from('user_subscriptions')
-        .insert(subscriptionData);
-
-      if (insertError) {
-        console.error('❌ Error inserting subscription:', insertError);
-        return { success: false, error: insertError.message };
-      }
-      console.log('✅ Created new subscription entry');
-    }
   }
 
-  console.log('✅ Subscription processed successfully:', {
+  // Use Upsert to handle race conditions robustly
+  // We use rc_app_user_id as the unique constraint key
+  // This ensures we update existing records or create new ones atomically
+  const { error: upsertError } = await supabase
+    .from('user_subscriptions')
+    .upsert(subscriptionData, { 
+      onConflict: 'rc_app_user_id',
+      ignoreDuplicates: false // We want to update existing records
+    });
+
+  if (upsertError) {
+    // Check if error is due to foreign key constraint (invalid user_id)
+    if (upsertError.code === '23503' || upsertError.message.includes('foreign key')) {
+      console.error('❌ Invalid user_id - user does not exist:', userId);
+      console.log('⚠️ This webhook will be processed when the user logs in and syncs.');
+      // Return success so RevenueCat doesn't keep retrying
+      return { 
+        success: true, 
+        skipped: true, 
+        message: 'User not found - will be processed when user logs in' 
+      };
+    }
+    
+    console.error('❌ Error upserting subscription:', upsertError);
+    return { success: false, error: upsertError.message };
+  }
+
+  console.log('✅ Subscription upserted successfully:', {
     user_id: userId,
+    rc_app_user_id: eventData.app_user_id,
     type: eventData.type,
     is_active: isActive,
     is_trial: isTrial,
-    will_renew: willRenew
+    environment: environment
   });
 
   return { success: true };
@@ -290,18 +311,13 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Handle GET requests for testing - bypass auth for testing
+  // Handle GET requests for testing
   if (req.method === 'GET') {
     console.log('✅ GET request - webhook endpoint is active');
     return new Response(
       JSON.stringify({ 
         message: 'RevenueCat webhook endpoint is active',
-        timestamp: new Date().toISOString(),
-        environment: {
-          hasWebhookSecret: !!Deno.env.get('REVENUECAT_WEBHOOK_SECRET'),
-          hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
-          hasServiceRoleKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-        }
+        timestamp: new Date().toISOString()
       }),
       { 
         status: 200,
@@ -311,127 +327,103 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🔍 Getting Supabase client...');
-    // Get Supabase client (URL and service role key are automatically provided)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    console.log('✅ Supabase client created');
-
-    // Get webhook secret from environment
+    // Get webhook secret first to validate
     const webhookSecret = Deno.env.get('REVENUECAT_WEBHOOK_SECRET');
-    console.log('🔍 Webhook secret configured:', !!webhookSecret);
     
     if (!webhookSecret) {
       console.error('❌ REVENUECAT_WEBHOOK_SECRET not configured');
       return new Response(
-        JSON.stringify({ error: 'Webhook secret not configured' }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ error: 'Configuration error' }), 
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get the raw body and signature
-    console.log('🔍 Reading request body...');
+    // Read body first (before auth check to avoid issues)
     const body = await req.text();
-    console.log('📝 Body length:', body.length);
     
-    // Try multiple header formats that RevenueCat might use
-    let signature = req.headers.get('X-RevenueCat-Signature') || 
-                   req.headers.get('x-revenuecat-signature') ||
-                   req.headers.get('authorization')?.replace('Bearer ', '') ||
-                   req.headers.get('Authorization')?.replace('Bearer ', '');
+    // Supabase Edge Functions require a valid JWT in Authorization header
+    // RevenueCat sends webhook secret in Authorization header, but Supabase validates it as JWT first
+    // Solution: Use Supabase anon key in Authorization header (to satisfy Supabase runtime)
+    // and check webhook secret from query parameter or custom header
     
-    console.log('🔐 Signature present:', !!signature);
-    console.log('🔍 Available headers:', Array.from(req.headers.keys()));
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    const customHeader = req.headers.get('X-RevenueCat-Signature') || req.headers.get('x-revenuecat-signature');
     
-    if (!signature) {
-      console.error('❌ No webhook signature provided');
-      return new Response(
-        JSON.stringify({ error: 'No signature provided' }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // Check for webhook secret in query parameter (RevenueCat can add this)
+    const url = new URL(req.url);
+    const secretFromQuery = url.searchParams.get('secret');
+    
+    // Extract webhook secret from multiple possible locations
+    let signature: string | null = null;
+    
+    // Priority 1: Query parameter (most reliable for bypassing Supabase JWT check)
+    if (secretFromQuery) {
+      signature = secretFromQuery.trim();
+      console.log('🔑 Found webhook secret in query parameter');
     }
-
-    // Verify webhook authentication (RevenueCat uses simple token auth, not HMAC)
-    console.log('🔍 Verifying webhook authentication...');
-    console.log('🔍 Authentication details:', {
-      receivedToken: signature,
-      expectedToken: webhookSecret,
-      tokenLength: signature?.length,
-      secretLength: webhookSecret?.length,
-      bodyLength: body.length
-    });
+    // Priority 2: Custom header
+    else if (customHeader) {
+      signature = customHeader.trim();
+      console.log('🔑 Found webhook secret in custom header');
+    }
+    // Priority 3: Authorization header (if it's not a JWT, it might be our secret)
+    else if (authHeader) {
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        // Check if it's our webhook secret (not a JWT)
+        // JWTs typically have 3 parts separated by dots
+        if (!token.includes('.') || token.split('.').length !== 3) {
+          // Not a JWT, might be our webhook secret
+          signature = token;
+          console.log('🔑 Found webhook secret in Authorization header (not a JWT)');
+        }
+      } else {
+        signature = authHeader.trim();
+      }
+    }
     
-    // Simple token comparison (RevenueCat doesn't use HMAC signatures)
-    if (signature !== webhookSecret) {
-      console.error('❌ Invalid webhook token');
-      console.log('🔍 Token comparison failed:', {
-        received: signature,
-        expected: webhookSecret,
-        match: signature === webhookSecret
+    // Validate the signature matches our webhook secret
+    if (!signature || signature !== webhookSecret) {
+      console.error('❌ Invalid or missing webhook token');
+      console.log('Auth check failed:', {
+        hasAuthHeader: !!authHeader,
+        authHeaderPrefix: authHeader ? authHeader.substring(0, 30) + '...' : null,
+        hasCustomHeader: !!customHeader,
+        hasQuerySecret: !!secretFromQuery,
+        receivedSignatureLength: signature?.length,
+        expectedSecretLength: webhookSecret.length,
+        signatureMatch: signature === webhookSecret
       });
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication token' }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ 
+          error: 'Unauthorized', 
+          message: 'Invalid webhook authentication token',
+          hint: 'Add webhook secret as query parameter: ?secret={your_webhook_secret} OR use X-RevenueCat-Signature header'
+        }), 
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     console.log('✅ Webhook authentication successful');
 
-    // Parse the webhook payload
-    console.log('🔍 Parsing webhook payload...');
+    // Now create Supabase client (after auth check passes)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    
     const webhookData: RevenueCatWebhookEvent = JSON.parse(body);
     
-    console.log('📨 Received RevenueCat webhook:', {
-      type: webhookData.event.type,
-      app_user_id: webhookData.event.app_user_id,
-      product_id: webhookData.event.product_id
-    });
-
     // Process the subscription update
-    console.log('🔄 Processing subscription update...');
     const result = await processSubscriptionUpdate(webhookData, supabase);
     
     if (!result.success) {
-      console.error('❌ Failed to process webhook:', result.error);
-      return new Response(
-        JSON.stringify({ error: result.error }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return new Response(JSON.stringify({ error: result.error }), { status: 500, headers: corsHeaders });
     }
 
-    console.log('✅ Webhook processed successfully');
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Webhook processed successfully' 
-      }),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: corsHeaders });
 
   } catch (error: any) {
     console.error('❌ Error processing RevenueCat webhook:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders });
   }
 })

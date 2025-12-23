@@ -45,6 +45,10 @@ export interface EntitlementsState {
 export interface EntitlementsOperations {
   // Refresh customer info from RevenueCat
   refreshCustomerInfo: (isSilent?: boolean) => Promise<void>;
+  // Refresh subscription status from database (source of truth)
+  refreshDbSubscription: (isSilent?: boolean) => Promise<void>;
+  // Sync subscription from RevenueCat API to database
+  syncFromRevenueCat: () => Promise<{ success: boolean; error?: string }>;
   // Link RevenueCat user with Supabase auth user
   linkRevenueCatUser: (userId: string) => Promise<{ success: boolean; error?: string }>;
   // Store billing snapshot in Supabase
@@ -70,6 +74,7 @@ interface EntitlementsProviderProps {
 export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ children }) => {
   const { user, isAuthenticated } = useAuthContext();
   const [customerInfo, setCustomerInfo] = useState<any | null>(null);
+  const [dbSubscription, setDbSubscription] = useState<any | null>(null); // Database subscription status
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
@@ -77,27 +82,77 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
   // Track linking attempts to prevent loops
   const linkingAttempted = useRef<string | null>(null);
 
-  // Computed state
-  // Check for 'pro' entitlement or any other active entitlement if 'pro' is missing
+  /**
+   * Refresh subscription status from database (source of truth)
+   */
+  const refreshDbSubscription = async (isSilent: boolean = false) => {
+    if (!user?.id) {
+      setDbSubscription(null);
+      return;
+    }
+
+    try {
+      if (!isSilent) {
+        setLoading(true);
+      }
+
+      const { data: subscription, error: fetchError } = await supabaseClient
+        .from('user_subscriptions')
+        .select('id, user_id, rc_app_user_id, is_active, is_trial, current_period_end, product_id, environment')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching subscription from database:', fetchError);
+        // Don't set error state - fallback to RevenueCat
+        return;
+      }
+
+      setDbSubscription(subscription);
+    } catch (err: any) {
+      console.error('Error refreshing database subscription:', err);
+      // Don't set error state - fallback to RevenueCat
+    } finally {
+      if (!isSilent) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Computed state - Database is source of truth, RevenueCat is fallback
   const hasProAccess = useMemo(() => {
-    if (!customerInfo?.entitlements?.active) return false;
-    
-    // Check specific 'pro' entitlement first
-    if (customerInfo.entitlements.active['pro']) return true;
-    
-    // Check for other common names
-    if (customerInfo.entitlements.active['premium']) return true;
-    if (customerInfo.entitlements.active['subscription']) return true;
-    
-    // If we have ANY active entitlements, assume pro access (for single-tier apps)
-    const activeKeys = Object.keys(customerInfo.entitlements.active);
-    if (activeKeys.length > 0) {
-      // console.log('⚠️ Found active entitlements but not "pro":', activeKeys);
+    // Primary: Check database (source of truth)
+    if (dbSubscription?.is_active === true) {
+      // Check if subscription hasn't expired
+      if (dbSubscription.current_period_end) {
+        const expirationDate = new Date(dbSubscription.current_period_end);
+        const now = new Date();
+        if (expirationDate > now) {
+          return true;
+        }
+        // Expired - refresh DB to update status
+        refreshDbSubscription(true);
+        return false;
+      }
       return true;
+    }
+
+    // Fallback: Check RevenueCat SDK (for offline/initial load)
+    if (customerInfo?.entitlements?.active) {
+      if (customerInfo.entitlements.active['pro']) return true;
+      if (customerInfo.entitlements.active['premium']) return true;
+      if (customerInfo.entitlements.active['subscription']) return true;
+      
+      const activeKeys = Object.keys(customerInfo.entitlements.active);
+      if (activeKeys.length > 0) {
+        return true;
+      }
     }
     
     return false;
-  }, [customerInfo]);
+  }, [dbSubscription, customerInfo]);
 
   /**
    * Refresh customer info from RevenueCat
@@ -594,12 +649,56 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
           .insert(finalSubscriptionData);
 
         if (insertError) {
-          console.error('Error inserting new subscription:', insertError);
-          return { success: false, error: insertError.message };
+          // Handle unique constraint violation - record exists but RLS hid it from our query
+          if (insertError.code === '23505' && insertError.message.includes('rc_app_user_id')) {
+            console.log('⚠️ Insert failed: rc_app_user_id exists. Checking if it belongs to this user...');
+            
+            // Query all subscriptions for THIS user (RLS allows this)
+            const { data: userSubs, error: userSubsError } = await supabaseClient
+              .from('user_subscriptions')
+              .select('id, user_id, is_active, rc_app_user_id')
+              .eq('user_id', finalSubscriptionData.user_id)
+              .order('created_at', { ascending: false });
+            
+            if (!userSubsError && userSubs) {
+              const matchingSub = userSubs.find(sub => sub.rc_app_user_id === finalSubscriptionData.rc_app_user_id);
+              
+              if (matchingSub) {
+                // Found it! It belongs to this user but was inactive, update it
+                console.log('✅ Found existing inactive record with matching rc_app_user_id, updating it');
+                const { error: updateError } = await supabaseClient
+                  .from('user_subscriptions')
+                  .update(finalSubscriptionData)
+                  .eq('id', matchingSub.id);
+                
+                if (updateError) {
+                  console.error('Error updating existing record:', updateError);
+                  return { success: false, error: updateError.message };
+                }
+                
+                console.log('✅ Successfully updated existing inactive record');
+                // Refresh DB subscription status
+                await refreshDbSubscription(true);
+                return { success: true };
+              }
+            }
+            
+            // Record exists but doesn't belong to this user (or query failed)
+            console.error('⚠️ rc_app_user_id exists but belongs to another user (hidden by RLS)');
+            return { 
+              success: false, 
+              error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
+            };
+          } else {
+            console.error('Error inserting new subscription:', insertError);
+            return { success: false, error: insertError.message };
+          }
         }
         // console.log('✅ Created new subscription entry');
       }
 
+      // Refresh DB subscription status after storing
+      await refreshDbSubscription(true);
 
       // console.log('✅ Billing snapshot stored successfully');
       return { success: true };
@@ -804,6 +903,54 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
   /**
    * Validate subscription with server
    */
+  /**
+   * Sync subscription from RevenueCat API to database
+   * This calls the sync-revenuecat Edge Function to pull current state from RevenueCat
+   */
+  const syncFromRevenueCat = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user?.id) {
+        return { success: false, error: 'No authenticated user' };
+      }
+
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl) {
+        return { success: false, error: 'Supabase URL not configured' };
+      }
+
+      // Get session token for authenticated request
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/sync-revenuecat?user_id=${user.id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return { success: false, error: errorData.error || 'Sync failed' };
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh DB subscription status after sync
+        await refreshDbSubscription(true);
+      }
+
+      return result;
+    } catch (err: any) {
+      console.error('Error syncing from RevenueCat:', err);
+      return { success: false, error: err.message || 'Sync failed' };
+    }
+  };
+
   const validateSubscription = async (forceRefresh: boolean = false): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!user) {
@@ -970,9 +1117,14 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
                   // console.log('Entitlement became active, storing billing snapshot...');
                   try {
                     await storeBillingSnapshot(info);
+                    // Refresh DB subscription status after storing
+                    await refreshDbSubscription(true);
                   } catch (error) {
                     console.error('Error auto-storing billing snapshot:', error);
                   }
+                } else if (user?.id) {
+                  // Even if no active entitlement, refresh DB status (might have expired)
+                  await refreshDbSubscription(true);
                 }
               }
             });
@@ -1002,6 +1154,16 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       isMounted = false;
     };
   }, []);
+
+  // Refresh database subscription when user authenticates
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      refreshDbSubscription(true);
+    } else {
+      setDbSubscription(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
 
   // Auto-link RevenueCat user when user authenticates
   useEffect(() => {
@@ -1041,11 +1203,15 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               // console.log('✅ Auto-linking successful, storing billing snapshot...');
               // Store billing snapshot after successful linking
               await storeBillingSnapshot(currentCustomerInfo);
+              // Refresh DB subscription status
+              await refreshDbSubscription(true);
             } else {
               console.error('❌ Auto-linking failed:', linkResult.error);
             }
           } else {
             // console.log('RevenueCat user already linked or not anonymous:', currentCustomerInfo?.originalAppUserId);
+            // Even if already linked, refresh DB subscription status
+            await refreshDbSubscription(true);
           }
         } catch (err) {
           console.error('Error auto-linking user:', err);
@@ -1090,6 +1256,8 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
     
     // Operations
     refreshCustomerInfo,
+    refreshDbSubscription,
+    syncFromRevenueCat,
     linkRevenueCatUser,
     storeBillingSnapshot,
     restorePurchases,

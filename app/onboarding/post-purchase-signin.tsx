@@ -371,14 +371,6 @@ const PostPurchaseSignInStep: React.FC = () => {
           style={styles.button}
         />
 
-        {hasProAccess && (
-          <View style={styles.subscriptionStatus}>
-            <Text style={styles.statusText}>
-              ✓ Pro subscription active
-            </Text>
-          </View>
-        )}
-
         {isCreatingDream && (
           <View style={styles.dreamCreationStatus}>
             <Text style={styles.dreamCreationText}>
@@ -419,19 +411,6 @@ const styles = StyleSheet.create({
     color: theme.colors.grey[600],
     textAlign: 'left',
     marginBottom: theme.spacing.xl,
-  },
-  subscriptionStatus: {
-    backgroundColor: theme.colors.success[50],
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    marginBottom: theme.spacing.xl,
-  },
-  statusText: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.body,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.success[700],
-    textAlign: 'center',
   },
   restoreButtonWrapper: {
     width: 80,
