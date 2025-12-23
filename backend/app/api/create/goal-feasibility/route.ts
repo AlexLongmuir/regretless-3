@@ -57,7 +57,7 @@ Remember: Frame everything as enhancement and possibility, not criticism.`
         system: GOAL_FEASIBILITY_SYSTEM,
         messages: [{ text: prompt }],
         schema: GOAL_FEASIBILITY_SCHEMA,
-        maxOutputTokens: 600,
+        maxOutputTokens: 2000,
         modelId: GEMINI_MODEL
       })
       data = result.data

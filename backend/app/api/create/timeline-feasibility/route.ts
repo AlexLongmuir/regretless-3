@@ -69,7 +69,7 @@ Please provide:
         system: TIMELINE_FEASIBILITY_SYSTEM,
         messages: [{ text: prompt }],
         schema: TIMELINE_FEASIBILITY_SCHEMA,
-        maxOutputTokens: 800,
+        maxOutputTokens: 2000,
         modelId: GEMINI_MODEL
       })
       data = result.data

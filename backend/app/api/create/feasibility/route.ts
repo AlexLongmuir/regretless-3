@@ -57,7 +57,7 @@ Please provide:
         system: GOAL_FEASIBILITY_SYSTEM,
         messages: [{ text: prompt }],
         schema: GOAL_FEASIBILITY_SCHEMA,
-        maxOutputTokens: 800,
+        maxOutputTokens: 2000,
         modelId: GEMINI_MODEL // Using Flash Lite model without thinking
       })
       data = result.data

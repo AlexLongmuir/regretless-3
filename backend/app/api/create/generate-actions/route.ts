@@ -128,7 +128,7 @@ Each action should be atomic, measurable, and bounded.`
       system: ACTIONS_SYSTEM,
       messages: [{ text: prompt }],
       schema: ACTIONS_SCHEMA,
-      maxOutputTokens: 8000,
+      maxOutputTokens: 10000,
       modelId: GEMINI_FLASH_MODEL, // Using Flash model (not lite)
       enableThinking: true,
       thinkingBudget: THINKING_BUDGETS.MAXIMUM // Maximum budget for complex action planning

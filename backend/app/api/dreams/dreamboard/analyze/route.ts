@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
           { inlineData: { data: base64, mimeType: file.type || 'image/jpeg' } },
         ],
         schema: DREAMBOARD_ANALYSIS_SCHEMA,
-        maxOutputTokens: 4000,
+        maxOutputTokens: 6000,
         modelId: GEMINI_FLASH_MODEL,
       });
       console.log('✅ Successfully generated dreams:', result?.data?.dreams?.length || 0);

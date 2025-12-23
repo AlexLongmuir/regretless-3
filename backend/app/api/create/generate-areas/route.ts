@@ -141,7 +141,7 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
         system: AREAS_SYSTEM,
         messages: [{ text: prompt }],
         schema: AREAS_SCHEMA,
-        maxOutputTokens: 600,
+        maxOutputTokens: 2000,
         modelId: GEMINI_MODEL // Using Flash Lite model without thinking
       })
       data = result.data

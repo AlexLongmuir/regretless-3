@@ -163,7 +163,7 @@ Please review this submission against the action criteria and provide a rating a
       system: AI_REVIEW_SYSTEM,
       messages: messages,
       schema: AI_REVIEW_SCHEMA,
-      maxOutputTokens: 500,
+      maxOutputTokens: 1500,
       enableThinking: false
     });
 

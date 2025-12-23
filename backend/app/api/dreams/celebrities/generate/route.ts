@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
         system: CELEBRITY_DREAMS_SYSTEM,
         messages: [{ text: prompt }],
         schema: CELEBRITY_DREAMS_SCHEMA,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 2000,
         modelId: GEMINI_MODEL,
       });
       data = result.data;
