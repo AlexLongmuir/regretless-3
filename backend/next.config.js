@@ -14,6 +14,12 @@ const nextConfig = {
       },
     ]
   },
+  // Disable console removal in production
+  // Next.js compiler removes console statements by default to reduce bundle size
+  // We need to keep them for logging in Vercel Edge Runtime
+  compiler: {
+    removeConsole: false, // Keep all console statements (log, error, warn, etc.)
+  },
 }
 
 module.exports = nextConfig

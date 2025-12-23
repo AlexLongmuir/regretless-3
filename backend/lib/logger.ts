@@ -1,13 +1,16 @@
 /**
- * Vercel-compatible logging utility
+ * Vercel-compatible logging utility for Edge Runtime
  * 
- * Vercel logs have specific requirements:
- * 1. Logs appear in "Function Logs" in the dashboard (not "Deployment Logs")
- * 2. console.error() is more reliable than console.log()
- * 3. Logs are buffered and may not appear immediately
- * 4. Very long logs may be truncated
+ * Edge Runtime logging has specific requirements:
+ * 1. Edge logs appear in "Function Logs" in the dashboard (not "Deployment Logs")
+ * 2. console.error() is the most reliable method for Edge Runtime
+ * 3. console.log() may not always appear in Edge Runtime logs
+ * 4. Logs are buffered and may not appear immediately
+ * 5. Very long logs may be truncated
+ * 6. Edge Runtime uses Web APIs, not Node.js APIs
  * 
- * This utility ensures logs are properly formatted and visible in Vercel.
+ * IMPORTANT: In Vercel dashboard, filter logs by "Edge" runtime type to see Edge logs.
+ * This utility ensures logs are properly formatted and visible in Vercel Edge Runtime.
  */
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
@@ -38,17 +41,19 @@ export function log(level: LogLevel, message: string, context?: LogContext) {
       console.error(`${prefix} ${message}`);
     }
   } else {
-    // For info/debug, use console.log but also log to console.error
-    // to ensure visibility in Vercel (console.log may not always appear)
+    // For info/debug in Edge Runtime, always use console.error
+    // Edge Runtime doesn't reliably show console.log() in Vercel logs
     const logMessage = context 
       ? `${prefix} ${message} ${JSON.stringify(context, null, 2)}`
       : `${prefix} ${message}`;
     
-    console.log(logMessage);
-    // Also log to error stream for better Vercel visibility
-    // (Vercel's function logs show error stream more reliably)
-    if (process.env.NODE_ENV === 'production') {
-      console.error(logMessage);
+    // In Edge Runtime, console.log may not appear, so use console.error for all logs
+    // This ensures visibility in Vercel Edge Function logs
+    console.error(logMessage);
+    
+    // Also log to console.log for local development (works in dev mode)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(logMessage);
     }
   }
 }
