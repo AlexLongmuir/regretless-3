@@ -111,12 +111,34 @@ export async function generateJson(opts: {
     console.log(`🧠 Using thinking budget: ${budgetDescription} for model: ${modelId}`);
   }
 
-  const resp = await model.generateContent({
-    contents: [{ role: "user", parts: opts.messages }] as any,
-    generationConfig,
-  });
+  let resp;
+  try {
+    resp = await model.generateContent({
+      contents: [{ role: "user", parts: opts.messages }] as any,
+      generationConfig,
+    });
+    console.log('[GEMINI] API call successful');
+  } catch (apiError) {
+    console.error('[GEMINI] API call failed:', apiError);
+    console.error('[GEMINI] API error details:', {
+      message: apiError instanceof Error ? apiError.message : String(apiError),
+      stack: apiError instanceof Error ? apiError.stack : 'N/A',
+      name: apiError instanceof Error ? apiError.name : 'Unknown'
+    });
+    throw new Error(`Gemini API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
+  }
 
-  let text = resp.response.text(); // JSON string per schema
+  let text: string;
+  try {
+    text = resp.response.text(); // JSON string per schema
+    console.log('[GEMINI] Successfully extracted text from response');
+  } catch (textError) {
+    console.error('[GEMINI] Failed to extract text from response:', textError);
+    console.error('[GEMINI] Response object keys:', Object.keys(resp.response || {}));
+    console.error('[GEMINI] Response structure:', JSON.stringify(resp.response, null, 2).substring(0, 500));
+    throw new Error(`Failed to extract text from Gemini response: ${textError instanceof Error ? textError.message : String(textError)}`);
+  }
+  
   const usage = resp.response.usageMetadata;
   
   // Log the raw response for debugging

@@ -63,13 +63,32 @@ Please provide:
 2. A suggested end date based on their daily time commitment
 3. Clear reasoning for your assessment`
 
-    const { data, usage } = await generateJson({
-      system: TIMELINE_FEASIBILITY_SYSTEM,
-      messages: [{ text: prompt }],
-      schema: TIMELINE_FEASIBILITY_SCHEMA,
-      maxOutputTokens: 800,
-      modelId: GEMINI_MODEL
-    })
+    let data, usage
+    try {
+      const result = await generateJson({
+        system: TIMELINE_FEASIBILITY_SYSTEM,
+        messages: [{ text: prompt }],
+        schema: TIMELINE_FEASIBILITY_SCHEMA,
+        maxOutputTokens: 800,
+        modelId: GEMINI_MODEL
+      })
+      data = result.data
+      usage = result.usage
+      console.log('[TIMELINE-FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
+    } catch (aiError) {
+      // Enhanced error logging for Vercel visibility
+      console.error('[TIMELINE-FEASIBILITY] AI generation failed');
+      console.error('[TIMELINE-FEASIBILITY] Error message:', aiError instanceof Error ? aiError.message : String(aiError));
+      console.error('[TIMELINE-FEASIBILITY] Error stack:', aiError instanceof Error ? aiError.stack : 'N/A');
+      console.error('[TIMELINE-FEASIBILITY] Error details:', JSON.stringify({
+        name: aiError instanceof Error ? aiError.name : 'Unknown',
+        message: aiError instanceof Error ? aiError.message : String(aiError),
+        timestamp: new Date().toISOString()
+      }));
+      
+      const aiErrorMessage = aiError instanceof Error ? aiError.message : String(aiError)
+      throw new Error(`AI generation failed: ${aiErrorMessage}`)
+    }
 
     const latencyMs = Date.now() - startTime
 
@@ -87,9 +106,24 @@ Please provide:
     return NextResponse.json(data)
 
   } catch (error) {
-    console.error('Timeline feasibility analysis error:', error)
+    // Enhanced error logging for Vercel visibility
+    console.error('[TIMELINE-FEASIBILITY] Top-level error caught');
+    console.error('[TIMELINE-FEASIBILITY] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[TIMELINE-FEASIBILITY] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[TIMELINE-FEASIBILITY] Error stack:', error instanceof Error ? error.stack : 'N/A');
+    
+    // Log structured error details
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers.get('x-vercel-id') || 'unknown'
+    };
+    console.error('[TIMELINE-FEASIBILITY] Structured error:', JSON.stringify(errorDetails, null, 2));
+    
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
-      { error: 'Failed to analyze timeline feasibility' }, 
+      { error: 'Failed to analyze timeline feasibility', details: errorMessage }, 
       { status: 500 }
     )
   }

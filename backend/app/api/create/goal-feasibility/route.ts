@@ -51,13 +51,32 @@ Please provide:
 
 Remember: Frame everything as enhancement and possibility, not criticism.`
 
-    const { data, usage } = await generateJson({
-      system: GOAL_FEASIBILITY_SYSTEM,
-      messages: [{ text: prompt }],
-      schema: GOAL_FEASIBILITY_SCHEMA,
-      maxOutputTokens: 600,
-      modelId: GEMINI_MODEL
-    })
+    let data, usage
+    try {
+      const result = await generateJson({
+        system: GOAL_FEASIBILITY_SYSTEM,
+        messages: [{ text: prompt }],
+        schema: GOAL_FEASIBILITY_SCHEMA,
+        maxOutputTokens: 600,
+        modelId: GEMINI_MODEL
+      })
+      data = result.data
+      usage = result.usage
+      console.log('[GOAL-FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
+    } catch (aiError) {
+      // Enhanced error logging for Vercel visibility
+      console.error('[GOAL-FEASIBILITY] AI generation failed');
+      console.error('[GOAL-FEASIBILITY] Error message:', aiError instanceof Error ? aiError.message : String(aiError));
+      console.error('[GOAL-FEASIBILITY] Error stack:', aiError instanceof Error ? aiError.stack : 'N/A');
+      console.error('[GOAL-FEASIBILITY] Error details:', JSON.stringify({
+        name: aiError instanceof Error ? aiError.name : 'Unknown',
+        message: aiError instanceof Error ? aiError.message : String(aiError),
+        timestamp: new Date().toISOString()
+      }));
+      
+      const aiErrorMessage = aiError instanceof Error ? aiError.message : String(aiError)
+      throw new Error(`AI generation failed: ${aiErrorMessage}`)
+    }
 
     const latencyMs = Date.now() - startTime
 
@@ -75,9 +94,24 @@ Remember: Frame everything as enhancement and possibility, not criticism.`
     return NextResponse.json(data)
 
   } catch (error) {
-    console.error('Goal feasibility analysis error:', error)
+    // Enhanced error logging for Vercel visibility
+    console.error('[GOAL-FEASIBILITY] Top-level error caught');
+    console.error('[GOAL-FEASIBILITY] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[GOAL-FEASIBILITY] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[GOAL-FEASIBILITY] Error stack:', error instanceof Error ? error.stack : 'N/A');
+    
+    // Log structured error details
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers.get('x-vercel-id') || 'unknown'
+    };
+    console.error('[GOAL-FEASIBILITY] Structured error:', JSON.stringify(errorDetails, null, 2));
+    
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
-      { error: 'Failed to analyze goal feasibility' }, 
+      { error: 'Failed to analyze goal feasibility', details: errorMessage }, 
       { status: 500 }
     )
   }

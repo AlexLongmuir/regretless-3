@@ -51,13 +51,32 @@ Please provide:
 1. Up to 4 improved title suggestions that are more specific and actionable (max 10 words each)
 2. An assessment of whether the timeline is realistic and a suggested end date if needed`
 
-    const { data, usage } = await generateJson({
-      system: GOAL_FEASIBILITY_SYSTEM,
-      messages: [{ text: prompt }],
-      schema: GOAL_FEASIBILITY_SCHEMA,
-      maxOutputTokens: 800,
-      modelId: GEMINI_MODEL // Using Flash Lite model without thinking
-    })
+    let data, usage
+    try {
+      const result = await generateJson({
+        system: GOAL_FEASIBILITY_SYSTEM,
+        messages: [{ text: prompt }],
+        schema: GOAL_FEASIBILITY_SCHEMA,
+        maxOutputTokens: 800,
+        modelId: GEMINI_MODEL // Using Flash Lite model without thinking
+      })
+      data = result.data
+      usage = result.usage
+      console.log('[FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
+    } catch (aiError) {
+      // Enhanced error logging for Vercel visibility
+      console.error('[FEASIBILITY] AI generation failed');
+      console.error('[FEASIBILITY] Error message:', aiError instanceof Error ? aiError.message : String(aiError));
+      console.error('[FEASIBILITY] Error stack:', aiError instanceof Error ? aiError.stack : 'N/A');
+      console.error('[FEASIBILITY] Error details:', JSON.stringify({
+        name: aiError instanceof Error ? aiError.name : 'Unknown',
+        message: aiError instanceof Error ? aiError.message : String(aiError),
+        timestamp: new Date().toISOString()
+      }));
+      
+      const aiErrorMessage = aiError instanceof Error ? aiError.message : String(aiError)
+      throw new Error(`AI generation failed: ${aiErrorMessage}`)
+    }
 
     const latencyMs = Date.now() - startTime
 
@@ -75,9 +94,24 @@ Please provide:
     return NextResponse.json(data)
 
   } catch (error) {
-    console.error('Feasibility analysis error:', error)
+    // Enhanced error logging for Vercel visibility
+    console.error('[FEASIBILITY] Top-level error caught');
+    console.error('[FEASIBILITY] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('[FEASIBILITY] Error message:', error instanceof Error ? error.message : String(error));
+    console.error('[FEASIBILITY] Error stack:', error instanceof Error ? error.stack : 'N/A');
+    
+    // Log structured error details
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      requestId: req.headers.get('x-vercel-id') || 'unknown'
+    };
+    console.error('[FEASIBILITY] Structured error:', JSON.stringify(errorDetails, null, 2));
+    
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return NextResponse.json(
-      { error: 'Failed to analyze feasibility' }, 
+      { error: 'Failed to analyze feasibility', details: errorMessage }, 
       { status: 500 }
     )
   }
