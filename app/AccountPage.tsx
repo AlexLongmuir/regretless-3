@@ -6,14 +6,11 @@ import { useData } from '../contexts/DataContext';
 import { ListRow } from '../components/ListRow';
 import { notificationService } from '../lib/NotificationService';
 import { deleteAccount } from '../frontend-services/backend-bridge';
-import type { NotificationPreferences } from '../backend/database/types';
 
 const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { user, signOut, loading } = useAuthContext();
   const { state, getDreamsWithStats } = useData();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [dreamStats, setDreamStats] = useState({ created: 0, completed: 0 });
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Initialize notification service
@@ -32,23 +29,6 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
     loadStats();
   }, [getDreamsWithStats]);
 
-  // Load notification preferences
-  useEffect(() => {
-    const loadNotificationPreferences = async () => {
-      if (user?.id) {
-        const preferences = await notificationService.getNotificationPreferences(user.id);
-        setNotificationPreferences(preferences);
-        if (preferences) {
-          setNotificationsEnabled(preferences.push_enabled);
-        } else {
-          // No preferences exist yet, use default value
-          setNotificationsEnabled(true);
-        }
-      }
-    };
-    loadNotificationPreferences();
-  }, [user?.id]);
-
   // Calculate stats from data
   useEffect(() => {
     if (state.dreamsWithStats?.dreams) {
@@ -58,37 +38,6 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
       setDreamStats({ created, completed });
     }
   }, [state.dreamsWithStats]);
-
-  const handleNotificationToggle = async (enabled: boolean) => {
-    if (!user?.id) {
-      return;
-    }
-    
-    setNotificationsEnabled(enabled);
-    
-    // If no preferences exist yet, create them with default values
-    const preferencesToUpdate = notificationPreferences ? 
-      { push_enabled: enabled } : 
-      {
-        push_enabled: enabled,
-        daily_reminders: true,
-        reminder_time: '09:00:00',
-        overdue_alerts: true,
-        achievement_notifications: true,
-      };
-    
-    const success = await notificationService.updateNotificationPreferences(user.id, preferencesToUpdate);
-    
-    if (!success) {
-      // Revert on failure
-      setNotificationsEnabled(!enabled);
-      Alert.alert('Error', 'Failed to update notification preferences');
-    } else {
-      // Refresh preferences after successful update
-      const updatedPreferences = await notificationService.getNotificationPreferences(user.id);
-      setNotificationPreferences(updatedPreferences);
-    }
-  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -210,11 +159,9 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
         {/* Settings List */}
         <View style={styles.listContainer}>
           <ListRow
-            title="Enable Notifications"
+            title="Notification Settings"
             leftIcon="notifications"
-            rightElement="toggle"
-            toggleValue={notificationsEnabled}
-            onToggleChange={handleNotificationToggle}
+            onPress={() => navigation?.navigate('NotificationSettings')}
             isFirst={true}
           />
           <ListRow

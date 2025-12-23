@@ -381,6 +381,17 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
   // Get detailed dream information including areas, actions, and occurrences
   const getDreamDetail: Ctx['getDreamDetail'] = useCallback(async (dreamId: string, { force } = {}) => {
+    // In screenshot mode, use mock data - don't fetch from backend
+    if (isScreenshotMode) {
+      console.log('getDreamDetail: Screenshot Mode active, using mock data');
+      const mockState = getScreenshotMockState();
+      const mockDetail = mockState.dreamDetail[dreamId];
+      if (mockDetail) {
+        setState(s => ({ ...s, dreamDetail: { ...s.dreamDetail, [dreamId]: mockDetail } }));
+      }
+      return;
+    }
+    
     // Check authentication directly from Supabase instead of relying on closure
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) {
@@ -394,7 +405,7 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       setState(s => ({ ...s, dreamDetail: { ...s.dreamDetail, [dreamId]: payload } }));
       saveJSON(CACHE_KEYS.detail(dreamId), payload);
     }
-  }, [fetchDreamDetail, state.dreamDetail]);
+  }, [fetchDreamDetail, state.dreamDetail, isScreenshotMode]);
 
   /**
    * DREAM COMPLETION DETECTION

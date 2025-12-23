@@ -33,6 +33,7 @@ const ActionsConfirmStep: React.FC = () => {
   const navigation = useNavigation();
   const { state, setGeneratedActions } = useOnboardingContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [currentAreaIndex, setCurrentAreaIndex] = useState(0);
   
@@ -201,9 +202,20 @@ const ActionsConfirmStep: React.FC = () => {
     }
   };
 
-  const handleApproveArea = () => {
+  const handleApproveArea = async () => {
+    setIsContinuing(true);
+    // Small delay to show loading feedback
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const isLast = currentAreaIndex === state.generatedAreas.length - 1;
     // Navigate to next area or completion
     goToNextArea();
+    
+    // Reset loading state if we're staying on this screen (not last area)
+    if (!isLast) {
+      // Use setTimeout to ensure state update happens after navigation state change
+      setTimeout(() => setIsContinuing(false), 100);
+    }
   };
 
   if (isLoading) {
@@ -354,12 +366,12 @@ const ActionsConfirmStep: React.FC = () => {
         
         {/* Navigation Buttons */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          {/* AI Fix Button */}
+          {/* AI Refine Button */}
           <Button 
-            title="Fix with AI" 
+            title="Refine with AI" 
             variant="secondary"
             onPress={() => {
-              Keyboard.dismiss(); // Close keyboard when AI fix is triggered
+              Keyboard.dismiss(); // Close keyboard when AI refine is triggered
               handleRegenerate();
             }}
             style={{ flex: 1, borderRadius: theme.radius.xl }}
@@ -370,6 +382,7 @@ const ActionsConfirmStep: React.FC = () => {
           <Button 
             title={isLastArea ? "Complete" : "Next Area"}
             variant="black"
+            loading={isContinuing}
             onPress={() => {
               Keyboard.dismiss(); // Close keyboard when continuing
               handleApproveArea();

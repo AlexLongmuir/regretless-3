@@ -144,7 +144,7 @@ Each action should be atomic, measurable, and bounded.`
       await saveAIEvent(
         user.id,
         'actions',
-        'gemini-2.5-flash',
+        'gemini-3-flash-preview',
         usage,
         latencyMs,
         sb

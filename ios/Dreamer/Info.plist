@@ -58,11 +58,11 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your camera</string>
+    <string>Dreamer uses your camera to let you take photos directly within the app. For example, you can take a new photo to add to your dream board or capture progress photos of your achievements in real-time.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>Dreamer uses your microphone to record voice notes that are automatically transcribed into text. For example, you can speak your dream or goal description instead of typing it, making it easier to capture your thoughts quickly.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your photos</string>
+    <string>Dreamer accesses your photo library to let you select and upload images from your device. For example, you can choose photos to create a visual dream board for your goals or add progress photos to track your achievements.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UILaunchStoryboardName</key>

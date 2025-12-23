@@ -41,13 +41,15 @@ export async function POST(req: Request) {
 
     const contextString = contextInfo.length > 0 ? `\n\nAdditional context:\n${contextInfo.join('\n')}` : ''
 
-    const prompt = `Analyze this dream goal and provide improved suggestions:
+    const prompt = `Help make this dream even more powerful and achievable:
 
 Dream Title: "${title}"${contextString}
 
 Please provide:
-1. A brief summary explaining why the original goal needs improvement
-2. Up to 4 improved title suggestions that are more specific and actionable (max 10 words each)`
+1. An encouraging summary that celebrates what's strong about this goal and suggests ways to make it even more powerful
+2. Up to 4 improved title suggestions that are more specific and actionable (max 10 words each) - only if the original can be meaningfully enhanced
+
+Remember: Frame everything as enhancement and possibility, not criticism.`
 
     const { data, usage } = await generateJson({
       system: GOAL_FEASIBILITY_SYSTEM,
@@ -64,7 +66,7 @@ Please provide:
     await saveAIEvent(
       user.id,
       'goal-feasibility',
-      'gemini-2.5-flash-lite',
+      'gemini-3-flash-preview',
       usage,
       latencyMs,
       sb

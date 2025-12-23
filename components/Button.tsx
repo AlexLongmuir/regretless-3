@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle, View } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle, View, ActivityIndicator } from 'react-native';
 import { theme } from '../utils/theme';
 import { Icon } from './Icon';
 
@@ -9,6 +9,7 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'black' | 'success';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
+  loading?: boolean;
   style?: ViewStyle;
   icon?: keyof typeof theme.icons;
 }
@@ -19,37 +20,48 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   disabled = false,
+  loading = false,
   style,
   icon,
 }) => {
+  const isDisabled = disabled || loading;
+  const textColor = variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse;
+  const indicatorColor = variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse;
+
   return (
     <Pressable
       style={[
         styles.base,
         styles[size],
         styles[variant],
-        disabled && styles.disabled,
+        isDisabled && styles.disabled,
         style,
       ]}
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
     >
       <View style={styles.content}>
-        {icon && (
-          <Icon 
-            name={icon} 
-            size={20} 
-            color={variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse}
-          />
+        {loading ? (
+          <ActivityIndicator size="small" color={indicatorColor} />
+        ) : (
+          <>
+            {icon && (
+              <Icon 
+                name={icon} 
+                size={20} 
+                color={variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse}
+              />
+            )}
+            <Text style={[
+              styles.text, 
+              styles[`${variant}Text` as keyof typeof styles], 
+              isDisabled && styles.disabledText,
+              icon && styles.textWithIcon
+            ]}>
+              {title}
+            </Text>
+          </>
         )}
-        <Text style={[
-          styles.text, 
-          styles[`${variant}Text` as keyof typeof styles], 
-          disabled && styles.disabledText,
-          icon && styles.textWithIcon
-        ]}>
-          {title}
-        </Text>
       </View>
     </Pressable>
   );

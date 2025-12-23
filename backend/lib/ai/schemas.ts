@@ -47,7 +47,7 @@ export const GOAL_FEASIBILITY_SCHEMA = {
   properties: {
     summary: {
       type: "string",
-      description: "Brief explanation of why the original goal needs improvement"
+      description: "Encouraging summary that celebrates what's strong about the goal and suggests ways to make it even more powerful"
     },
     titleSuggestions: {
       type: "array",

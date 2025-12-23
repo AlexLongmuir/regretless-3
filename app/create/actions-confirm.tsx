@@ -138,10 +138,10 @@ export default function ActionsConfirmStep() {
         backgroundColor: theme.colors.pageBackground
       }}>
         <Button 
-          title={isActivating ? "Activating Dream..." : "View Dream"} 
+          title="View Dream" 
           variant="black"
+          loading={isActivating}
           onPress={handleViewDream}
-          disabled={isActivating}
           style={{ borderRadius: theme.radius.xl }}
         />
       </View>

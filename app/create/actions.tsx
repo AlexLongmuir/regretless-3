@@ -376,14 +376,14 @@ export default function ActionsStep() {
         
         {/* Navigation Buttons */}
         <View style={styles.buttonContainer}>
-          {/* AI Fix Button */}
+          {/* AI Refine Button */}
           <Button 
-            title="Fix with AI" 
+            title="Refine with AI" 
             variant="secondary"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               
-              Keyboard.dismiss() // Close keyboard when AI fix is triggered
+              Keyboard.dismiss() // Close keyboard when AI refine is triggered
               
               // Trigger loading page
               setIsLoading(true)

@@ -48,20 +48,22 @@ import PrivacyPolicyPage from '../app/PrivacyPolicyPage';
 import CreateNavigator from './CreateNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
+import SubscriptionLockoutPage from '../app/SubscriptionLockoutPage';
 import ScreenshotMenuPage from '../app/ScreenshotMenuPage';
+import NotificationSettingsPage from '../app/NotificationSettingsPage';
 
-// Wrapper component to provide OnboardingContext to the navigator
-const OnboardingNavigatorWithProvider = () => (
-  <OnboardingProvider>
-    <OnboardingNavigator />
-  </OnboardingProvider>
-);
+// Wrapper component removed - OnboardingProvider is now at App root
+// const OnboardingNavigatorWithProvider = () => (
+//   <OnboardingProvider>
+//     <OnboardingNavigator />
+//   </OnboardingProvider>
+// );
 
 // Import components and hooks
 import { StickyActionSuggestions } from '../components/StickyActionSuggestions';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useEntitlementsContext } from '../contexts/EntitlementsContext';
-import { OnboardingProvider } from '../contexts/OnboardingContext';
+// import { OnboardingProvider } from '../contexts/OnboardingContext'; // Moved to App.tsx
 import { theme } from '../utils/theme';
 import { trackEvent } from '../lib/mixpanel';
 
@@ -80,7 +82,7 @@ const BottomTab = createNativeBottomTabNavigator();
  */
 const AuthNavigator = () => (
   <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-    <AuthStack.Screen name="Onboarding" component={OnboardingNavigatorWithProvider} />
+    <AuthStack.Screen name="Onboarding" component={OnboardingNavigator} />
     <AuthStack.Screen name="Login" component={LoginPage} />
   </AuthStack.Navigator>
 );
@@ -367,6 +369,11 @@ const MainNavigator = ({
           options={{ presentation: 'modal' }}
         />
         <MainStack.Screen 
+          name="NotificationSettings" 
+          component={NotificationSettingsPage}
+          options={{ presentation: 'card' }}
+        />
+        <MainStack.Screen 
           name="CreateFlow" 
           component={CreateNavigator}
           options={{ presentation: 'fullScreenModal' }}
@@ -391,8 +398,8 @@ const MainNavigator = ({
  */
 const AppNavigator = () => {
   // Get authentication state from context
-  const { isAuthenticated, isInitializing, handleAuthRedirect } = useAuthContext();
-  const { hasProAccess, loading: entitlementsLoading } = useEntitlementsContext();
+  const { isAuthenticated, isInitializing, handleAuthRedirect, user } = useAuthContext();
+  const { hasProAccess, loading: entitlementsLoading, customerInfo, linking, error: entitlementsError } = useEntitlementsContext();
   
   // Track current route to hide tab bar when needed
   const [currentRoute, setCurrentRoute] = useState('Tabs');
@@ -471,8 +478,12 @@ const AppNavigator = () => {
     };
   }, [handleAuthRedirect]);
 
+  // Check if we are waiting for RevenueCat linking to complete
+  // We only wait if the linking process is actively running
+  const isWaitingForLinking = isAuthenticated && user && linking;
+
   // Show loading screen while checking authentication status or entitlements
-  if (isInitializing || entitlementsLoading) {
+  if (isInitializing || entitlementsLoading || isWaitingForLinking) {
     return <AuthLoadingPage />;
   }
 
@@ -481,16 +492,22 @@ const AppNavigator = () => {
     <View style={styles.container}>
       <MainStack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
-          // User is logged in - show main app with native tabs
-          <MainStack.Screen name="Main">
-            {(props) => <MainNavigator {...props} onRouteChange={handleRouteChange} />}
-          </MainStack.Screen>
-        ) : hasProAccess ? (
-          // User has pro access but no auth - show PostPurchaseSignIn
-          <MainStack.Screen name="PostPurchaseSignIn" component={PostPurchaseSignInStep} />
+          hasProAccess ? (
+            // User is logged in AND has pro access - show main app
+            <MainStack.Screen name="Main">
+              {(props) => <MainNavigator {...props} onRouteChange={handleRouteChange} />}
+            </MainStack.Screen>
+          ) : (
+            // User is logged in but NO pro access - show lockout
+            <MainStack.Screen name="SubscriptionLockout" component={SubscriptionLockoutPage} />
+          )
         ) : (
-          // User is not logged in and no pro access - show authentication screens
-          <MainStack.Screen name="Auth" component={AuthNavigator} />
+          // User is not logged in - show authentication screens
+          // We include PostPurchaseSignIn as a sibling so it can be navigated to manually
+          <>
+            <MainStack.Screen name="Auth" component={AuthNavigator} />
+            <MainStack.Screen name="PostPurchaseSignIn" component={PostPurchaseSignInStep} />
+          </>
         )}
       </MainStack.Navigator>
     </View>

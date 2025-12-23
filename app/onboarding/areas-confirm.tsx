@@ -28,6 +28,7 @@ const AreasConfirmStep: React.FC = () => {
   const { state, setGeneratedAreas } = useOnboardingContext();
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [editingArea, setEditingArea] = useState<string | null>(null);
   const [newAreaTitle, setNewAreaTitle] = useState('');
   const [newAreaEmoji, setNewAreaEmoji] = useState('🚀');
@@ -44,11 +45,15 @@ const AreasConfirmStep: React.FC = () => {
 
   const emojiOptions = ['🚀', '✍️', '🔧', '📢', '📚', '💡', '🎯', '⚡', '🔥', '💪', '🎨', '📈', '🌟', '🎉', '💎', '🏆'];
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (state.generatedAreas.length === 0) {
       Alert.alert('Error', 'No areas generated. Please try again.');
       return;
     }
+    
+    setIsContinuing(true);
+    // Small delay to show loading feedback
+    await new Promise(resolve => setTimeout(resolve, 300));
     navigation.navigate('ActionsGenerating' as never);
   };
 
@@ -311,10 +316,10 @@ const AreasConfirmStep: React.FC = () => {
         {/* Buttons */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <Button 
-            title="Fix with AI" 
+            title="Refine with AI" 
             variant="secondary"
             onPress={() => {
-              Keyboard.dismiss(); // Close keyboard when AI fix is triggered
+              Keyboard.dismiss(); // Close keyboard when AI refine is triggered
               handleRegenerate();
             }}
             style={{ flex: 1, borderRadius: theme.radius.xl }}
@@ -323,6 +328,7 @@ const AreasConfirmStep: React.FC = () => {
           <Button 
             title="Looks Good"
             variant="black"
+            loading={isContinuing}
             onPress={() => {
               Keyboard.dismiss(); // Close keyboard when continuing
               handleContinue();

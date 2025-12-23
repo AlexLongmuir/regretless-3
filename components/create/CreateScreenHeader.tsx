@@ -61,7 +61,6 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
     </View>
   )
 }
-
 const styles = StyleSheet.create({
   container: {
     height: 52,
@@ -77,3 +76,4 @@ const styles = StyleSheet.create({
     flex: 1
   }
 })
+

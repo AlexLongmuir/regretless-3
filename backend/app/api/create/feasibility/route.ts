@@ -66,7 +66,7 @@ Please provide:
     await saveAIEvent(
       user.id,
       'feasibility',
-      'gemini-2.5-flash-lite',
+      'gemini-3-flash-preview',
       usage,
       latencyMs,
       sb

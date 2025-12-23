@@ -35,6 +35,7 @@ import Navigation from './navigation';
 import { AuthProvider } from './contexts/AuthContext';
 import { EntitlementsProvider } from './contexts/EntitlementsContext';
 import { SessionProvider } from './contexts/SessionContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
 import { ToastProvider } from './components/toast/ToastProvider';
 import { CreateDreamProvider } from './contexts/CreateDreamContext';
 import { DataProvider } from './contexts/DataContext';
@@ -106,12 +107,14 @@ export default function App() {
       <EntitlementsProvider>
         <SessionProvider>
           <DataProvider>
-            <ToastProvider>
-              <CreateDreamProvider>
-                <Navigation />
-              </CreateDreamProvider>
-              <StatusBar style="auto" />
-            </ToastProvider>
+            <OnboardingProvider>
+              <ToastProvider>
+                <CreateDreamProvider>
+                  <Navigation />
+                </CreateDreamProvider>
+                <StatusBar style="auto" />
+              </ToastProvider>
+            </OnboardingProvider>
           </DataProvider>
         </SessionProvider>
       </EntitlementsProvider>

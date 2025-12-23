@@ -247,7 +247,7 @@ export default function AreasStep() {
         
         <View style={styles.buttonContainer}>
           <Button 
-            title="Fix with AI" 
+            title="Refine with AI" 
             variant="secondary"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
@@ -286,13 +286,13 @@ export default function AreasStep() {
             disabled={!feedback.trim()}
           />
           <Button 
-            title={isSaving ? "Saving..." : "Looks Good"}
+            title="Looks Good"
             variant="black"
+            loading={isSaving}
             onPress={() => {
               Keyboard.dismiss()
               handleSaveAreas()
             }}
-            disabled={isSaving}
             style={styles.flexButton}
           />
         </View>

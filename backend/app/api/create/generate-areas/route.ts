@@ -123,7 +123,7 @@ Please create 2-6 orthogonal, stage-based areas that represent distinct phases o
       await saveAIEvent(
         user.id,
         'areas',
-        'gemini-2.5-flash-lite',
+        'gemini-3-flash-preview',
         usage,
         latencyMs,
         sb

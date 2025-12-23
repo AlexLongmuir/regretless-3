@@ -191,7 +191,7 @@ Please review this submission against the action criteria and provide a rating a
       await supabase.from('ai_events').insert({
         user_id: user.id,
         kind: 'action_review',
-        model: 'gemini-2.5-flash-lite',
+        model: 'gemini-3-flash-preview',
         prompt_tokens: usage?.promptTokenCount || 0,
         output_tokens: usage?.candidatesTokenCount || 0,
         total_tokens: usage?.totalTokenCount || 0,

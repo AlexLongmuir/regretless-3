@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -12,6 +12,13 @@ import { theme } from '../../utils/theme'
 interface GoalSuggestion extends TitleSuggestion {
   id: string
   selected?: boolean
+}
+
+interface LastAnalysisInputs {
+  title: string
+  baseline?: string
+  obstacles?: string
+  enjoyment?: string
 }
 
 export default function GoalFeasibilityStep() {
@@ -32,6 +39,9 @@ export default function GoalFeasibilityStep() {
     setGoalFeasibilityAnalyzed
   } = useCreateDream()
   
+  // Track the inputs that were used for the last analysis
+  const lastAnalysisInputsRef = useRef<LastAnalysisInputs | null>(null)
+  
   const [isLoading, setIsLoading] = useState(!goalFeasibilityAnalyzed)
   const [goalSuggestions, setGoalSuggestions] = useState<GoalSuggestion[]>([])
   const [summary, setSummary] = useState<string>('')
@@ -48,8 +58,30 @@ export default function GoalFeasibilityStep() {
         }
       }
 
-      // If we already have goal feasibility data, use it
-      if (goalFeasibility && goalFeasibilityAnalyzed) {
+      // Check if inputs have changed since last analysis
+      const currentInputs: LastAnalysisInputs = {
+        title: title || '',
+        baseline: baseline || undefined,
+        obstacles: obstacles || undefined,
+        enjoyment: enjoyment || undefined
+      }
+
+      const inputsChanged = !lastAnalysisInputsRef.current || 
+        lastAnalysisInputsRef.current.title !== currentInputs.title ||
+        lastAnalysisInputsRef.current.baseline !== currentInputs.baseline ||
+        lastAnalysisInputsRef.current.obstacles !== currentInputs.obstacles ||
+        lastAnalysisInputsRef.current.enjoyment !== currentInputs.enjoyment
+
+      // If inputs changed and we have cached data, reset the analysis flag and show loading
+      if (inputsChanged && goalFeasibilityAnalyzed) {
+        setGoalFeasibilityAnalyzed(false)
+        setField('goalFeasibility', undefined)
+        setField('originalTitleForFeasibility', undefined)
+        setIsLoading(true)
+      }
+
+      // If we already have goal feasibility data and inputs haven't changed, use cached data
+      if (goalFeasibility && goalFeasibilityAnalyzed && !inputsChanged) {
         // Process summary
         setSummary(goalFeasibility.summary)
         
@@ -80,8 +112,8 @@ export default function GoalFeasibilityStep() {
         return
       }
 
-      // Only run analysis if we haven't analyzed yet and have a title
-      if (goalFeasibilityAnalyzed || !title) {
+      // Only run analysis if we haven't analyzed yet (or inputs changed) and have a title
+      if ((goalFeasibilityAnalyzed && !inputsChanged) || !title) {
         if (!title) {
           setTimeout(() => {
             setIsLoading(false)
@@ -90,7 +122,11 @@ export default function GoalFeasibilityStep() {
         return
       }
 
+      // Ensure loading screen is shown before starting analysis
+      setIsLoading(true)
+
       const runAnalysis = async () => {
+        
         try {
           // Get auth token
           const { data: { session } } = await supabaseClient.auth.getSession()
@@ -109,6 +145,14 @@ export default function GoalFeasibilityStep() {
           setField('goalFeasibility', result)
           setField('originalTitleForFeasibility', title)
           setGoalFeasibilityAnalyzed(true)
+          
+          // Store the inputs that were used for this analysis
+          lastAnalysisInputsRef.current = {
+            title: title || '',
+            baseline: baseline || undefined,
+            obstacles: obstacles || undefined,
+            enjoyment: enjoyment || undefined
+          }
           
           // Process summary
           setSummary(result.summary)
@@ -146,6 +190,14 @@ export default function GoalFeasibilityStep() {
           // Mark as analyzed even if failed to prevent retries
           setGoalFeasibilityAnalyzed(true)
           
+          // Store the inputs that were attempted (even on failure)
+          lastAnalysisInputsRef.current = {
+            title: title || '',
+            baseline: baseline || undefined,
+            obstacles: obstacles || undefined,
+            enjoyment: enjoyment || undefined
+          }
+          
           // Fallback to default suggestions if AI fails
           setGoalSuggestions([
             { id: 'original', title: title || 'Your Dream', emoji: '🎯', reasoning: 'Original title', selected: false }
@@ -157,7 +209,7 @@ export default function GoalFeasibilityStep() {
       }
 
       runAnalysis()
-    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, baseline, obstacles, enjoyment])
+    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, baseline, obstacles, enjoyment, originalTitleForFeasibility])
   )
 
   const handleGoalSelect = (goalId: string) => {
@@ -165,6 +217,14 @@ export default function GoalFeasibilityStep() {
     if (selectedGoal) {
       setCurrentGoal(selectedGoal.title)
       setField('title', selectedGoal.title)
+      
+      // Update the tracked inputs so selecting a suggestion doesn't trigger a rerun
+      if (lastAnalysisInputsRef.current) {
+        lastAnalysisInputsRef.current = {
+          ...lastAnalysisInputsRef.current,
+          title: selectedGoal.title
+        }
+      }
     }
     
     setGoalSuggestions(prev => 
@@ -220,7 +280,7 @@ export default function GoalFeasibilityStep() {
             marginBottom: 16,
             lineHeight: 24
           }}>
-            Getting Feedback on Your Dream
+            Making Your Dream Even Better
           </Text>
           
           {/* Description */}
@@ -231,7 +291,7 @@ export default function GoalFeasibilityStep() {
             paddingHorizontal: 32,
             lineHeight: 22
           }}>
-            We're analyzing your goal to provide feedback that will help increase your chance of success
+            We're finding ways to make your goal more achievable and exciting
           </Text>
           
           {/* Loading indicator */}
@@ -267,7 +327,7 @@ export default function GoalFeasibilityStep() {
           marginBottom: 24,
           lineHeight: 24
         }}>
-          Get Feedback on Your Goal
+          Let's Make Your Dream Even Better
         </Text>
 
         {/* Choose Your Goal Section */}
@@ -291,7 +351,7 @@ export default function GoalFeasibilityStep() {
             color: theme.colors.text.muted, 
             marginBottom: 12
           }}>
-            Current goal
+            Your dream
           </Text>
           <Input
             value={currentGoal}
@@ -316,7 +376,7 @@ export default function GoalFeasibilityStep() {
                 color: theme.colors.text.muted, 
                 marginBottom: 12
               }}>
-                Alternative goal suggestions (click to replace current)
+                Suggestions to make it even better (tap to try)
               </Text>
               {goalSuggestions.map((goal) => (
                 <TouchableOpacity

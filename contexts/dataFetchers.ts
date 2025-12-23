@@ -242,7 +242,7 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
 
     // Get this week's occurrences
     const { data: weekOccurrences, error: weekError } = await supabaseClient
-      .from('action_occurrences')
+      .from('v_action_occurrence_status')
       .select('*')
       .gte('due_on', startOfWeekStr)
       .lte('due_on', endOfWeekStr)
@@ -256,7 +256,7 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
 
     // Get all completed occurrences
     const { data: allCompleted, error: completedError } = await supabaseClient
-      .from('action_occurrences')
+      .from('v_action_occurrence_status')
       .select('completed_at')
       .not('completed_at', 'is', null)
       .eq('user_id', user.id);
@@ -278,11 +278,19 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
           user_id,
           action_id,
           dream_id,
-          area_id
+          area_id,
+          actions!inner(
+            areas!inner(
+              dreams!inner(
+                archived_at
+              )
+            )
+          )
         )
       `)
       .not('storage_path', 'is', null)
       .eq('action_occurrences.user_id', user.id)
+      .is('action_occurrences.actions.areas.dreams.archived_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
 
