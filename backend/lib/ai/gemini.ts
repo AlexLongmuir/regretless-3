@@ -3,8 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
-export const GEMINI_MODEL = "gemini-3-flash";
-export const GEMINI_FLASH_MODEL = "gemini-3-flash";
+export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_FLASH_MODEL = "gemini-3-flash-preview";
 
 // Thinking budget presets for different use cases
 export const THINKING_BUDGETS = {
