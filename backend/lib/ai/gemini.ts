@@ -3,8 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
-export const GEMINI_MODEL = "gemini-3-flash-preview";
-export const GEMINI_FLASH_MODEL = "gemini-3-flash-preview";
+export const GEMINI_MODEL = "gemini-3-flash";
+export const GEMINI_FLASH_MODEL = "gemini-3-flash";
 
 // Thinking budget presets for different use cases
 export const THINKING_BUDGETS = {
@@ -120,7 +120,23 @@ export async function generateJson(opts: {
   const usage = resp.response.usageMetadata;
   
   // Log the raw response for debugging
-  console.log('🤖 Raw AI Response:', text)
+  console.log('[GEMINI] Raw AI Response length:', text.length);
+  console.log('[GEMINI] Raw AI Response (first 200 chars):', text.substring(0, 200));
+  
+  // Strip markdown code blocks if present (sometimes Gemini wraps JSON in ```json ... ```)
+  text = text.trim();
+  if (text.startsWith('```')) {
+    console.log('[GEMINI] Detected markdown code block, stripping...');
+    // Remove opening ```json or ```
+    text = text.replace(/^```(?:json)?\s*\n?/, '');
+    // Remove closing ```
+    text = text.replace(/\n?```\s*$/, '');
+    text = text.trim();
+    console.log('[GEMINI] After stripping markdown (first 200 chars):', text.substring(0, 200));
+  }
+  
+  // Remove any leading/trailing whitespace or newlines
+  text = text.trim();
   
   // Check if JSON appears to be truncated
   const trimmedText = text.trim();
@@ -189,6 +205,68 @@ export async function generateJson(opts: {
     const parsedData = JSON.parse(cleanedText);
     return { data: parsedData, usage };
   } catch (parseError) {
+    // If we get an "unterminated string" error, try to fix it
+    if (parseError instanceof Error && parseError.message.includes('Unterminated string')) {
+      console.log('[GEMINI] Attempting to fix unterminated string error...');
+      console.log('[GEMINI] Error position info:', parseError.message);
+      
+      // Extract position from error message if available
+      const positionMatch = parseError.message.match(/position (\d+)/);
+      const errorPosition = positionMatch ? parseInt(positionMatch[1]) : -1;
+      
+      if (errorPosition > 0 && errorPosition < text.length) {
+        // Look at the context around the error position
+        const contextStart = Math.max(0, errorPosition - 50);
+        const contextEnd = Math.min(text.length, errorPosition + 50);
+        const context = text.substring(contextStart, contextEnd);
+        console.log('[GEMINI] Context around error:', context);
+        
+        // Try to find the unterminated string by looking backwards from the error position
+        // Find the last opening quote before the error
+        let quoteStart = text.lastIndexOf('"', errorPosition);
+        if (quoteStart !== -1) {
+          // Check if this quote is part of a key or value
+          const beforeQuote = text.substring(Math.max(0, quoteStart - 10), quoteStart);
+          if (beforeQuote.includes(':')) {
+            // This is likely a value string that's unterminated
+            // Try to find where it should end by looking for the next quote, comma, or brace
+            let searchStart = quoteStart + 1;
+            let foundEnd = false;
+            let endPos = searchStart;
+            
+            // Look for the next quote that's followed by comma or brace
+            while (endPos < text.length && !foundEnd) {
+              const nextQuote = text.indexOf('"', endPos);
+              if (nextQuote === -1) break;
+              
+              const afterQuote = text.substring(nextQuote + 1).trim();
+              if (afterQuote.match(/^[,}\]]/)) {
+                // Found the end
+                foundEnd = true;
+                endPos = nextQuote + 1;
+              } else {
+                endPos = nextQuote + 1;
+              }
+            }
+            
+            if (foundEnd) {
+              // Extract the string content and escape any internal quotes
+              const stringContent = text.substring(quoteStart + 1, endPos - 1);
+              const escapedContent = stringContent.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+              const fixedText = text.substring(0, quoteStart + 1) + escapedContent + '"' + text.substring(endPos);
+              
+              try {
+                const parsedData = JSON.parse(fixedText);
+                console.log('[GEMINI] Successfully fixed unterminated string by escaping quotes');
+                return { data: parsedData, usage };
+              } catch (fixError) {
+                console.error('[GEMINI] Fix attempt failed:', fixError);
+              }
+            }
+          }
+        }
+      }
+    }
     // Log error details in multiple statements to ensure Vercel captures them
     console.error('[GEMINI] JSON Parse Error:', parseError instanceof Error ? parseError.message : String(parseError));
     console.error('[GEMINI] Parse error stack:', parseError instanceof Error ? parseError.stack : 'N/A');
@@ -212,6 +290,10 @@ export async function generateJson(opts: {
     try {
       // More aggressive cleanup - handle common AI JSON mistakes
       aggressiveCleanup = text
+        // First, try to extract JSON from markdown if still present
+        .replace(/^```(?:json)?\s*\n?/, '')
+        .replace(/\n?```\s*$/, '')
+        .trim()
         // Fix unquoted property names (e.g., { title: "..." } -> { "title": "..." })
         .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":')
         // Fix property names with quotes but wrong format
@@ -223,8 +305,27 @@ export async function generateJson(opts: {
         .replace(/(")\s*\n\s*("[a-zA-Z_])/g, '$1,\n      $2')
         .replace(/([0-9])\s*\n\s*("[a-zA-Z_])/g, '$1,\n      $2')
         .replace(/(})\s*\n\s*({)/g, '$1,\n      $2')
+        // Fix unescaped quotes in string values (common issue)
+        .replace(/:\s*"([^"]*)"([^,}\]]*)/g, (match, content, rest) => {
+          // If there's content after the closing quote that suggests an unterminated string, try to fix it
+          if (rest && !rest.match(/^\s*[,}\]]/)) {
+            // This might be an unterminated string, try to escape quotes in the content
+            const escapedContent = content.replace(/"/g, '\\"');
+            return `: "${escapedContent}"${rest}`;
+          }
+          return match;
+        })
         // Fix newlines in string values (shouldn't happen but handle it)
         .replace(/:\s*"([^"]*)\n([^"]*)"/g, ': "$1 $2"')
+        // Try to fix unterminated strings by finding the next quote and closing properly
+        .replace(/:\s*"([^"]*?)(?=\s*[,}\]]|$)/g, (match, content) => {
+          // If the match doesn't end with a quote, it might be unterminated
+          if (!match.endsWith('"')) {
+            // Try to find where the string should end
+            return `: "${content.replace(/"/g, '\\"')}"`;
+          }
+          return match;
+        })
       
       const parsedData = JSON.parse(aggressiveCleanup);
       console.log('✅ Successfully parsed after aggressive cleanup');
