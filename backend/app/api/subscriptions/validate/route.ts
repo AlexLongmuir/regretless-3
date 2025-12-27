@@ -46,7 +46,7 @@ async function validateWithRevenueCat(rcAppUserId: string): Promise<{
   
   // For now, we'll return the current database data as a placeholder
   // TODO: Implement actual RevenueCat API call
-  console.log('🔍 Validating subscription with RevenueCat for user:', rcAppUserId);
+  console.error('🔍 Validating subscription with RevenueCat for user:', rcAppUserId);
   
   // This would be replaced with actual RevenueCat API call
   return {
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     // If force refresh is requested, validate with RevenueCat
     if (forceRefresh) {
-      console.log('🔄 Force refreshing subscription data...');
+      console.error('🔄 Force refreshing subscription data...');
       
       try {
         const validatedData = await validateWithRevenueCat(subscription.rc_app_user_id);
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         if (updateError) {
           console.error('❌ Error updating subscription:', updateError);
         } else {
-          console.log('✅ Subscription data refreshed from RevenueCat');
+          console.error('✅ Subscription data refreshed from RevenueCat');
         }
       } catch (error) {
         console.error('❌ Error validating with RevenueCat:', error);
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Subscription updated manually:', {
+    console.error('✅ Subscription updated manually:', {
       user_id: body.user_id,
       updates: body.updates
     });

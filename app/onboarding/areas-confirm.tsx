@@ -25,7 +25,7 @@ interface AreaSuggestion {
 
 const AreasConfirmStep: React.FC = () => {
   const navigation = useNavigation();
-  const { state, setGeneratedAreas } = useOnboardingContext();
+  const { state, setGeneratedAreas, setGeneratedActions } = useOnboardingContext();
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
@@ -82,6 +82,8 @@ const AreasConfirmStep: React.FC = () => {
       });
 
       if (newAreas && newAreas.length > 0) {
+        // Clear actions when areas are regenerated since they reference old areas
+        setGeneratedActions([]);
         setGeneratedAreas(newAreas);
         setFeedback('');
       }

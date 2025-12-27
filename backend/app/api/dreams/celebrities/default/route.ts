@@ -9,20 +9,20 @@ export async function GET(_request: NextRequest) {
     // Prefer table if exists; fallback to storage listing
     let celebrities: any[] | null = null;
     try {
-      console.log('🔍 Querying celebrity_profiles table...')
+      console.error('🔍 Querying celebrity_profiles table...')
       const { data, error } = await supabase
         .from('celebrity_profiles')
         .select('id, name, image_url, description, category')
         .order('name', { ascending: true });
-      console.log('📊 Celebrity profiles query result:', { data, error })
+      console.error('📊 Celebrity profiles query result:', { data, error })
       if (!error && data) celebrities = data;
     } catch (e) {
-      console.log('❌ Error querying celebrity_profiles:', e)
+      console.error('❌ Error querying celebrity_profiles:', e)
       // table may not exist yet
     }
 
     if (celebrities && celebrities.length > 0) {
-      console.log('✅ Found celebrities in database:', celebrities.length)
+      console.error('✅ Found celebrities in database:', celebrities.length)
       // If rows contain storage paths, sign them; else pass through absolute URLs
       const withUrls = await Promise.all(
         celebrities.map(async (c) => {
@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest) {
         })
       );
 
-      console.log('📸 Processed celebrities with URLs:', withUrls.length)
+      console.error('📸 Processed celebrities with URLs:', withUrls.length)
       return NextResponse.json({ success: true, data: { celebrities: withUrls } });
     }
 

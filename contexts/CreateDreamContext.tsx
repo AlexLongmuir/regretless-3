@@ -99,7 +99,21 @@ export const CreateDreamProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [])
 
   const setAreas = useCallback((areas: Area[]) => {
-    setState(prev => ({ ...prev, areas }))
+    setState(prev => {
+      // Check if area IDs have changed
+      const prevAreaIds = new Set(prev.areas.map(a => a.id))
+      const newAreaIds = new Set(areas.map(a => a.id))
+      const areasChanged = 
+        prevAreaIds.size !== newAreaIds.size ||
+        ![...newAreaIds].every(id => prevAreaIds.has(id))
+      
+      // If areas changed, clear actions since they reference old areas
+      if (areasChanged) {
+        return { ...prev, areas, actions: [] }
+      }
+      
+      return { ...prev, areas }
+    })
   }, [])
 
   const addArea = useCallback((area: Area) => {

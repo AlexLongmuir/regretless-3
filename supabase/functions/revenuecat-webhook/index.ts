@@ -82,9 +82,12 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
   }
 
   let userId: string | null = null;
+  let existingSubscriptionId: string | null = null;
 
   if (existingSubscriptions && existingSubscriptions.length > 0) {
     userId = existingSubscriptions[0].user_id;
+    existingSubscriptionId = existingSubscriptions[0].id;
+    console.log('✅ Found existing subscription for rc_app_user_id:', eventData.app_user_id);
   } else {
     // No subscription record exists yet - this can happen when:
     // 1. User purchased before logging in (anonymous purchase)
@@ -98,11 +101,27 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
     const mightBeUserId = uuidRegex.test(eventData.app_user_id);
     
     if (mightBeUserId) {
-      // Try to verify if it's a valid user_id using RPC or direct query
-      // For now, we'll attempt to create a subscription record with this as user_id
-      // If it fails due to foreign key constraint, we know it's not a valid user_id
-      console.log('⚠️ rc_app_user_id looks like a UUID, attempting to use as user_id...');
-      userId = eventData.app_user_id; // Will be validated by foreign key constraint on insert
+      // Try to verify if it's a valid user_id by checking if there are any subscriptions for this user_id
+      // This handles the case where user linked from anonymous to authenticated
+      const { data: subscriptionsByUserId, error: userIdCheckError } = await supabase
+        .from('user_subscriptions')
+        .select('id, user_id, rc_app_user_id, rc_original_app_user_id')
+        .eq('user_id', eventData.app_user_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!userIdCheckError && subscriptionsByUserId && subscriptionsByUserId.length > 0) {
+        // Found subscription for this user_id - use it and update it
+        userId = eventData.app_user_id;
+        existingSubscriptionId = subscriptionsByUserId[0].id;
+        console.log('✅ Found existing subscription by user_id (anonymous → authenticated transition)');
+        console.log(`  Existing rc_app_user_id: ${subscriptionsByUserId[0].rc_app_user_id}`);
+        console.log(`  New rc_app_user_id: ${eventData.app_user_id}`);
+      } else {
+        // No subscription found for this user_id - might be a new user
+        console.log('⚠️ rc_app_user_id looks like a UUID, but no existing subscription found');
+        userId = eventData.app_user_id; // Will be validated by foreign key constraint on insert
+      }
     } else {
       // Anonymous ID or other format - can't determine user_id
       console.log('⚠️ rc_app_user_id is not a UUID format, cannot determine user_id');
@@ -263,34 +282,122 @@ async function processSubscriptionUpdate(event: RevenueCatWebhookEvent, supabase
     }
   }
 
-  // Use Upsert to handle race conditions robustly
-  // We use rc_app_user_id as the unique constraint key
-  // This ensures we update existing records or create new ones atomically
-  const { error: upsertError } = await supabase
-    .from('user_subscriptions')
-    .upsert(subscriptionData, { 
-      onConflict: 'rc_app_user_id',
-      ignoreDuplicates: false // We want to update existing records
-    });
-
-  if (upsertError) {
-    // Check if error is due to foreign key constraint (invalid user_id)
-    if (upsertError.code === '23503' || upsertError.message.includes('foreign key')) {
-      console.error('❌ Invalid user_id - user does not exist:', userId);
-      console.log('⚠️ This webhook will be processed when the user logs in and syncs.');
-      // Return success so RevenueCat doesn't keep retrying
-      return { 
-        success: true, 
-        skipped: true, 
-        message: 'User not found - will be processed when user logs in' 
-      };
-    }
+  // If we found an existing subscription ID, update it directly instead of using upsert
+  // This ensures we update the correct row even when rc_app_user_id has changed
+  // (e.g., when transitioning from anonymous to authenticated)
+  if (existingSubscriptionId) {
+    console.log('🔄 Updating existing subscription record:', existingSubscriptionId);
     
-    console.error('❌ Error upserting subscription:', upsertError);
-    return { success: false, error: upsertError.message };
+    // Before updating, deactivate any other active subscriptions for this user
+    // This prevents multiple active subscriptions
+    const { data: allUserSubs, error: allSubsError } = await supabase
+      .from('user_subscriptions')
+      .select('id, is_active')
+      .eq('user_id', userId)
+      .neq('id', existingSubscriptionId);
+
+    if (!allSubsError && allUserSubs && allUserSubs.length > 0) {
+      const otherActiveSubs = allUserSubs.filter(sub => sub.is_active);
+      if (otherActiveSubs.length > 0) {
+        const otherActiveIds = otherActiveSubs.map(sub => sub.id);
+        await supabase
+          .from('user_subscriptions')
+          .update({ is_active: false })
+          .in('id', otherActiveIds);
+        console.log(`✅ Deactivated ${otherActiveSubs.length} other active subscription(s) for this user`);
+      }
+    }
+
+    // Update the existing record
+    const { error: updateError } = await supabase
+      .from('user_subscriptions')
+      .update(subscriptionData)
+      .eq('id', existingSubscriptionId);
+
+    if (updateError) {
+      // Check if error is due to foreign key constraint (invalid user_id)
+      if (updateError.code === '23503' || updateError.message.includes('foreign key')) {
+        console.error('❌ Invalid user_id - user does not exist:', userId);
+        return { 
+          success: true, 
+          skipped: true, 
+          message: 'User not found - will be processed when user logs in' 
+        };
+      }
+      
+      // Check if error is due to unique constraint on rc_app_user_id
+      // This means another record with this rc_app_user_id exists
+      if (updateError.code === '23505' && updateError.message.includes('rc_app_user_id')) {
+        console.log('⚠️ Unique constraint violation on rc_app_user_id, finding and updating that record instead');
+        
+        // Find the record with this rc_app_user_id
+        const { data: recordWithRcId, error: findError } = await supabase
+          .from('user_subscriptions')
+          .select('id, user_id')
+          .eq('rc_app_user_id', subscriptionData.rc_app_user_id)
+          .maybeSingle();
+
+        if (!findError && recordWithRcId) {
+          if (recordWithRcId.user_id === userId) {
+            // Same user - update that record and deactivate the old one
+            await supabase
+              .from('user_subscriptions')
+              .update(subscriptionData)
+              .eq('id', recordWithRcId.id);
+            
+            await supabase
+              .from('user_subscriptions')
+              .update({ is_active: false })
+              .eq('id', existingSubscriptionId);
+            
+            console.log('✅ Updated record with matching rc_app_user_id and deactivated old one');
+          } else {
+            console.error('❌ rc_app_user_id belongs to different user');
+            return { success: false, error: 'Subscription already linked to another account' };
+          }
+        } else {
+          console.error('❌ Error finding record with rc_app_user_id:', findError);
+          return { success: false, error: updateError.message };
+        }
+      } else {
+        console.error('❌ Error updating subscription:', updateError);
+        return { success: false, error: updateError.message };
+      }
+    } else {
+      console.log('✅ Successfully updated existing subscription record');
+    }
+  } else {
+    // No existing subscription found - use upsert to create or update
+    // Use Upsert to handle race conditions robustly
+    // We use rc_app_user_id as the unique constraint key
+    const { error: upsertError } = await supabase
+      .from('user_subscriptions')
+      .upsert(subscriptionData, { 
+        onConflict: 'rc_app_user_id',
+        ignoreDuplicates: false // We want to update existing records
+      });
+
+    if (upsertError) {
+      // Check if error is due to foreign key constraint (invalid user_id)
+      if (upsertError.code === '23503' || upsertError.message.includes('foreign key')) {
+        console.error('❌ Invalid user_id - user does not exist:', userId);
+        console.log('⚠️ This webhook will be processed when the user logs in and syncs.');
+        // Return success so RevenueCat doesn't keep retrying
+        return { 
+          success: true, 
+          skipped: true, 
+          message: 'User not found - will be processed when user logs in' 
+        };
+      }
+      
+      console.error('❌ Error upserting subscription:', upsertError);
+      return { success: false, error: upsertError.message };
+    } else {
+      console.log('✅ Successfully created/updated subscription via upsert');
+    }
   }
 
-  console.log('✅ Subscription upserted successfully:', {
+  console.log('✅ Subscription processed successfully:', {
     user_id: userId,
     rc_app_user_id: eventData.app_user_id,
     type: eventData.type,

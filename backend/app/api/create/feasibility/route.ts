@@ -62,7 +62,7 @@ Please provide:
       })
       data = result.data
       usage = result.usage
-      console.log('[FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
+      console.error('[FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
     } catch (aiError) {
       // Enhanced error logging for Vercel visibility
       console.error('[FEASIBILITY] AI generation failed');

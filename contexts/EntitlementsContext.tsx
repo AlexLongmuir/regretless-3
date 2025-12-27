@@ -96,21 +96,57 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
         setLoading(true);
       }
 
-      const { data: subscription, error: fetchError } = await supabaseClient
+      // Get all subscriptions for this user, then filter for active and non-expired
+      const { data: allSubscriptions, error: fetchError } = await supabaseClient
         .from('user_subscriptions')
-        .select('id, user_id, rc_app_user_id, is_active, is_trial, current_period_end, product_id, environment')
+        .select('id, user_id, rc_app_user_id, is_active, is_trial, current_period_end, product_id, environment, created_at')
         .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('Error fetching subscription from database:', fetchError);
-        // Don't set error state - fallback to RevenueCat
         return;
       }
 
-      setDbSubscription(subscription);
+      // Filter for active and non-expired subscriptions
+      const now = new Date();
+      const activeSubscription = allSubscriptions?.find(sub => {
+        if (!sub.is_active) return false;
+        if (sub.current_period_end) {
+          const expirationDate = new Date(sub.current_period_end);
+          return expirationDate > now;
+        }
+        return true; // If no expiration date, assume active
+      });
+
+      // If we found an active subscription, use it
+      // Otherwise, if there are expired subscriptions, we should deactivate them
+      if (activeSubscription) {
+        setDbSubscription(activeSubscription);
+      } else {
+        // No active subscription found - check if we need to deactivate expired ones
+        if (allSubscriptions && allSubscriptions.length > 0) {
+          const expiredButActive = allSubscriptions.filter(sub => {
+            if (!sub.is_active) return false;
+            if (sub.current_period_end) {
+              const expirationDate = new Date(sub.current_period_end);
+              return expirationDate <= now;
+            }
+            return false;
+          });
+
+          // Deactivate expired subscriptions
+          if (expiredButActive.length > 0) {
+            const expiredIds = expiredButActive.map(sub => sub.id);
+            await supabaseClient
+              .from('user_subscriptions')
+              .update({ is_active: false })
+              .in('id', expiredIds);
+            console.log(`✅ Deactivated ${expiredButActive.length} expired subscription(s) for user`);
+          }
+        }
+        setDbSubscription(null);
+      }
     } catch (err: any) {
       console.error('Error refreshing database subscription:', err);
       // Don't set error state - fallback to RevenueCat
@@ -141,13 +177,13 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
 
     // Fallback: Check RevenueCat SDK (for offline/initial load)
     if (customerInfo?.entitlements?.active) {
-      if (customerInfo.entitlements.active['pro']) return true;
-      if (customerInfo.entitlements.active['premium']) return true;
-      if (customerInfo.entitlements.active['subscription']) return true;
-      
-      const activeKeys = Object.keys(customerInfo.entitlements.active);
-      if (activeKeys.length > 0) {
-        return true;
+    if (customerInfo.entitlements.active['pro']) return true;
+    if (customerInfo.entitlements.active['premium']) return true;
+    if (customerInfo.entitlements.active['subscription']) return true;
+    
+    const activeKeys = Object.keys(customerInfo.entitlements.active);
+    if (activeKeys.length > 0) {
+      return true;
       }
     }
     
@@ -358,13 +394,21 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       }
 
       // Add user-specific data
+      // Note: After linking, originalAppUserId becomes the authenticated UUID
+      // But we need to preserve the original anonymous ID if it exists
       const finalSubscriptionData = {
         ...subscriptionData,
         user_id: user.id,
-        rc_app_user_id: customerInfo.originalAppUserId,
-        rc_original_app_user_id: customerInfo.originalAppUserId,
+        rc_app_user_id: customerInfo.originalAppUserId, // Current RevenueCat user ID (UUID after linking)
+        rc_original_app_user_id: customerInfo.originalAppUserId, // For now, same as rc_app_user_id
         rc_snapshot: customerInfo.rawData || customerInfo,
       };
+      
+      // If customerInfo has aliases, check if one is the anonymous ID
+      // This helps us find existing subscriptions created before linking
+      const anonymousId = customerInfo.aliases?.find?.((alias: string) => 
+        alias.startsWith('$RCAnonymousID')
+      );
 
       // console.log('📊 Final subscription data:', {
       //   product_id: finalSubscriptionData.product_id,
@@ -374,70 +418,161 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
       //   current_period_end: finalSubscriptionData.current_period_end
       // });
 
-      // Diagnostic: Check all subscriptions for this user first
-      const { data: allUserSubscriptions, error: allSubsError } = await supabaseClient
+      // Get ALL subscriptions for this user FIRST (before checking by rc_app_user_id)
+      // This is critical for handling anonymous → authenticated transitions
+      const { data: allUserSubsForCheck, error: allUserSubsCheckError } = await supabaseClient
         .from('user_subscriptions')
-        .select('id, user_id, rc_app_user_id, is_active, is_trial, created_at')
+        .select('id, user_id, rc_app_user_id, rc_original_app_user_id, is_active, is_trial, current_period_end, created_at')
         .eq('user_id', finalSubscriptionData.user_id)
         .order('created_at', { ascending: false });
 
-      if (!allSubsError && allUserSubscriptions) {
-        const activeCount = allUserSubscriptions.filter(s => s.is_active).length;
-        console.log(`📊 [SUBSCRIPTION CHECK] User ${finalSubscriptionData.user_id} has ${allUserSubscriptions.length} total subscription(s), ${activeCount} active`);
-        if (allUserSubscriptions.length > 0) {
-          allUserSubscriptions.forEach((sub, idx) => {
-            console.log(`  ${idx + 1}. ID: ${sub.id}, RC ID: ${sub.rc_app_user_id}, Active: ${sub.is_active}, Trial: ${sub.is_trial}`);
-          });
-        }
+      if (allUserSubsCheckError) {
+        console.error('Error fetching all user subscriptions:', allUserSubsCheckError);
+        return { success: false, error: allUserSubsCheckError.message };
       }
 
-      // Check if this RevenueCat user ID is already associated with a different user
-      const { data: existingByRevenueCat, error: rcCheckError } = await supabaseClient
+      // Diagnostic logging
+      if (allUserSubsForCheck && allUserSubsForCheck.length > 0) {
+        const activeCount = allUserSubsForCheck.filter(s => s.is_active).length;
+        console.log(`📊 [SUBSCRIPTION CHECK] User ${finalSubscriptionData.user_id} has ${allUserSubsForCheck.length} total subscription(s), ${activeCount} active`);
+        allUserSubsForCheck.forEach((sub, idx) => {
+          console.log(`  ${idx + 1}. ID: ${sub.id}, RC ID: ${sub.rc_app_user_id}, Original: ${sub.rc_original_app_user_id}, Active: ${sub.is_active}, Trial: ${sub.is_trial}`);
+        });
+      }
+
+      // Find truly active subscription (is_active = true AND not expired)
+      const now = new Date();
+      const existingActiveSubscription = allUserSubsForCheck?.find(sub => {
+        if (!sub.is_active) return false;
+        if (sub.current_period_end) {
+          const expirationDate = new Date(sub.current_period_end);
+          return expirationDate > now;
+        }
+        return true; // No expiration date, assume active
+      });
+
+      // Find expired but still marked as active subscriptions
+      const expiredButActive = allUserSubsForCheck?.filter(sub => {
+        if (!sub.is_active) return false;
+        if (sub.current_period_end) {
+          const expirationDate = new Date(sub.current_period_end);
+          return expirationDate <= now;
+        }
+        return false;
+      });
+
+      // Deactivate expired subscriptions
+      if (expiredButActive && expiredButActive.length > 0) {
+        const expiredIds = expiredButActive.map(sub => sub.id);
+        await supabaseClient
+          .from('user_subscriptions')
+          .update({ is_active: false })
+          .in('id', expiredIds);
+        console.log(`✅ Deactivated ${expiredButActive.length} expired subscription(s) for this user`);
+      }
+
+      // Check if this RevenueCat user ID (or original ID) already exists for this user
+      // This handles the case where:
+      // 1. Subscription was created with anonymous ID, now linking with UUID
+      // 2. Subscription exists with different rc_app_user_id but same user_id
+      // We check both rc_app_user_id and rc_original_app_user_id to catch all cases
+      const existingByRevenueCat = allUserSubsForCheck?.find(
+        sub => {
+          // Check if rc_app_user_id matches (new UUID or old anonymous ID)
+          if (sub.rc_app_user_id === finalSubscriptionData.rc_app_user_id ||
+              sub.rc_app_user_id === finalSubscriptionData.rc_original_app_user_id) {
+            return true;
+          }
+          // Check if rc_original_app_user_id matches
+          if (sub.rc_original_app_user_id === finalSubscriptionData.rc_app_user_id ||
+              sub.rc_original_app_user_id === finalSubscriptionData.rc_original_app_user_id) {
+            return true;
+          }
+          // Check if subscription has anonymous ID and we're linking with UUID
+          if (anonymousId && (
+            sub.rc_app_user_id === anonymousId ||
+            sub.rc_original_app_user_id === anonymousId
+          )) {
+            return true;
+          }
+          return false;
+        }
+      );
+
+      // Also check if this rc_app_user_id exists for a DIFFERENT user (security check)
+      const { data: existingByRevenueCatOtherUser, error: rcCheckError } = await supabaseClient
         .from('user_subscriptions')
         .select('id, user_id, is_active, is_trial')
         .eq('rc_app_user_id', finalSubscriptionData.rc_app_user_id)
-        .single();
+        .neq('user_id', finalSubscriptionData.user_id)
+        .maybeSingle();
 
       if (rcCheckError && rcCheckError.code !== 'PGRST116') {
         console.error('Error checking existing RevenueCat subscription:', rcCheckError);
         return { success: false, error: rcCheckError.message };
       }
 
-      // Check if there's already an active subscription for this user
-      const { data: existingActiveSubscription, error: activeCheckError } = await supabaseClient
-        .from('user_subscriptions')
-        .select('id, user_id, rc_app_user_id, is_active')
-        .eq('user_id', finalSubscriptionData.user_id)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (activeCheckError) {
-        console.error('Error checking existing active subscription:', activeCheckError);
-        return { success: false, error: activeCheckError.message };
+      // Security check: If rc_app_user_id exists for a different user, that's an error
+      if (existingByRevenueCatOtherUser) {
+        console.error('⚠️ Subscription already redeemed by another account:', existingByRevenueCatOtherUser.user_id);
+        return { 
+          success: false, 
+          error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
+        };
       }
 
       if (existingByRevenueCat) {
-        // This RevenueCat user ID is already associated with a different user
-        if (existingByRevenueCat.user_id !== finalSubscriptionData.user_id) {
-          // console.log('⚠️ Subscription already redeemed by another account:', existingByRevenueCat.user_id);
-          return { 
-            success: false, 
-            error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
-          };
-        } else {
-          // Same user - update the existing subscription
-          // console.log('✅ Updating existing subscription with same RevenueCat user ID');
-          const { error: updateError } = await supabaseClient
-            .from('user_subscriptions')
-            .update(finalSubscriptionData)
-            .eq('id', existingByRevenueCat.id);
-
-          if (updateError) {
-            console.error('Error updating subscription:', updateError);
-            return { success: false, error: updateError.message };
-          }
-          // console.log('✅ Updated existing subscription entry');
+        // Found existing subscription for this user (by rc_app_user_id or rc_original_app_user_id)
+        // This handles the anonymous → authenticated transition
+        console.log('✅ Found existing subscription for this user, updating with new rc_app_user_id');
+        console.log(`  Old rc_app_user_id: ${existingByRevenueCat.rc_app_user_id}`);
+        console.log(`  Old rc_original_app_user_id: ${existingByRevenueCat.rc_original_app_user_id}`);
+        console.log(`  New rc_app_user_id: ${finalSubscriptionData.rc_app_user_id}`);
+        if (anonymousId) {
+          console.log(`  Anonymous ID from aliases: ${anonymousId}`);
         }
+        
+        // Deactivate any other active subscriptions for this user
+        if (allUserSubsForCheck && allUserSubsForCheck.length > 0) {
+          const otherActiveSubs = allUserSubsForCheck.filter(
+            sub => sub.id !== existingByRevenueCat.id && sub.is_active
+          );
+          if (otherActiveSubs.length > 0) {
+            const otherActiveIds = otherActiveSubs.map(sub => sub.id);
+            await supabaseClient
+              .from('user_subscriptions')
+              .update({ is_active: false })
+              .in('id', otherActiveIds);
+            console.log(`✅ Deactivated ${otherActiveSubs.length} other active subscription(s) for this user`);
+          }
+        }
+
+        // Update the existing subscription with the new rc_app_user_id
+        // This handles the transition from anonymous ID to authenticated UUID
+        // Preserve the original anonymous ID in rc_original_app_user_id if it exists
+        const updateData = {
+          ...finalSubscriptionData,
+          // If the existing record has an anonymous ID, preserve it in rc_original_app_user_id
+          rc_original_app_user_id: existingByRevenueCat.rc_original_app_user_id || 
+                                   (existingByRevenueCat.rc_app_user_id?.startsWith('$RCAnonymousID') 
+                                     ? existingByRevenueCat.rc_app_user_id 
+                                     : finalSubscriptionData.rc_original_app_user_id)
+        };
+
+        const { error: updateError } = await supabaseClient
+          .from('user_subscriptions')
+          .update(updateData)
+          .eq('id', existingByRevenueCat.id);
+
+        if (updateError) {
+          console.error('Error updating subscription:', updateError);
+          return { success: false, error: updateError.message };
+        }
+        
+        console.log('✅ Updated existing subscription entry with new rc_app_user_id');
+        // Refresh DB subscription status after storing
+        await refreshDbSubscription(true);
+        return { success: true };
       } else if (existingActiveSubscription) {
         // There's an active subscription for this user but with different RevenueCat ID
         // This can happen if user purchased on a different device or there was a previous attempt
@@ -489,17 +624,42 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               console.error('Error deactivating old subscription:', deactivateError);
               // Don't fail the whole operation if deactivation fails
             } else {
-              // console.log('✅ Deactivated old subscription entry');
+              console.log('✅ Deactivated old subscription entry');
             }
 
-            // console.log('✅ Updated subscription with new RevenueCat ID');
+            console.log('✅ Updated subscription with new RevenueCat ID');
+            // Refresh DB subscription status after storing
+            await refreshDbSubscription(true);
+            return { success: true };
           }
         } else {
           // New RevenueCat ID doesn't exist - safe to update the old subscription
+          // But first, deactivate any other active subscriptions for this user
+          if (allUserSubsForCheck && allUserSubsForCheck.length > 0) {
+            const otherActiveSubs = allUserSubsForCheck.filter(
+              sub => sub.id !== existingActiveSubscription.id && sub.is_active
+            );
+            if (otherActiveSubs.length > 0) {
+              const otherActiveIds = otherActiveSubs.map(sub => sub.id);
+              await supabaseClient
+                .from('user_subscriptions')
+                .update({ is_active: false })
+                .in('id', otherActiveIds);
+              console.log(`✅ Deactivated ${otherActiveSubs.length} other active subscription(s) for this user`);
+            }
+          }
+
           const { error: updateError } = await supabaseClient
             .from('user_subscriptions')
             .update(finalSubscriptionData)
             .eq('id', existingActiveSubscription.id);
+
+          if (!updateError) {
+            console.log('✅ Updated existing active subscription entry');
+            // Refresh DB subscription status after storing
+            await refreshDbSubscription(true);
+            return { success: true };
+          }
 
           if (updateError) {
             // Check if this is a unique constraint violation
@@ -574,16 +734,16 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
                 // All records belong to this user - update the most recent one
                 const targetRecord = allRecordsWithRcId[0];
                 console.log('✅ Found existing subscription with matching rc_app_user_id for same user, updating it');
-                
-                const { error: updateNewError } = await supabaseClient
-                  .from('user_subscriptions')
-                  .update(finalSubscriptionData)
+                  
+                  const { error: updateNewError } = await supabaseClient
+                    .from('user_subscriptions')
+                    .update(finalSubscriptionData)
                   .eq('id', targetRecord.id);
 
-                if (updateNewError) {
+                  if (updateNewError) {
                   console.error('Error updating subscription with matching rc_app_user_id:', updateNewError);
-                  return { success: false, error: updateNewError.message };
-                }
+                    return { success: false, error: updateNewError.message };
+                  }
 
                 // Deactivate the old subscription if it's different
                 if (targetRecord.id !== existingActiveSubscription.id) {
@@ -690,8 +850,8 @@ export const EntitlementsProvider: React.FC<EntitlementsProviderProps> = ({ chil
               error: 'This subscription is already linked to another account. Please sign in with the original account or use a different device/Apple ID to purchase a new subscription.' 
             };
           } else {
-            console.error('Error inserting new subscription:', insertError);
-            return { success: false, error: insertError.message };
+          console.error('Error inserting new subscription:', insertError);
+          return { success: false, error: insertError.message };
           }
         }
         // console.log('✅ Created new subscription entry');

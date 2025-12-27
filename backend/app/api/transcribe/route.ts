@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[TRANSCRIBE] Processing audio file${userId ? ` for user ${userId}` : ' (unauthenticated)'}:`, {
+    console.error(`[TRANSCRIBE] Processing audio file${userId ? ` for user ${userId}` : ' (unauthenticated)'}:`, {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       response_format: 'text',
     });
 
-    console.log(`[TRANSCRIBE] Transcription successful${userId ? ` for user ${userId}` : ' (unauthenticated)'}`);
+    console.error(`[TRANSCRIBE] Transcription successful${userId ? ` for user ${userId}` : ' (unauthenticated)'}`);
 
     return NextResponse.json({
       success: true,

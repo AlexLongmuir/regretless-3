@@ -28,8 +28,19 @@ const ActionsGeneratingStep: React.FC = () => {
   );
 
   useEffect(() => {
-    // Check if we already have generated actions to prevent regeneration
-    if (state.generatedActions.length > 0) {
+    // Check if existing actions reference area IDs that no longer exist
+    const currentAreaIds = new Set(state.generatedAreas.map(a => a.id))
+    const actionsWithInvalidAreas = state.generatedActions.some(action => !currentAreaIds.has(action.area_id))
+    
+    // If we have actions but they reference invalid areas, clear and regenerate
+    if (state.generatedActions.length > 0 && actionsWithInvalidAreas) {
+      console.log('🎯 [ONBOARDING] Areas changed - clearing old actions and regenerating')
+      setGeneratedActions([])
+      // Continue to regeneration below
+    }
+    
+    // Only skip generation if we have valid actions
+    if (state.generatedActions.length > 0 && !actionsWithInvalidAreas) {
       setIsLoading(false);
       navigation.navigate('ActionsConfirm' as never);
       return;
@@ -92,7 +103,7 @@ const ActionsGeneratingStep: React.FC = () => {
 
     // Start generation immediately
     generateActions();
-  }, []); // Empty dependency array - only run once on mount
+  }, [state.generatedAreas, state.generatedActions, setGeneratedActions, navigation]);
 
 
   return (

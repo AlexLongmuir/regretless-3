@@ -90,8 +90,7 @@ export default function ActionsStep() {
   useFocusEffect(
     React.useCallback(() => {
       const loadActions = async () => {
-        // Only load if we don't have actions yet and we have a dreamId
-        if (!dreamId || actions.length > 0) {
+        if (!dreamId) {
           setIsLoading(false)
           return
         }
@@ -109,6 +108,23 @@ export default function ActionsStep() {
               loadActions() // Retry
             }
           }, 1000)
+          return
+        }
+
+        // Check if existing actions reference area IDs that no longer exist
+        const currentAreaIds = new Set(areas.map(a => a.id))
+        const actionsWithInvalidAreas = actions.some(action => !currentAreaIds.has(action.area_id))
+        
+        // If we have actions but they reference invalid areas, clear and regenerate
+        if (actions.length > 0 && actionsWithInvalidAreas) {
+          console.log('Areas changed - clearing old actions and regenerating')
+          setActions([])
+          // Continue to regeneration below
+        }
+        
+        // Only skip generation if we have valid actions
+        if (actions.length > 0 && !actionsWithInvalidAreas) {
+          setIsLoading(false)
           return
         }
 
@@ -150,7 +166,7 @@ export default function ActionsStep() {
       }
 
       loadActions()
-    }, [dreamId, actions.length, setActions, areas, title, start_date, end_date, baseline, obstacles, enjoyment, timeCommitment])
+    }, [dreamId, actions, setActions, areas, title, start_date, end_date, baseline, obstacles, enjoyment, timeCommitment])
   )
 
   // Navigation functions

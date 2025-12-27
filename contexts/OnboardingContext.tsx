@@ -98,7 +98,21 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
   };
 
   const setGeneratedAreas = (areas: Area[]) => {
-    setState(prev => ({ ...prev, generatedAreas: areas }));
+    setState(prev => {
+      // Check if area IDs have changed
+      const prevAreaIds = new Set(prev.generatedAreas.map(a => a.id))
+      const newAreaIds = new Set(areas.map(a => a.id))
+      const areasChanged = 
+        prevAreaIds.size !== newAreaIds.size ||
+        ![...newAreaIds].every(id => prevAreaIds.has(id))
+      
+      // If areas changed, clear actions since they reference old areas
+      if (areasChanged) {
+        return { ...prev, generatedAreas: areas, generatedActions: [] }
+      }
+      
+      return { ...prev, generatedAreas: areas }
+    });
   };
 
   const setGeneratedActions = (actions: Action[]) => {

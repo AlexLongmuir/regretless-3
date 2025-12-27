@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     const base64 = await fileToBase64(file);
 
-    console.log('🖼️ Analyzing dreamboard image, size:', base64.length, 'bytes');
+    console.error('🖼️ Analyzing dreamboard image, size:', base64.length, 'bytes');
     
     let result;
     try {
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         maxOutputTokens: 6000,
         modelId: GEMINI_FLASH_MODEL,
       });
-      console.log('✅ Successfully generated dreams:', result?.data?.dreams?.length || 0);
+      console.error('✅ Successfully generated dreams:', result?.data?.dreams?.length || 0);
     } catch (generateError) {
       console.error('❌ Error in generateJson:', generateError);
       throw generateError;
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       throw new Error('No dreams generated from dreamboard analysis');
     }
     
-    console.log('📊 Extracted', dreams.length, 'dreams from dreamboard');
+    console.error('📊 Extracted', dreams.length, 'dreams from dreamboard');
 
     // Persist to ai_generated_dreams only if authenticated
     if (!isOnboarding && user && sb && Array.isArray(dreams) && dreams.length > 0) {

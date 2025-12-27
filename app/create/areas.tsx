@@ -29,6 +29,7 @@ export default function AreasStep() {
     removeArea,
     areasAnalyzed,
     setAreasAnalyzed,
+    setActions,
     start_date,
     end_date,
     baseline,
@@ -272,6 +273,8 @@ export default function AreasStep() {
                 }, session.access_token)
                 
                 if (generatedAreas && generatedAreas.length > 0) {
+                  // Clear actions when areas are regenerated since they reference old areas
+                  setActions([])
                   setAreas(generatedAreas)
                   setFeedback('')
                 }

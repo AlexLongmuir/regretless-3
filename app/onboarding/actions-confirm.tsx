@@ -46,6 +46,22 @@ const ActionsConfirmStep: React.FC = () => {
     }, [])
   );
   
+  // Check if areas have changed and regenerate actions if needed
+  useFocusEffect(
+    React.useCallback(() => {
+      // Check if existing actions reference area IDs that no longer exist
+      const currentAreaIds = new Set(state.generatedAreas.map(a => a.id))
+      const actionsWithInvalidAreas = state.generatedActions.some(action => !currentAreaIds.has(action.area_id))
+      
+      // If we have actions but they reference invalid areas, navigate back to regenerate
+      if (state.generatedActions.length > 0 && actionsWithInvalidAreas) {
+        console.log('🎯 [ONBOARDING] Areas changed - navigating to regenerate actions')
+        setGeneratedActions([])
+        navigation.navigate('ActionsGenerating' as never)
+      }
+    }, [state.generatedAreas, state.generatedActions, setGeneratedActions, navigation])
+  );
+  
   // Get current area and its actions
   const currentArea = state.generatedAreas[currentAreaIndex];
   const currentAreaActions = state.generatedActions.filter(action => action.area_id === currentArea?.id);

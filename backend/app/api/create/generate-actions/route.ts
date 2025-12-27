@@ -122,7 +122,7 @@ CRITICAL RULES:
 Each action should be atomic, measurable, and bounded.`
     }
 
-    console.log('📝 Prompt being sent to AI:', prompt)
+    console.error('📝 Prompt being sent to AI:', prompt)
 
     const { data, usage } = await generateJson({
       system: ACTIONS_SYSTEM,
@@ -134,7 +134,7 @@ Each action should be atomic, measurable, and bounded.`
       thinkingBudget: THINKING_BUDGETS.MAXIMUM // Maximum budget for complex action planning
     })
 
-    console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
+    console.error('🤖 AI Response:', JSON.stringify(data, null, 2))
 
     const latencyMs = Date.now() - startTime
 
@@ -230,11 +230,11 @@ Each action should be atomic, measurable, and bounded.`
       }
     })
 
-    console.log('💾 Generated actions:', JSON.stringify(actions, null, 2))
+    console.error('💾 Generated actions:', JSON.stringify(actions, null, 2))
 
     // For onboarding, return the actions directly without saving to database
     if (isOnboarding) {
-      console.log('✅ Returning actions for onboarding preview')
+      console.error('✅ Returning actions for onboarding preview')
       return NextResponse.json(actions)
     }
 
@@ -294,7 +294,7 @@ Each action should be atomic, measurable, and bounded.`
       return NextResponse.json({ error: 'Failed to retrieve saved actions' }, { status: 500 })
     }
 
-    console.log('✅ Saved actions:', JSON.stringify(savedActions, null, 2))
+    console.error('✅ Saved actions:', JSON.stringify(savedActions, null, 2))
     return NextResponse.json(savedActions ?? [])
 
   } catch (error) {

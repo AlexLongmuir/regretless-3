@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const supabase = supabaseServer();
     const now = new Date();
 
-    console.log('🔄 Checking for expired trials...');
+    console.error('🔄 Checking for expired trials...');
 
     // Get all active trial subscriptions
     const { data: trialSubscriptions, error: fetchError } = await supabase
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!trialSubscriptions || trialSubscriptions.length === 0) {
-      console.log('✅ No active trial subscriptions found');
+      console.error('✅ No active trial subscriptions found');
       return NextResponse.json({ 
         success: true, 
         message: 'No active trials to check',
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`📊 Found ${trialSubscriptions.length} active trial subscriptions to check`);
+    console.error(`📊 Found ${trialSubscriptions.length} active trial subscriptions to check`);
 
     let expiredCount = 0;
     const expiredUsers = [];
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       const trialStatus = getTrialStatus(subscription);
       
       if (trialStatus.has_expired) {
-        console.log(`⏰ Trial expired for user ${subscription.user_id}`);
+        console.error(`⏰ Trial expired for user ${subscription.user_id}`);
         
         // Update subscription to inactive
         const { error: updateError } = await supabase
@@ -70,12 +70,12 @@ export async function GET(request: NextRequest) {
             trial_expired_at: subscription.current_period_end
           });
           
-          console.log(`✅ Marked trial as expired for user ${subscription.user_id}`);
+          console.error(`✅ Marked trial as expired for user ${subscription.user_id}`);
         }
       }
     }
 
-    console.log(`✅ Trial check completed. ${expiredCount} trials expired.`);
+    console.error(`✅ Trial check completed. ${expiredCount} trials expired.`);
 
     return NextResponse.json({
       success: true,

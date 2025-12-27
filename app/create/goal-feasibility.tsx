@@ -42,6 +42,24 @@ export default function GoalFeasibilityStep() {
   // Track the inputs that were used for the last analysis
   const lastAnalysisInputsRef = useRef<LastAnalysisInputs | null>(null)
   
+  // Use refs to track current input values to avoid stale closures in useFocusEffect
+  const currentInputsRef = useRef<LastAnalysisInputs>({
+    title: title || '',
+    baseline: baseline || undefined,
+    obstacles: obstacles || undefined,
+    enjoyment: enjoyment || undefined
+  })
+  
+  // Keep refs in sync with current values
+  React.useEffect(() => {
+    currentInputsRef.current = {
+      title: title || '',
+      baseline: baseline || undefined,
+      obstacles: obstacles || undefined,
+      enjoyment: enjoyment || undefined
+    }
+  }, [title, baseline, obstacles, enjoyment])
+  
   const [isLoading, setIsLoading] = useState(!goalFeasibilityAnalyzed)
   const [goalSuggestions, setGoalSuggestions] = useState<GoalSuggestion[]>([])
   const [summary, setSummary] = useState<string>('')
@@ -50,38 +68,20 @@ export default function GoalFeasibilityStep() {
 
   useFocusEffect(
     React.useCallback(() => {
+      // Use current values from refs to get latest values without adding them as dependencies
+      const currentInputs = currentInputsRef.current
+      
       // Initialize current values with context values when navigating back
-      if (title) {
-        setCurrentGoal(title)
+      if (currentInputs.title) {
+        setCurrentGoal(currentInputs.title)
         if (!originalGoal) {
-          setOriginalGoal(title)
+          setOriginalGoal(currentInputs.title)
         }
       }
 
-      // Check if inputs have changed since last analysis
-      const currentInputs: LastAnalysisInputs = {
-        title: title || '',
-        baseline: baseline || undefined,
-        obstacles: obstacles || undefined,
-        enjoyment: enjoyment || undefined
-      }
-
-      const inputsChanged = !lastAnalysisInputsRef.current || 
-        lastAnalysisInputsRef.current.title !== currentInputs.title ||
-        lastAnalysisInputsRef.current.baseline !== currentInputs.baseline ||
-        lastAnalysisInputsRef.current.obstacles !== currentInputs.obstacles ||
-        lastAnalysisInputsRef.current.enjoyment !== currentInputs.enjoyment
-
-      // If inputs changed and we have cached data, reset the analysis flag and show loading
-      if (inputsChanged && goalFeasibilityAnalyzed) {
-        setGoalFeasibilityAnalyzed(false)
-        setField('goalFeasibility', undefined)
-        setField('originalTitleForFeasibility', undefined)
-        setIsLoading(true)
-      }
-
-      // If we already have goal feasibility data and inputs haven't changed, use cached data
-      if (goalFeasibility && goalFeasibilityAnalyzed && !inputsChanged) {
+      // If we already have goal feasibility data, use cached data (don't re-analyze on input changes)
+      // The analysis is a one-time operation when the screen first loads with inputs
+      if (goalFeasibility && goalFeasibilityAnalyzed) {
         // Process summary
         setSummary(goalFeasibility.summary)
         
@@ -101,7 +101,7 @@ export default function GoalFeasibilityStep() {
         // Add original goal as last option
         processedSuggestions.push({
           id: 'original',
-          title: originalTitleForFeasibility || title,
+          title: originalTitleForFeasibility || currentInputs.title,
           emoji: '🎯',
           reasoning: 'Your original goal',
           selected: false
@@ -112,9 +112,10 @@ export default function GoalFeasibilityStep() {
         return
       }
 
-      // Only run analysis if we haven't analyzed yet (or inputs changed) and have a title
-      if ((goalFeasibilityAnalyzed && !inputsChanged) || !title) {
-        if (!title) {
+      // Only run analysis if we haven't analyzed yet and have a title
+      // Don't re-run analysis if inputs changed - we only analyze once on initial load
+      if (goalFeasibilityAnalyzed || !currentInputs.title) {
+        if (!currentInputs.title) {
           setTimeout(() => {
             setIsLoading(false)
           }, 1000)
@@ -126,6 +127,8 @@ export default function GoalFeasibilityStep() {
       setIsLoading(true)
 
       const runAnalysis = async () => {
+        // Get latest values from ref in case they changed
+        const latestInputs = currentInputsRef.current
         
         try {
           // Get auth token
@@ -135,23 +138,23 @@ export default function GoalFeasibilityStep() {
           }
 
           const result = await runGoalFeasibility({ 
-            title,
-            baseline: baseline || undefined,
-            obstacles: obstacles || undefined,
-            enjoyment: enjoyment || undefined
+            title: latestInputs.title,
+            baseline: latestInputs.baseline,
+            obstacles: latestInputs.obstacles,
+            enjoyment: latestInputs.enjoyment
           }, session.access_token)
           
           // Store in context
           setField('goalFeasibility', result)
-          setField('originalTitleForFeasibility', title)
+          setField('originalTitleForFeasibility', latestInputs.title)
           setGoalFeasibilityAnalyzed(true)
           
           // Store the inputs that were used for this analysis
           lastAnalysisInputsRef.current = {
-            title: title || '',
-            baseline: baseline || undefined,
-            obstacles: obstacles || undefined,
-            enjoyment: enjoyment || undefined
+            title: latestInputs.title || '',
+            baseline: latestInputs.baseline,
+            obstacles: latestInputs.obstacles,
+            enjoyment: latestInputs.enjoyment
           }
           
           // Process summary
@@ -173,7 +176,7 @@ export default function GoalFeasibilityStep() {
           // Add original goal as last option
           processedSuggestions.push({
             id: 'original',
-            title: title,
+            title: latestInputs.title,
             emoji: '🎯',
             reasoning: 'Your original goal',
             selected: false
@@ -191,16 +194,17 @@ export default function GoalFeasibilityStep() {
           setGoalFeasibilityAnalyzed(true)
           
           // Store the inputs that were attempted (even on failure)
+          const latestInputs = currentInputsRef.current
           lastAnalysisInputsRef.current = {
-            title: title || '',
-            baseline: baseline || undefined,
-            obstacles: obstacles || undefined,
-            enjoyment: enjoyment || undefined
+            title: latestInputs.title || '',
+            baseline: latestInputs.baseline,
+            obstacles: latestInputs.obstacles,
+            enjoyment: latestInputs.enjoyment
           }
           
           // Fallback to default suggestions if AI fails
           setGoalSuggestions([
-            { id: 'original', title: title || 'Your Dream', emoji: '🎯', reasoning: 'Original title', selected: false }
+            { id: 'original', title: latestInputs.title || 'Your Dream', emoji: '🎯', reasoning: 'Original title', selected: false }
           ])
           setTimeout(() => {
             setIsLoading(false)
@@ -209,7 +213,9 @@ export default function GoalFeasibilityStep() {
       }
 
       runAnalysis()
-    }, [title, goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, baseline, obstacles, enjoyment, originalTitleForFeasibility])
+      // Only depend on stable values - not on mutable inputs (title, baseline, obstacles, enjoyment)
+      // This prevents the callback from being recreated on every keystroke
+    }, [goalFeasibility, goalFeasibilityAnalyzed, setField, setGoalFeasibilityAnalyzed, originalTitleForFeasibility])
   )
 
   const handleGoalSelect = (goalId: string) => {
@@ -358,6 +364,7 @@ export default function GoalFeasibilityStep() {
             onChangeText={(text) => {
               setCurrentGoal(text)
               setField('title', text)
+              // currentInputsRef will be updated automatically by the useEffect hook
             }}
             placeholder="Your dream title..."
             variant="borderless"
