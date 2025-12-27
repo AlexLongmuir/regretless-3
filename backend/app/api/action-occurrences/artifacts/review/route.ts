@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Data loaded successfully:', {
+    console.log('Data loaded successfully:', {
       occurrence: occurrence.id,
       action: action.title,
       area: area.title,

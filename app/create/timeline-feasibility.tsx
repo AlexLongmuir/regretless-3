@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Platform, TextInput } from 'react-native'
+import React, { useState, useEffect, useRef } from 'react'
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, TextInput, Platform, TouchableOpacity } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -57,14 +57,15 @@ export default function TimelineFeasibilityStep() {
     
     return `Based on your daily time commitment of ${timeText}, we forecast you can achieve this by ${formattedDate}. ${explanation}`
   }
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
   const [currentStartDate, setCurrentStartDate] = useState<string>('')
   const [currentEndDate, setCurrentEndDate] = useState<string>('')
   const [hasRunAnalysis, setHasRunAnalysis] = useState(false)
   const [selectedDays, setSelectedDays] = useState<number>(90)
   const [daysInputText, setDaysInputText] = useState<string>('90')
   const [isUpdatingFromDays, setIsUpdatingFromDays] = useState(false)
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false)
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const daysInputRef = useRef<TextInput>(null)
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No date set'
@@ -102,12 +103,6 @@ export default function TimelineFeasibilityStep() {
     return Math.max(1, diffDays) // Ensure at least 1 day
   }
 
-  // Helper to format days for display
-  const formatDays = (days: number): string => {
-    if (days === 1) return '1 day'
-    return `${days} days`
-  }
-
   useFocusEffect(
     React.useCallback(() => {
       // Check if time commitment has changed - if so, we need to re-run analysis
@@ -116,12 +111,10 @@ export default function TimelineFeasibilityStep() {
       // If we already have analyzed data AND time commitment hasn't changed, use it instead of re-running
       if (timelineFeasibility && timelineFeasibilityAnalyzed && !timeCommitmentHasChanged) {
         // Initialize current values from context
-        let initStartDate = start_date
-        if (initStartDate) {
-          setCurrentStartDate(initStartDate)
+        if (start_date) {
+          setCurrentStartDate(start_date)
         } else {
           const today = new Date().toISOString().split('T')[0]
-          initStartDate = today
           setCurrentStartDate(today)
         }
 
@@ -134,8 +127,8 @@ export default function TimelineFeasibilityStep() {
         }
 
         // Initialize days count
-        if (initStartDate && initEndDate) {
-          const days = calculateDaysBetween(initStartDate, initEndDate)
+        if (start_date && initEndDate) {
+          const days = calculateDaysBetween(start_date, initEndDate)
           setSelectedDays(days)
           setDaysInputText(days.toString())
         }
@@ -303,73 +296,6 @@ export default function TimelineFeasibilityStep() {
     }, [title, timeCommitment, start_date, baseline, obstacles, enjoyment, timelineFeasibility, timelineFeasibilityAnalyzed, originalTimeCommitmentForFeasibility, setField, setTimelineFeasibilityAnalyzed])
   )
 
-
-  const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowStartDatePicker(false)
-    }
-
-    if (event.type === 'set' && selectedDate) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0) // Reset time to start of day for comparison
-      selectedDate.setHours(0, 0, 0, 0)
-      
-      // Don't allow dates in the past
-      if (selectedDate < today) {
-        return
-      }
-      
-      const dateString = selectedDate.toISOString().split('T')[0]
-      setCurrentStartDate(dateString)
-      setField('start_date', dateString)
-      
-      // If the new start date is after the current end date, update end date
-      if (currentEndDate && selectedDate >= new Date(currentEndDate)) {
-        const newEndDate = new Date(selectedDate)
-        newEndDate.setDate(newEndDate.getDate() + 1) // Set end date to day after start date
-        const newEndDateString = newEndDate.toISOString().split('T')[0]
-        setCurrentEndDate(newEndDateString)
-        setField('end_date', newEndDateString)
-      // Update days count when end date changes
-      if (!isUpdatingFromDays) {
-        const newDays = calculateDaysBetween(dateString, newEndDateString)
-        setSelectedDays(newDays)
-        setDaysInputText(newDays.toString())
-      }
-    } else if (currentEndDate && !isUpdatingFromDays) {
-      // Recalculate days when start date changes
-      const newDays = calculateDaysBetween(dateString, currentEndDate)
-      setSelectedDays(newDays)
-      setDaysInputText(newDays.toString())
-    }
-    }
-  }
-
-  const handleEndDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowEndDatePicker(false)
-    }
-
-    if (event.type === 'set' && selectedDate) {
-      const dateString = selectedDate.toISOString().split('T')[0]
-      
-      // Don't allow end date to be before or equal to start date
-      if (currentStartDate && selectedDate <= new Date(currentStartDate)) {
-        return
-      }
-      
-      setCurrentEndDate(dateString)
-      setField('end_date', dateString)
-      
-    // Update days count when end date changes (only if not updating from days picker)
-    if (!isUpdatingFromDays && currentStartDate) {
-      const newDays = calculateDaysBetween(currentStartDate, dateString)
-      setSelectedDays(newDays)
-      setDaysInputText(newDays.toString())
-    }
-    }
-  }
-
   const getStartDateValue = (): Date => {
     if (currentStartDate) {
       const date = new Date(currentStartDate)
@@ -393,6 +319,66 @@ export default function TimelineFeasibilityStep() {
     return defaultDate
   }
 
+  const handleStartDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowStartDatePicker(false)
+    }
+
+    if (event.type === 'set' && selectedDate) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      selectedDate.setHours(0, 0, 0, 0)
+      
+      if (selectedDate < today) {
+        return
+      }
+      
+      const dateString = selectedDate.toISOString().split('T')[0]
+      setCurrentStartDate(dateString)
+      setField('start_date', dateString)
+      
+      if (currentEndDate && selectedDate >= new Date(currentEndDate)) {
+        const newEndDate = new Date(selectedDate)
+        newEndDate.setDate(newEndDate.getDate() + 1)
+        const newEndDateString = newEndDate.toISOString().split('T')[0]
+        setCurrentEndDate(newEndDateString)
+        setField('end_date', newEndDateString)
+        if (!isUpdatingFromDays) {
+          const newDays = calculateDaysBetween(dateString, newEndDateString)
+          setSelectedDays(newDays)
+          setDaysInputText(newDays.toString())
+        }
+      } else if (currentEndDate && !isUpdatingFromDays) {
+        const newDays = calculateDaysBetween(dateString, currentEndDate)
+        setSelectedDays(newDays)
+        setDaysInputText(newDays.toString())
+      }
+    }
+  }
+
+  const handleEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowEndDatePicker(false)
+    }
+
+    if (event.type === 'set' && selectedDate) {
+      const dateString = selectedDate.toISOString().split('T')[0]
+      
+      if (currentStartDate && selectedDate <= new Date(currentStartDate)) {
+        return
+      }
+      
+      setCurrentEndDate(dateString)
+      setField('end_date', dateString)
+      
+      if (!isUpdatingFromDays && currentStartDate) {
+        const newDays = calculateDaysBetween(currentStartDate, dateString)
+        setSelectedDays(newDays)
+        setDaysInputText(newDays.toString())
+      }
+    }
+  }
+
   // Handle days input change - update end date accordingly
   const handleDaysInputChange = (text: string) => {
     setDaysInputText(text)
@@ -413,16 +399,14 @@ export default function TimelineFeasibilityStep() {
     setDaysInputText(days.toString())
     
     // Calculate new end date = start date + (days - 1) to make it inclusive
-    // If start is Jan 1 and days is 30, end should be Jan 30 (29 days later)
     const startDate = new Date(currentStartDate)
     const newEndDate = new Date(startDate)
-    newEndDate.setDate(newEndDate.getDate() + days - 1) // Subtract 1 because start date is day 1
+    newEndDate.setDate(newEndDate.getDate() + days - 1)
     const newEndDateString = newEndDate.toISOString().split('T')[0]
     
     setCurrentEndDate(newEndDateString)
     setField('end_date', newEndDateString)
     
-    // Reset flag after a brief delay to allow state updates to complete
     setTimeout(() => {
       setIsUpdatingFromDays(false)
     }, 100)
@@ -432,23 +416,18 @@ export default function TimelineFeasibilityStep() {
   const handleDaysInputBlur = () => {
     const numValue = parseInt(daysInputText, 10)
     if (isNaN(numValue) || numValue < 1) {
-      // Reset to current selected days if invalid
       setDaysInputText(selectedDays.toString())
     } else if (numValue > 730) {
-      // Cap at 730
       handleDaysChange(730)
     } else if (numValue !== selectedDays) {
-      // Update if different
       handleDaysChange(numValue)
     }
   }
 
   // Update selectedDays when dates are initialized or changed externally
-  // Only update if not currently updating from days picker and if the calculated value differs
   useEffect(() => {
     if (currentStartDate && currentEndDate && !isUpdatingFromDays) {
       const calculatedDays = calculateDaysBetween(currentStartDate, currentEndDate)
-      // Only update if the calculated days differ from selected days to prevent loops
       if (calculatedDays !== selectedDays && calculatedDays >= 1 && calculatedDays <= 730) {
         setSelectedDays(calculatedDays)
         setDaysInputText(calculatedDays.toString())
@@ -567,89 +546,112 @@ export default function TimelineFeasibilityStep() {
           )}
         </View>
 
-        {/* Date Selection Section */}
-        <View style={{ marginBottom: 32 }}>
-          {/* Complete In Row */}
-          {currentStartDate && currentEndDate && (
-            <View style={styles.rowContainer}>
-              <Text style={styles.rowLabel}>Complete in</Text>
-              <View style={styles.rowInputContainer}>
-                <View style={styles.daysInputWrapper}>
-                  <TextInput
-                    value={daysInputText}
-                    onChangeText={handleDaysInputChange}
-                    onBlur={handleDaysInputBlur}
-                    keyboardType="numeric"
-                    style={styles.daysInput}
-                    maxLength={3}
-                  />
-                  <Text style={styles.daysSuffix}>{selectedDays === 1 ? 'day' : 'days'}</Text>
+        {/* Complete In Section - Separate Card */}
+        {currentStartDate && currentEndDate && (
+          <View style={{ marginBottom: 16 }}>
+            <View style={styles.cardContainer}>
+              <View style={[styles.rowContainer, styles.rowFirst, styles.rowLast]}>
+                <Text style={styles.rowLabel}>Complete in</Text>
+                <View style={styles.rowInputContainer}>
+                  <TouchableOpacity 
+                    style={styles.daysInputWrapper}
+                    onPress={() => daysInputRef.current?.focus()}
+                    activeOpacity={1}
+                  >
+                    <TextInput
+                      ref={daysInputRef}
+                      value={daysInputText}
+                      onChangeText={handleDaysInputChange}
+                      onBlur={handleDaysInputBlur}
+                      keyboardType="numeric"
+                      style={styles.daysInput}
+                      maxLength={3}
+                      editable={true}
+                    />
+                    <Text style={styles.daysSuffix}>{selectedDays === 1 ? 'day' : 'days'}</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
-          )}
-
-          {/* Start Date Row */}
-          <View style={styles.rowContainer}>
-            <Text style={styles.rowLabel}>Start date</Text>
-            <View style={styles.rowInputContainer}>
-              {Platform.OS === 'ios' ? (
-                <DateTimePicker
-                  value={getStartDateValue()}
-                  mode="date"
-                  display="compact"
-                  onChange={handleStartDateChange}
-                  minimumDate={new Date()}
-                  style={styles.datePickerCompact}
-                />
-              ) : (
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateInputText} onPress={() => setShowStartDatePicker(true)}>
-                    {formatDate(currentStartDate)}
-                  </Text>
-                  {showStartDatePicker && (
-                    <DateTimePicker
-                      value={getStartDateValue()}
-                      mode="date"
-                      display="default"
-                      onChange={handleStartDateChange}
-                      minimumDate={new Date()}
-                    />
-                  )}
-                </View>
-              )}
-            </View>
           </View>
+        )}
 
-          {/* End Date Row */}
-          <View style={styles.rowContainer}>
-            <Text style={styles.rowLabel}>End date</Text>
-            <View style={styles.rowInputContainer}>
-              {Platform.OS === 'ios' ? (
-                <DateTimePicker
-                  value={getEndDateValue()}
-                  mode="date"
-                  display="compact"
-                  onChange={handleEndDateChange}
-                  minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
-                  style={styles.datePickerCompact}
-                />
-              ) : (
-                <View style={styles.dateInputContainer}>
-                  <Text style={styles.dateInputText} onPress={() => setShowEndDatePicker(true)}>
-                    {formatDate(currentEndDate)}
-                  </Text>
-                  {showEndDatePicker && (
-                    <DateTimePicker
-                      value={getEndDateValue()}
-                      mode="date"
-                      display="default"
-                      onChange={handleEndDateChange}
-                      minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
-                    />
-                  )}
-                </View>
-              )}
+        {/* Date Selection Section */}
+        <View style={{ marginBottom: 32 }}>
+          <View style={styles.cardContainer}>
+            {/* Start Date Row */}
+            <View style={[styles.rowContainer, styles.rowFirst]}>
+              <Text style={styles.rowLabel}>Start date</Text>
+              <View style={styles.rowInputContainer}>
+                {Platform.OS === 'ios' ? (
+                  <DateTimePicker
+                    value={getStartDateValue()}
+                    mode="date"
+                    display="compact"
+                    onChange={handleStartDateChange}
+                    minimumDate={new Date()}
+                    style={styles.datePickerCompact}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.dateInputContainer}
+                    onPress={() => setShowStartDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.dateInputText}>
+                      {formatDate(currentStartDate)}
+                    </Text>
+                    {showStartDatePicker && (
+                      <DateTimePicker
+                        value={getStartDateValue()}
+                        mode="date"
+                        display="default"
+                        onChange={handleStartDateChange}
+                        minimumDate={new Date()}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* End Date Row */}
+            <View style={[styles.rowContainer, styles.rowLast]}>
+              <Text style={styles.rowLabel}>End date</Text>
+              <View style={styles.rowInputContainer}>
+                {Platform.OS === 'ios' ? (
+                  <DateTimePicker
+                    value={getEndDateValue()}
+                    mode="date"
+                    display="compact"
+                    onChange={handleEndDateChange}
+                    minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
+                    style={styles.datePickerCompact}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.dateInputContainer}
+                    onPress={() => setShowEndDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.dateInputText}>
+                      {formatDate(currentEndDate)}
+                    </Text>
+                    {showEndDatePicker && (
+                      <DateTimePicker
+                        value={getEndDateValue()}
+                        mode="date"
+                        display="default"
+                        onChange={handleEndDateChange}
+                        minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -678,13 +680,30 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: theme.radius.xl,
   },
+  cardContainer: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
   rowContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: theme.colors.grey[200],
+    paddingHorizontal: 16,
+  },
+  rowFirst: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  rowLast: {
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  divider: {
+    height: 0.5,
+    backgroundColor: theme.colors.grey[200],
+    marginLeft: 16,
   },
   rowLabel: {
     fontSize: 16,
@@ -718,7 +737,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.grey[100],
-    borderRadius: 8,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minWidth: 120,

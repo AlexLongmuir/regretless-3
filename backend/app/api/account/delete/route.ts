@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServerAuth } from '../../../../lib/supabaseServer';
 
 export async function DELETE(request: NextRequest) {
-  console.error('🗑️ [ACCOUNT DELETE API] DELETE request received');
+  console.log('🗑️ [ACCOUNT DELETE API] DELETE request received');
   
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -12,7 +12,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const user = await supabaseServerAuth(token).auth.getUser();
-    console.error('👤 [ACCOUNT DELETE API] User auth result:', user.data.user ? `User ID: ${user.data.user.id}` : 'No user');
+    console.log('👤 [ACCOUNT DELETE API] User auth result:', user.data.user ? `User ID: ${user.data.user.id}` : 'No user');
     
     if (!user.data.user) {
       console.error('❌ [ACCOUNT DELETE API] Unauthorized - invalid token');
@@ -21,16 +21,16 @@ export async function DELETE(request: NextRequest) {
 
     const userId = user.data.user.id;
     const sb = supabaseServerAuth(token);
-    console.error('🔗 [ACCOUNT DELETE API] Authenticated Supabase client created');
+    console.log('🔗 [ACCOUNT DELETE API] Authenticated Supabase client created');
 
     // Start a transaction-like approach by doing soft deletes in order
     // We'll use timestamps to mark everything as deleted rather than hard deletes
     
     const deletedAt = new Date().toISOString();
-    console.error('🗑️ [ACCOUNT DELETE API] Starting soft delete process for user:', userId);
+    console.log('🗑️ [ACCOUNT DELETE API] Starting soft delete process for user:', userId);
 
     // 1. Skip action_artifacts deletion for now (they're just file references)
-    console.error('🗑️ [ACCOUNT DELETE API] Skipping action artifacts deletion...');
+    console.log('🗑️ [ACCOUNT DELETE API] Skipping action artifacts deletion...');
 
     // 2. Get all dream IDs for the user first
     const { data: dreams, error: dreamsError } = await sb
@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest) {
     const actionIds = actions?.map(a => a.id) || [];
 
     // 5. Delete action_occurrences
-    console.error('🗑️ [ACCOUNT DELETE API] Deleting action occurrences...');
+    console.log('🗑️ [ACCOUNT DELETE API] Deleting action occurrences...');
     const { error: occurrencesError } = await sb
       .from('action_occurrences')
       .delete()
@@ -88,7 +88,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 6. Soft delete actions
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting actions...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting actions...');
     const { error: actionsDeleteError } = await sb
       .from('actions')
       .update({ deleted_at: deletedAt })
@@ -100,7 +100,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 7. Soft delete areas
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting areas...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting areas...');
     const { error: areasDeleteError } = await sb
       .from('areas')
       .update({ deleted_at: deletedAt })
@@ -112,7 +112,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 8. Soft delete dreams
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting dreams...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting dreams...');
     const { error: dreamsDeleteError } = await sb
       .from('dreams')
       .update({ archived_at: deletedAt })
@@ -124,7 +124,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 6. Soft delete notification_preferences (references profiles)
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting notification preferences...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting notification preferences...');
     const { error: notificationsError } = await sb
       .from('notification_preferences')
       .delete()
@@ -136,7 +136,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 7. Soft delete AI events (references profiles)
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting AI events...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting AI events...');
     const { error: aiEventsError } = await sb
       .from('ai_events')
       .delete()
@@ -148,7 +148,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 8. Soft delete profile (references auth.users)
-    console.error('🗑️ [ACCOUNT DELETE API] Soft deleting profile...');
+    console.log('🗑️ [ACCOUNT DELETE API] Soft deleting profile...');
     const { error: profileError } = await sb
       .from('profiles')
       .delete()
@@ -160,7 +160,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 9. Finally, delete the auth user (this will cascade to any remaining references)
-    console.error('🗑️ [ACCOUNT DELETE API] Deleting auth user...');
+    console.log('🗑️ [ACCOUNT DELETE API] Deleting auth user...');
     const { error: authError } = await sb.auth.admin.deleteUser(userId);
 
     if (authError) {
@@ -168,7 +168,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to delete auth user' }, { status: 500 });
     }
 
-    console.error('✅ [ACCOUNT DELETE API] Account successfully deleted for user:', userId);
+    console.log('✅ [ACCOUNT DELETE API] Account successfully deleted for user:', userId);
     return NextResponse.json({ 
       success: true, 
       message: 'Account successfully deleted' 

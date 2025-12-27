@@ -53,7 +53,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const startTime = Date.now()
-  console.error('🚀 [GENERATE-AREAS] Request received at', new Date().toISOString())
+  console.log('🚀 [GENERATE-AREAS] Request received at', new Date().toISOString())
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -62,10 +62,10 @@ export async function POST(req: Request) {
     // Allow unauthenticated access for onboarding preview
     const isOnboarding = !token || !user
     
-    console.error('🔐 [GENERATE-AREAS] Auth check:', { isOnboarding, hasToken: !!token, hasUser: !!user })
+    console.log('🔐 [GENERATE-AREAS] Auth check:', { isOnboarding, hasToken: !!token, hasUser: !!user })
 
     const requestBody = await req.json()
-    console.error('📥 [GENERATE-AREAS] Request body received:', {
+    console.log('📥 [GENERATE-AREAS] Request body received:', {
       title: requestBody.title,
       hasBaseline: !!requestBody.baseline,
       hasObstacles: !!requestBody.obstacles,
@@ -133,7 +133,7 @@ Dream Title: "${title}"${contextString}
 Please create the appropriate number of orthogonal, stage-based areas (2-6) that represent distinct phases of work needed to achieve this goal. Choose the number based on the dream's complexity - simpler goals need fewer areas (2-3), complex goals may need more (4-6). Do not default to a middle number. Each area should have a clear start/end point and be non-overlapping. Focus on outcome-based stages rather than topical categories.`
     }
 
-    console.error('📝 Prompt being sent to AI:', prompt)
+    console.log('📝 Prompt being sent to AI:', prompt)
 
     let data, usage
     try {
@@ -146,7 +146,7 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       })
       data = result.data
       usage = result.usage
-      console.error('🤖 AI Response:', JSON.stringify(data, null, 2))
+      console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
     } catch (aiError) {
       // Enhanced error logging for Vercel visibility
       console.error('[GENERATE-AREAS] AI generation failed');
@@ -195,11 +195,11 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       updated_at: new Date().toISOString()
     }))
 
-    console.error('💾 Generated areas:', JSON.stringify(areas, null, 2))
+    console.log('💾 Generated areas:', JSON.stringify(areas, null, 2))
 
     // For onboarding, return the areas directly without saving to database
     if (isOnboarding) {
-      console.error('✅ Returning areas for onboarding preview')
+      console.log('✅ Returning areas for onboarding preview')
       return NextResponse.json(areas)
     }
 
@@ -248,7 +248,7 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       return NextResponse.json({ error: 'Failed to retrieve saved areas' }, { status: 500 })
     }
 
-    console.error('✅ Saved areas:', JSON.stringify(savedAreas, null, 2))
+    console.log('✅ Saved areas:', JSON.stringify(savedAreas, null, 2))
     return NextResponse.json(savedAreas ?? [])
 
   } catch (error) {

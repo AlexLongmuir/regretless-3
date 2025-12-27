@@ -7,6 +7,7 @@ import { generateActions, upsertActions } from '../../frontend-services/backend-
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useAuth } from '../../hooks/useAuth'
 import { theme } from '../../utils/theme'
+import { trackEvent } from '../../lib/mixpanel'
 import type { Action, Area } from '../../backend/database/types'
 
 interface ActionCard {
@@ -150,6 +151,10 @@ export default function ActionsStep() {
           if (generatedActions && generatedActions.length > 0) {
             // Store the full Action objects in context
             setActions(generatedActions)
+            trackEvent('create_dream_actions_generated', { 
+              count: generatedActions.length,
+              area_count: areas.length
+            })
           }
           
           // Simulate minimum loading time for UX
@@ -193,6 +198,25 @@ export default function ActionsStep() {
     }
   }
 
+  const handleActionPress = (actionId: string) => {
+    const action = currentAreaActions.find(a => a.id === actionId)
+    if (action && currentArea) {
+      navigation.navigate('ActionOccurrence', {
+        actionTitle: action.title,
+        dreamTitle: title,
+        areaName: currentArea.title,
+        areaEmoji: currentArea.icon,
+        estimatedTime: action.est_minutes,
+        difficulty: action.difficulty,
+        dreamImage: image_url || undefined,
+        acceptanceCriteria: action.acceptance_criteria || [],
+        sliceCountTarget: action.slice_count_target,
+        acceptanceIntro: (action as any).acceptance_intro,
+        acceptanceOutro: (action as any).acceptance_outro,
+      })
+    }
+  }
+
   const handleClose = () => {
     // Reset the CreateDreamContext state
     reset()
@@ -213,6 +237,11 @@ export default function ActionsStep() {
 
 
   const handleApproveArea = async () => {
+    trackEvent('create_dream_area_approved', { 
+      area_index: currentAreaIndex, 
+      action_count: currentAreaActions.length 
+    })
+
     // Check if current area has a real ID (not temporary)
     if (currentArea && currentArea.id.startsWith('temp_')) {
       console.error('Cannot save actions for area with temporary ID:', currentArea.id)
@@ -369,6 +398,7 @@ export default function ActionsStep() {
           {/* Action Cards */}
           <ActionChipsList
             actions={actionCards as any}
+            onPress={handleActionPress}
             showAddButton={false}
           />
         </View>
@@ -399,6 +429,11 @@ export default function ActionsStep() {
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               
+              trackEvent('create_dream_actions_refine', { 
+                area_index: currentAreaIndex,
+                feedback_length: feedback.length 
+              })
+
               Keyboard.dismiss() // Close keyboard when AI refine is triggered
               
               // Trigger loading page

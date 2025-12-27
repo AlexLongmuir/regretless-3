@@ -13,6 +13,7 @@ import { DreamboardUpload } from '../../components/DreamboardUpload'
 import { upsertDream, getDefaultImages } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
+import { trackEvent } from '../../lib/mixpanel'
 
 const dreamPresets = [
   { emoji: '💰', text: 'Launch my online business that generates £1,000 / month' },
@@ -37,6 +38,11 @@ export default function TitleStep() {
   const [showDreamboard, setShowDreamboard] = useState(false)
   const [personalized, setPersonalized] = useState<{ title: string; emoji?: string }[]>([])
   
+  // Track start of create flow
+  useEffect(() => {
+    trackEvent('create_dream_start')
+  }, [])
+
   // Preload celebrities and dreams when component mounts
   useEffect(() => {
     const preload = async () => {
@@ -96,6 +102,7 @@ export default function TitleStep() {
   }, [preloadedDefaultImages, setPreloadedDefaultImages])
   
   const handlePresetSelect = (text: string) => {
+    trackEvent('create_dream_preset_selected', { preset_text: text })
     setField('title', text)
     // Scroll to top to show the input field
     setTimeout(() => {
@@ -112,6 +119,12 @@ export default function TitleStep() {
 
     // Navigate immediately for smooth UX
     navigation.navigate('Personalize')
+    
+    trackEvent('create_dream_title_entered', {
+      length: title.length,
+      has_preset: dreamPresets.some(p => p.text === title),
+      source: dreamPresets.some(p => p.text === title) ? 'preset' : 'manual'
+    })
 
     // Handle backend operations in background
     if (!dreamId) {
@@ -179,8 +192,14 @@ export default function TitleStep() {
 
         <DreamInputActions
           title="Need inspiration?"
-          onOpenCelebrities={() => setShowCelebs(true)}
-          onOpenDreamboard={() => setShowDreamboard(true)}
+          onOpenCelebrities={() => {
+            trackEvent('create_dream_inspiration_opened', { type: 'celebrity' })
+            setShowCelebs(true)
+          }}
+          onOpenDreamboard={() => {
+            trackEvent('create_dream_inspiration_opened', { type: 'dreamboard' })
+            setShowDreamboard(true)
+          }}
         />
 
         {/* Personalized suggestions now live inside the bottom sheets (not on base page) */}

@@ -63,6 +63,94 @@ export function validateThinkingBudget(thinkingBudget: number, modelId: string):
 }
 
 /**
+ * Check if a response is truncated based on finishReason and response length
+ * @param response The Gemini API response
+ * @param text The extracted text from the response
+ * @param maxOutputTokens The maximum output tokens that were requested
+ * @returns Object with isTruncated flag and details
+ */
+function checkTruncation(
+  response: any,
+  text: string,
+  maxOutputTokens: number
+): { isTruncated: boolean; finishReason?: string; details: string } {
+  // Check finishReason from candidates (indicates MAX_TOKENS truncation)
+  const finishReason = response?.candidates?.[0]?.finishReason;
+  const usageMetadata = response?.usageMetadata;
+  const outputTokens = usageMetadata?.candidatesTokenCount || 0;
+
+  if (finishReason === 'MAX_TOKENS') {
+    return {
+      isTruncated: true,
+      finishReason: 'MAX_TOKENS',
+      details: `Response truncated due to MAX_TOKENS limit. Output tokens: ${outputTokens}/${maxOutputTokens}`
+    };
+  }
+
+  // Heuristic: If response is suspiciously short compared to maxOutputTokens
+  // Rough estimate: 1 token ≈ 4 characters for JSON, so 10% of expected length is suspicious
+  const expectedMinLength = (maxOutputTokens * 4) * 0.1;
+  if (text.length < expectedMinLength && outputTokens >= maxOutputTokens * 0.9) {
+    return {
+      isTruncated: true,
+      finishReason: finishReason || 'UNKNOWN',
+      details: `Response appears truncated: length ${text.length} chars, output tokens ${outputTokens}/${maxOutputTokens}. Finish reason: ${finishReason || 'UNKNOWN'}`
+    };
+  }
+
+  // Check if JSON appears incomplete (doesn't end with proper closing)
+  const trimmedText = text.trim();
+  if (!trimmedText.endsWith('}') && !trimmedText.endsWith(']')) {
+    return {
+      isTruncated: true,
+      finishReason: finishReason || 'INCOMPLETE_JSON',
+      details: `Response appears incomplete: JSON doesn't end properly. Finish reason: ${finishReason || 'UNKNOWN'}, output tokens: ${outputTokens}/${maxOutputTokens}`
+    };
+  }
+
+  return {
+    isTruncated: false,
+    finishReason: finishReason || 'STOP',
+    details: `Response appears complete. Finish reason: ${finishReason || 'STOP'}, output tokens: ${outputTokens}/${maxOutputTokens}`
+  };
+}
+
+/**
+ * Validate that a response text appears to be complete JSON
+ * @param text The text to validate
+ * @returns Object with isValid flag and reason if invalid
+ */
+function validateResponseCompleteness(text: string): { isValid: boolean; reason?: string } {
+  const trimmed = text.trim();
+  
+  // Must start with { or [
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return { isValid: false, reason: 'Response does not start with { or [' };
+  }
+  
+  // Must end with } or ]
+  if (!trimmed.endsWith('}') && !trimmed.endsWith(']')) {
+    return { isValid: false, reason: 'Response does not end with } or ]' };
+  }
+  
+  // Basic bracket matching check
+  const openBraces = (trimmed.match(/\{/g) || []).length;
+  const closeBraces = (trimmed.match(/\}/g) || []).length;
+  const openBrackets = (trimmed.match(/\[/g) || []).length;
+  const closeBrackets = (trimmed.match(/\]/g) || []).length;
+  
+  if (openBraces !== closeBraces) {
+    return { isValid: false, reason: `Brace mismatch: ${openBraces} open, ${closeBraces} close` };
+  }
+  
+  if (openBrackets !== closeBrackets) {
+    return { isValid: false, reason: `Bracket mismatch: ${openBrackets} open, ${closeBrackets} close` };
+  }
+  
+  return { isValid: true };
+}
+
+/**
  * Generate JSON response from Gemini with optional thinking budget support
  * 
  * @param opts Configuration options
@@ -84,86 +172,120 @@ export async function generateJson(opts: {
   enableThinking?: boolean;
   thinkingBudget?: number;
 }) {
-  const model = getModel(opts.system, opts.modelId);
+  const modelId = opts.modelId ?? GEMINI_MODEL;
+  const MAX_RETRIES = 2;
+  const MAX_OUTPUT_TOKENS_CAP = 8192;
+  let currentMaxOutputTokens = opts.maxOutputTokens ?? 600;
   
-  // Build generation config with optional thinking support
-  const generationConfig: any = {
-    responseMimeType: "application/json",
-    responseSchema: opts.schema,
-    maxOutputTokens: opts.maxOutputTokens ?? 600,
-  };
-
-  // Add thinking configuration if enabled
-  if (opts.enableThinking || opts.thinkingBudget !== undefined) {
-    const modelId = opts.modelId ?? GEMINI_MODEL;
-    const thinkingBudget = opts.thinkingBudget ?? THINKING_BUDGETS.MODERATE;
+  // Retry loop with exponential backoff on maxOutputTokens
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const model = getModel(opts.system, modelId);
     
-    // Validate and clamp thinking budget to valid range
-    const validatedBudget = validateThinkingBudget(thinkingBudget, modelId);
-    
-    generationConfig.thinkingConfig = {
-      thinkingBudget: validatedBudget
+    // Build generation config with optional thinking support
+    const generationConfig: any = {
+      responseMimeType: "application/json",
+      responseSchema: opts.schema,
+      maxOutputTokens: currentMaxOutputTokens,
     };
+
+    // Add thinking configuration if enabled
+    if (opts.enableThinking || opts.thinkingBudget !== undefined) {
+      const thinkingBudget = opts.thinkingBudget ?? THINKING_BUDGETS.MODERATE;
+      
+      // Validate and clamp thinking budget to valid range
+      const validatedBudget = validateThinkingBudget(thinkingBudget, modelId);
+      
+      generationConfig.thinkingConfig = {
+        thinkingBudget: validatedBudget
+      };
+      
+      const budgetDescription = validatedBudget === -1 ? 'dynamic' : 
+                               validatedBudget === 0 ? 'disabled' : 
+                               `${validatedBudget} tokens`;
+      console.log(`🧠 Using thinking budget: ${budgetDescription} for model: ${modelId}`);
+    }
+
+    if (attempt > 0) {
+      console.log(`[GEMINI] Retry attempt ${attempt}/${MAX_RETRIES} with maxOutputTokens=${currentMaxOutputTokens}`);
+    }
+
+    let resp;
+    try {
+      resp = await model.generateContent({
+        contents: [{ role: "user", parts: opts.messages }] as any,
+        generationConfig,
+      });
+      console.log(`[GEMINI] API call successful (attempt ${attempt + 1})`);
+    } catch (apiError) {
+      console.error(`[GEMINI] API call failed (attempt ${attempt + 1}):`, apiError);
+      console.error('[GEMINI] API error details:', {
+        message: apiError instanceof Error ? apiError.message : String(apiError),
+        stack: apiError instanceof Error ? apiError.stack : 'N/A',
+        name: apiError instanceof Error ? apiError.name : 'Unknown'
+      });
+      // Don't retry on API errors (these are different from truncation)
+      throw new Error(`Gemini API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
+    }
+
+    let text: string;
+    try {
+      text = resp.response.text(); // JSON string per schema
+      console.log(`[GEMINI] Successfully extracted text from response (attempt ${attempt + 1})`);
+    } catch (textError) {
+      console.error(`[GEMINI] Failed to extract text from response (attempt ${attempt + 1}):`, textError);
+      console.error('[GEMINI] Response object keys:', Object.keys(resp.response || {}));
+      console.error('[GEMINI] Response structure:', JSON.stringify(resp.response, null, 2).substring(0, 500));
+      // Don't retry on text extraction errors
+      throw new Error(`Failed to extract text from Gemini response: ${textError instanceof Error ? textError.message : String(textError)}`);
+    }
     
-    const budgetDescription = validatedBudget === -1 ? 'dynamic' : 
-                             validatedBudget === 0 ? 'disabled' : 
-                             `${validatedBudget} tokens`;
-    console.log(`🧠 Using thinking budget: ${budgetDescription} for model: ${modelId}`);
-  }
-
-  let resp;
-  try {
-    resp = await model.generateContent({
-      contents: [{ role: "user", parts: opts.messages }] as any,
-      generationConfig,
-    });
-    console.log('[GEMINI] API call successful');
-  } catch (apiError) {
-    console.error('[GEMINI] API call failed:', apiError);
-    console.error('[GEMINI] API error details:', {
-      message: apiError instanceof Error ? apiError.message : String(apiError),
-      stack: apiError instanceof Error ? apiError.stack : 'N/A',
-      name: apiError instanceof Error ? apiError.name : 'Unknown'
-    });
-    throw new Error(`Gemini API call failed: ${apiError instanceof Error ? apiError.message : String(apiError)}`);
-  }
-
-  let text: string;
-  try {
-    text = resp.response.text(); // JSON string per schema
-    console.log('[GEMINI] Successfully extracted text from response');
-  } catch (textError) {
-    console.error('[GEMINI] Failed to extract text from response:', textError);
-    console.error('[GEMINI] Response object keys:', Object.keys(resp.response || {}));
-    console.error('[GEMINI] Response structure:', JSON.stringify(resp.response, null, 2).substring(0, 500));
-    throw new Error(`Failed to extract text from Gemini response: ${textError instanceof Error ? textError.message : String(textError)}`);
-  }
+    const usage = resp.response.usageMetadata;
+    
+    // Log the raw response for debugging
+    console.log(`[GEMINI] Raw AI Response length: ${text.length} (attempt ${attempt + 1})`);
+    console.log('[GEMINI] Raw AI Response (first 200 chars):', text.substring(0, 200));
   
-  const usage = resp.response.usageMetadata;
-  
-  // Log the raw response for debugging
-  console.log('[GEMINI] Raw AI Response length:', text.length);
-  console.log('[GEMINI] Raw AI Response (first 200 chars):', text.substring(0, 200));
-  
-  // Strip markdown code blocks if present (sometimes Gemini wraps JSON in ```json ... ```)
-  text = text.trim();
-  if (text.startsWith('```')) {
-    console.log('[GEMINI] Detected markdown code block, stripping...');
-    // Remove opening ```json or ```
-    text = text.replace(/^```(?:json)?\s*\n?/, '');
-    // Remove closing ```
-    text = text.replace(/\n?```\s*$/, '');
+    // Strip markdown code blocks if present (sometimes Gemini wraps JSON in ```json ... ```)
     text = text.trim();
-    console.log('[GEMINI] After stripping markdown (first 200 chars):', text.substring(0, 200));
-  }
-  
-  // Remove any leading/trailing whitespace or newlines
-  text = text.trim();
-  
-  // Check if JSON appears to be truncated
-  const trimmedText = text.trim();
-  if (!trimmedText.endsWith('}') && !trimmedText.endsWith(']')) {
-    console.warn('⚠️ JSON appears to be truncated - attempting to fix');
+    if (text.startsWith('```')) {
+      console.log('[GEMINI] Detected markdown code block, stripping...');
+      // Remove opening ```json or ```
+      text = text.replace(/^```(?:json)?\s*\n?/, '');
+      // Remove closing ```
+      text = text.replace(/\n?```\s*$/, '');
+      text = text.trim();
+      console.log('[GEMINI] After stripping markdown (first 200 chars):', text.substring(0, 200));
+    }
+    
+    // Remove any leading/trailing whitespace or newlines
+    text = text.trim();
+    
+    // Check for truncation using finishReason and response completeness
+    const truncationCheck = checkTruncation(resp.response, text, currentMaxOutputTokens);
+    console.log(`[GEMINI] Truncation check (attempt ${attempt + 1}):`, truncationCheck.details);
+    
+    // Validate response completeness
+    const completenessCheck = validateResponseCompleteness(text);
+    if (!completenessCheck.isValid) {
+      console.warn(`[GEMINI] Response completeness check failed (attempt ${attempt + 1}):`, completenessCheck.reason);
+    }
+    
+    // If truncated and we have retries left, retry with increased maxOutputTokens
+    if ((truncationCheck.isTruncated || !completenessCheck.isValid) && attempt < MAX_RETRIES) {
+      const newMaxOutputTokens = Math.min(currentMaxOutputTokens * 2, MAX_OUTPUT_TOKENS_CAP);
+      if (newMaxOutputTokens > currentMaxOutputTokens) {
+        console.warn(`[GEMINI] Response truncated or incomplete. Retrying with maxOutputTokens=${newMaxOutputTokens} (was ${currentMaxOutputTokens})`);
+        console.warn(`[GEMINI] Finish reason: ${truncationCheck.finishReason}, Completeness: ${completenessCheck.isValid ? 'valid' : completenessCheck.reason}`);
+        currentMaxOutputTokens = newMaxOutputTokens;
+        continue; // Retry with increased token limit
+      }
+    }
+    
+    // If we've exhausted retries or response appears complete, proceed with parsing
+    // Check if JSON appears to be truncated (legacy check for fallback handling)
+    const trimmedText = text.trim();
+    if (!trimmedText.endsWith('}') && !trimmedText.endsWith(']')) {
+      console.warn(`⚠️ JSON appears to be truncated (attempt ${attempt + 1}) - attempting to fix`);
     
     // Special case: if the text ends with a number (like "slice_count_target": 3), 
     // it's likely a truncated action that just needs closing braces
@@ -290,9 +412,16 @@ export async function generateJson(opts: {
       }
     }
     // Log error details in multiple statements to ensure Vercel captures them
-    console.error('[GEMINI] JSON Parse Error:', parseError instanceof Error ? parseError.message : String(parseError));
+    console.error(`[GEMINI] JSON Parse Error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, parseError instanceof Error ? parseError.message : String(parseError));
     console.error('[GEMINI] Parse error stack:', parseError instanceof Error ? parseError.stack : 'N/A');
     console.error('[GEMINI] Raw text length:', text.length);
+    console.error('[GEMINI] Finish reason:', truncationCheck.finishReason);
+    console.error('[GEMINI] Token usage:', {
+      outputTokens: usage?.candidatesTokenCount || 0,
+      inputTokens: usage?.promptTokenCount || 0,
+      totalTokens: usage?.totalTokenCount || 0,
+      maxOutputTokens: currentMaxOutputTokens
+    });
     
     // Split long text into chunks for Vercel logging (Vercel truncates very long logs)
     const chunkSize = 500;
@@ -381,7 +510,24 @@ export async function generateJson(opts: {
       
       // Include both error messages for better debugging
       const errorDetails = `First error: ${parseError.message}; Second error: ${secondParseError instanceof Error ? secondParseError.message : String(secondParseError)}`;
-      throw new Error(`AI returned invalid JSON: ${errorDetails}`);
+      const retryInfo = attempt < MAX_RETRIES ? ` (after ${attempt + 1} attempts)` : ` (after ${attempt + 1} attempts, max retries reached)`;
+      const truncationInfo = truncationCheck.isTruncated ? ` Truncation: ${truncationCheck.details}` : '';
+      
+      // If we have retries left and this looks like a truncation issue (even if finishReason didn't indicate it),
+      // retry with increased tokens
+      if (attempt < MAX_RETRIES && (parseError.message.includes('Unterminated') || parseError.message.includes('Unexpected end'))) {
+        const newMaxOutputTokens = Math.min(currentMaxOutputTokens * 2, MAX_OUTPUT_TOKENS_CAP);
+        if (newMaxOutputTokens > currentMaxOutputTokens) {
+          console.warn(`[GEMINI] Parse error suggests truncation. Retrying with maxOutputTokens=${newMaxOutputTokens} (was ${currentMaxOutputTokens})`);
+          currentMaxOutputTokens = newMaxOutputTokens;
+          continue; // Retry with increased token limit
+        }
+      }
+      
+      throw new Error(`AI returned invalid JSON${retryInfo}: ${errorDetails}.${truncationInfo} Finish reason: ${truncationCheck.finishReason}`);
     }
   }
+  
+  // This should never be reached because we return on successful parse or throw on error
+  throw new Error('Failed to generate JSON after all retry attempts');
 }

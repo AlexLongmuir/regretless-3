@@ -10,6 +10,7 @@ import { useSession } from '../contexts/SessionContext';
 import { supabaseClient } from '../lib/supabaseClient';
 import { upsertActions } from '../frontend-services/backend-bridge';
 import type { TodayAction, ActionOccurrenceStatus } from '../backend/database/types';
+import { trackEvent } from '../lib/mixpanel';
 
 interface ActionOccurrenceItem {
   id: string;
@@ -183,6 +184,7 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
   };
 
   const navigateDate = async (direction: 'prev' | 'next') => {
+    trackEvent('today_date_changed', { direction });
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
     const newDateStr = newDate.toISOString().slice(0, 10);
@@ -218,6 +220,7 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
   // No need for filtering since we're showing all action occurrences
 
   const handleActionPress = (actionId: string) => {
+    trackEvent('today_action_pressed', { action_id: actionId });
     const actionOccurrence = actionOccurrences.find(a => a.id === actionId);
     if (actionOccurrence && navigation) {
       // Get the original occurrence data from state to access dream/area info
@@ -251,6 +254,12 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
   useFocusEffect(
     React.useCallback(() => {
       onScreenFocus('today');
+      
+      trackEvent('today_viewed', { 
+        action_count: actionOccurrences.length,
+        completed_count: actionOccurrences.filter(a => a.is_done).length
+      });
+
       // Let the refresh system handle the fetching based on staleness
       getToday({ date: currentDate });
       // Prefetch adjacent dates for smoother navigation
@@ -353,6 +362,7 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
 
   // Handle quick add from ActionChipsList modal
   const handleQuickAdd = async (newAction: any) => {
+    trackEvent('today_quick_add_action');
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token || !session.user) return;

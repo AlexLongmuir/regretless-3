@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ListRow } from '../components/ListRow';
 import { notificationService } from '../lib/NotificationService';
 import { deleteAccount } from '../frontend-services/backend-bridge';
+import { trackEvent } from '../lib/mixpanel';
 
 const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { user, signOut, loading } = useAuthContext();
@@ -39,6 +41,12 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
     }
   }, [state.dreamsWithStats]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      trackEvent('account_viewed');
+    }, [])
+  );
+
   const handleLogout = async () => {
     Alert.alert(
       'Sign Out',
@@ -52,6 +60,7 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
+            trackEvent('account_logout_pressed');
             const result = await signOut();
             if (!result.success) {
               Alert.alert('Error', result.error || 'Failed to sign out');
@@ -75,6 +84,7 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
           text: 'Delete Account',
           style: 'destructive',
           onPress: () => {
+            trackEvent('account_delete_pressed');
             Alert.alert(
               'Confirm Deletion',
               'This will permanently delete all your data. Type "DELETE" to confirm.',
@@ -161,29 +171,44 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
           <ListRow
             title="Notification Settings"
             leftIcon="notifications"
-            onPress={() => navigation?.navigate('NotificationSettings')}
+            onPress={() => {
+              trackEvent('account_setting_pressed', { setting_name: 'notifications' });
+              navigation?.navigate('NotificationSettings');
+            }}
             isFirst={true}
           />
           <ListRow
             title="Contact Us"
             leftIcon="contact_support"
-            onPress={() => navigation?.navigate('ContactUs')}
+            onPress={() => {
+              trackEvent('account_setting_pressed', { setting_name: 'contact_us' });
+              navigation?.navigate('ContactUs');
+            }}
           />
           <ListRow
             title="Terms & Services"
             leftIcon="policy"
-            onPress={() => navigation?.navigate('TermsOfService')}
+            onPress={() => {
+              trackEvent('account_setting_pressed', { setting_name: 'terms' });
+              navigation?.navigate('TermsOfService');
+            }}
           />
           <ListRow
             title="Privacy Policy"
             leftIcon="privacy_tip"
-            onPress={() => navigation?.navigate('PrivacyPolicy')}
+            onPress={() => {
+              trackEvent('account_setting_pressed', { setting_name: 'privacy' });
+              navigation?.navigate('PrivacyPolicy');
+            }}
           />
           {(user?.id === '9e0ec607-8bad-4731-84eb-958f98833131' || user?.id === '0952cd47-5227-4f9f-98b3-1e89b2296157') && (
             <ListRow
               title="Screenshot Studio"
               leftIcon="camera_alt"
-              onPress={() => navigation?.navigate('ScreenshotMenu')}
+              onPress={() => {
+                trackEvent('account_setting_pressed', { setting_name: 'screenshot_studio' });
+                navigation?.navigate('ScreenshotMenu');
+              }}
             />
           )}
           <ListRow

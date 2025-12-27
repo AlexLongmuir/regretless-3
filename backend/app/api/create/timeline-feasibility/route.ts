@@ -74,7 +74,7 @@ Please provide:
       })
       data = result.data
       usage = result.usage
-      console.error('[TIMELINE-FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
+      console.log('[TIMELINE-FEASIBILITY] AI Response:', JSON.stringify(data, null, 2))
     } catch (aiError) {
       // Enhanced error logging for Vercel visibility
       console.error('[TIMELINE-FEASIBILITY] AI generation failed');

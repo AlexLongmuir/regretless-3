@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const sourceType = searchParams.get('source_type');
 
-    console.error('🔍 Querying ai_generated_dreams for user:', user.id, 'sourceType:', sourceType);
+    console.log('🔍 Querying ai_generated_dreams for user:', user.id, 'sourceType:', sourceType);
 
     let query = sb.from('ai_generated_dreams')
       .select('id, title, emoji, source_type, source_data, created_at')
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     if (sourceType) query = query.eq('source_type', sourceType);
 
     const { data, error } = await query;
-    console.error('📊 Generated dreams query result:', { data, error });
+    console.log('📊 Generated dreams query result:', { data, error });
     
     if (error) {
       console.error('❌ Database error:', error);

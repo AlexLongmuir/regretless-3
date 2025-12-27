@@ -8,6 +8,7 @@ import { AreaGrid } from '../../components/AreaChips'
 import { generateAreas, upsertAreas } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { theme } from '../../utils/theme'
+import { trackEvent } from '../../lib/mixpanel'
 import type { Area } from '../../backend/database/types'
 
 interface AreaSuggestion {
@@ -91,6 +92,7 @@ export default function AreasStep() {
             
             if (generatedAreas && generatedAreas.length > 0) {
               setAreas(generatedAreas)
+              trackEvent('create_dream_areas_generated', { count: generatedAreas.length })
             }
             
             setAreasAnalyzed(true)
@@ -137,6 +139,7 @@ export default function AreasStep() {
 
   const handleSaveAreas = async () => {
     setIsSaving(true)
+    trackEvent('create_dream_areas_approved', { final_count: areas.length })
     
     if (dreamId) {
       try {
@@ -253,6 +256,8 @@ export default function AreasStep() {
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               
+              trackEvent('create_dream_areas_refine', { feedback_length: feedback.length })
+
               Keyboard.dismiss()
               setIsLoading(true)
               

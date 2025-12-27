@@ -9,6 +9,7 @@ import { DreamChipSkeleton } from '../components/SkeletonLoader';
 import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import type { Dream, DreamWithStats } from '../backend/database/types';
+import { trackEvent } from '../lib/mixpanel';
 
 
 const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
@@ -86,6 +87,11 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
       console.log('DreamsPage: useFocusEffect triggered');
       onScreenFocus('dreams');
       
+      trackEvent('dreams_list_viewed', { 
+        dream_count: dreams.length, 
+        active_dreams_count: dreams.filter(d => !d.archived_at).length 
+      });
+
       // Only force refresh if we're not in the initial load
       if (!isInitialLoad && isAuthenticated && !authLoading) {
         const refreshData = async () => {
@@ -104,6 +110,10 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   const handleDreamPress = (dreamId: string) => {
     const dream = dreams.find(d => d.id === dreamId);
     if (dream && navigation?.navigate) {
+      trackEvent('dream_card_pressed', { 
+        dream_id: dream.id, 
+        title: dream.title 
+      });
       navigation.navigate('Dream', {
         dreamId: dream.id,
         title: dream.title,
@@ -114,7 +124,8 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     }
   };
 
-  const handleAddFirstDream = () => {
+  const handleAddDream = (source: string) => {
+    trackEvent('add_dream_pressed', { source });
     if (navigation?.navigate) {
       navigation.navigate('CreateFlow');
     }
@@ -186,7 +197,7 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
         </Text>
         <Button
           title="Add Your First Dream"
-          onPress={handleAddFirstDream}
+          onPress={() => handleAddDream('empty_state')}
           style={styles.addButton}
         />
       </View>
@@ -214,7 +225,7 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
             </View>
             <IconButton
               icon="add"
-              onPress={handleAddFirstDream}
+              onPress={() => handleAddDream('header')}
               variant="secondary"
               size="md"
             />
@@ -231,7 +242,10 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
             emptySubtitle="Create your first dream to get started"
           />
           {skeletonOverlayVisible && (
-            <Animated.View style={[styles.skeletonOverlay, { opacity: skeletonOpacity }]}> 
+            <Animated.View 
+              style={[styles.skeletonOverlay, { opacity: skeletonOpacity }]}
+              pointerEvents="none"
+            > 
               <DreamChipSkeleton />
               <DreamChipSkeleton />
               <DreamChipSkeleton />

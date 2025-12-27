@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.error('🕐 Starting subscription lifecycle cron job...');
+    console.log('🕐 Starting subscription lifecycle cron job...');
     
     // Simple subscription lifecycle check
     const supabase = supabaseServer();
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!subscriptions) {
-      console.error('✅ No active subscriptions found');
+      console.log('✅ No active subscriptions found');
       return NextResponse.json({ message: 'No active subscriptions' });
     }
 
@@ -65,11 +65,11 @@ export async function GET(request: NextRequest) {
           .eq('user_id', subscription.user_id);
         
         expiredCount++;
-        console.error(`⚠️ Marked subscription expired for user ${subscription.user_id}`);
+        console.warn(`⚠️ Marked subscription expired for user ${subscription.user_id}`);
       }
     }
     
-    console.error(`✅ Subscription lifecycle cron job completed. Expired ${expiredCount} subscriptions`);
+    console.log(`✅ Subscription lifecycle cron job completed. Expired ${expiredCount} subscriptions`);
     
     return NextResponse.json({
       success: true,

@@ -43,6 +43,7 @@ import AreasConfirmStep from '../app/onboarding/areas-confirm';
 import ActionsGeneratingStep from '../app/onboarding/actions-generating';
 import ActionsConfirmStep from '../app/onboarding/actions-confirm';
 import FinalStep from '../app/onboarding/final';
+import ActionOccurrencePage from '../app/ActionOccurrencePage';
 import PaywallStep from '../app/onboarding/paywall';
 import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
 import TrialOfferStep from '../app/onboarding/trial-offer';
@@ -266,6 +267,11 @@ const OnboardingNavigator = () => {
           options={{
             headerShown: false,
           }}
+        />
+        <OnboardingStack.Screen 
+          name="ActionOccurrence" 
+          component={ActionOccurrencePage}
+          options={{ presentation: 'modal' }}
         />
         <OnboardingStack.Screen 
           name="Final" 

@@ -19,6 +19,7 @@ import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
+import { trackEvent } from '../lib/mixpanel';
 
 // Popular emojis for area icons
 const POPULAR_EMOJIS = [
@@ -122,6 +123,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     React.useCallback(() => {
       if (dreamId) {
         onScreenFocus('dream-detail', dreamId);
+        trackEvent('dream_detail_viewed', { dream_id: dreamId });
         // Let the refresh system handle the fetching based on staleness
         getDreamDetail(dreamId);
         getDreamsWithStats();
@@ -176,6 +178,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   };
 
   const handleOptionsPress = () => {
+    trackEvent('dream_options_opened', { dream_id: dreamId });
     optionsButtonRef.current?.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
       setOptionsTriggerPosition({ x: pageX, y: pageY, width, height });
       setShowOptionsPopover(true);
@@ -185,6 +188,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const handleAreaPress = (areaId: string) => {
     const area = areas.find(a => a.id === areaId);
     if (area && navigation?.navigate) {
+      trackEvent('dream_area_pressed', { area_id: areaId, dream_id: dreamId });
       navigation.navigate('Area', {
         areaId: area.id,
         areaTitle: area.title,
@@ -211,6 +215,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             try {
               if (dreamId) {
                 await deleteDream(dreamId);
+                trackEvent('dream_deleted', { dream_id: dreamId });
                 // Navigate back to dreams list after successful deletion
                 if (navigation?.goBack) {
                   navigation.goBack();
@@ -241,6 +246,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             try {
               if (dreamId) {
                 await archiveDream(dreamId);
+                trackEvent('dream_archived', { dream_id: dreamId });
                 // Navigate back to dreams list after successful archiving
                 if (navigation?.goBack) {
                   navigation.goBack();
@@ -407,6 +413,12 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         }
 
         await upsertDream(updateData, session.access_token);
+
+        const changedFields = Object.keys(updateData).filter(key => key !== 'id');
+        trackEvent('dream_edit_saved', { 
+          dream_id: dreamId, 
+          changed_fields: changedFields 
+        });
 
         // Refresh the data
         await getDreamDetail(dreamId, { force: true });
@@ -742,6 +754,17 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         
         const result = await rescheduleActions(dreamId, session.access_token, options);
         if (result.success) {
+          let extension_days = 0;
+          if (options?.extendEndDate && dreamData?.end_date) {
+            const oldEnd = new Date(dreamData.end_date);
+            const newEnd = new Date(options.extendEndDate);
+            extension_days = Math.ceil((newEnd.getTime() - oldEnd.getTime()) / (1000 * 60 * 60 * 24));
+          }
+          trackEvent('dream_reschedule_completed', { 
+            dream_id: dreamId,
+            extension_days: extension_days
+          });
+
           Alert.alert('Success', 'Rescheduled actions successfully!');
           // Refresh data to show updated schedule
           await getDreamDetail(dreamId, { force: true });

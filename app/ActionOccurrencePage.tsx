@@ -16,7 +16,7 @@ import {
   Pressable
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,7 +35,6 @@ import { useData } from '../contexts/DataContext';
 import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArtifact, getArtifacts, deleteArtifact, completeOccurrence, generateAIReview, type Artifact } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { ActionOccurrenceStatus } from '../backend/database/types';
-import { BOTTOM_NAV_HEIGHT } from '../utils/bottomNavigation';
 import { trackEvent } from '../lib/mixpanel';
 
 // Edit Action Modal Component (copied from ActionChipsList)
@@ -484,7 +483,6 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 const ActionOccurrencePage = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const insets = useSafeAreaInsets();
   const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
   const { show: showToast } = useToast();
   const params = route.params as {
@@ -507,7 +505,12 @@ const ActionOccurrencePage = () => {
     aiRating?: number;
     aiFeedback?: string;
     acceptanceCriteria?: { title: string; description: string }[];
+    acceptanceIntro?: string;
+    acceptanceOutro?: string;
   } | undefined;
+  
+  // Check if we're in preview mode (no occurrenceId means preview from create/onboarding flows)
+  const isPreviewMode = !params?.occurrenceId;
   
   // Find the actual occurrence data from DataContext
   const occurrenceData = useMemo(() => {
@@ -567,6 +570,13 @@ const ActionOccurrencePage = () => {
 
   // Load artifacts when component mounts
   useEffect(() => {
+    if (params?.occurrenceId) {
+      trackEvent('action_detail_viewed', { 
+        action_id: params.occurrenceId,
+        status: isCompleted ? 'completed' : ((occurrenceData as any)?.is_overdue ? 'overdue' : 'pending')
+      });
+    }
+
     const loadArtifacts = async () => {
       if (!params?.occurrenceId) return;
 
@@ -733,6 +743,7 @@ const ActionOccurrencePage = () => {
       if (uploadResponse.success) {
         setArtifacts(prev => [...prev, uploadResponse.data]);
         showToast('Success', 'Photo uploaded successfully!');
+        trackEvent('action_photo_uploaded', { action_id: params.occurrenceId });
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -873,6 +884,7 @@ const ActionOccurrencePage = () => {
               // Call the DataContext method to defer the occurrence
               if (params?.occurrenceId) {
                 await deferOccurrence(params.occurrenceId, currentDueDate);
+                trackEvent('action_deferred', { action_id: params.occurrenceId });
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to defer action. Please try again.');
@@ -1032,6 +1044,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
   const handleAIDiscussion = async () => {
     try {
+      trackEvent('action_ai_plan_opened', { action_id: params?.occurrenceId });
       const prompt = generateAIDiscussionPrompt();
       
       // Copy to clipboard
@@ -1172,6 +1185,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       
       setShowEditModal(false);
       showToast('Action Updated', 'Changes saved successfully.');
+      trackEvent('action_edited', { action_id: actionData.id });
     } catch (error) {
       console.error('Error updating action:', error);
       showToast('Error', 'Failed to update action. Please try again.');
@@ -1254,66 +1268,66 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           variant="secondary"
           size="md"
         />
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={handleAIDiscussion}
-            style={{
-              height: 40,
-              borderRadius: 20,
-              overflow: 'hidden',
-              marginRight: 8,
-            }}
-          >
-            <BlurView 
-              intensity={100} 
-              tint="light" 
+        {!isPreviewMode && (
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              onPress={handleAIDiscussion}
               style={{
                 height: 40,
-                paddingHorizontal: 16,
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderWidth: 0.5,
-                borderColor: 'rgba(255, 255, 255, 0.8)',
-                alignItems: 'center',
-                justifyContent: 'center',
+                borderRadius: 20,
+                overflow: 'hidden',
+                marginRight: 8,
               }}
             >
-              <Text style={{ 
-                fontSize: 14, 
-                fontWeight: '600', 
-                color: theme.colors.grey[900] 
-              }}>
-                Plan with AI
-              </Text>
-            </BlurView>
-          </TouchableOpacity>
-          
-          <View ref={menuButtonRef}>
-            <IconButton
-              icon="more_horiz"
-              onPress={() => {
-                if (menuButtonRef.current) {
-                  menuButtonRef.current.measureInWindow((x, y, width, height) => {
-                    setMenuButtonLayout({ x, y, width, height });
+              <BlurView 
+                intensity={100} 
+                tint="light" 
+                style={{
+                  height: 40,
+                  paddingHorizontal: 16,
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  borderWidth: 0.5,
+                  borderColor: 'rgba(255, 255, 255, 0.8)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ 
+                  fontSize: 14, 
+                  fontWeight: '600', 
+                  color: theme.colors.grey[900] 
+                }}>
+                  Plan with AI
+                </Text>
+              </BlurView>
+            </TouchableOpacity>
+            
+            <View ref={menuButtonRef}>
+              <IconButton
+                icon="more_horiz"
+                onPress={() => {
+                  if (menuButtonRef.current) {
+                    menuButtonRef.current.measureInWindow((x, y, width, height) => {
+                      setMenuButtonLayout({ x, y, width, height });
+                      setShowOptionsPopover(true);
+                    });
+                  } else {
                     setShowOptionsPopover(true);
-                  });
-                } else {
-                  setShowOptionsPopover(true);
-                }
-              }}
-              variant="secondary"
-              size="md"
-              style={styles.menuButton}
-            />
+                  }
+                }}
+                variant="secondary"
+                size="md"
+                style={styles.menuButton}
+              />
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 200 } // Space for floating bottom section
-        ]}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -1376,14 +1390,16 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             <Text style={styles.actionTitle}>{actionData?.title || params?.actionTitle || 'Action'}</Text>
             
             {/* Due Date or Completed Date */}
-            <View style={styles.dueDateRow}>
-              <Text style={styles.detailLabel}>
-                {isCompleted 
-                  ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
-                  : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
-                }
-              </Text>
-            </View>
+            {!isPreviewMode && (
+              <View style={styles.dueDateRow}>
+                <Text style={styles.detailLabel}>
+                  {isCompleted 
+                    ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
+                    : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
+                  }
+                </Text>
+              </View>
+            )}
             
             {/* Details Row */}
             <View style={styles.detailRow}>
@@ -1554,15 +1570,113 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             </View>
           </View>
         )}
+
+        {/* Bottom Section - Now part of scroll content */}
+        {!isPreviewMode && (
+          <View style={styles.bottomSection}>
+            {/* Uploaded Images Row */}
+            {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || params?.occurrenceId === 'mock-occ-1' || ((params?.actionTitle || (occurrenceData as any)?.action_title || '').toLowerCase().includes('high protein')))) && (
+              <View style={styles.uploadedImagesRow}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
+                  {artifacts.map((artifact) => (
+                    <View key={artifact.id} style={styles.artifactImageContainer}>
+                      <Image
+                        source={{ uri: artifact.signed_url }}
+                        style={styles.uploadedImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.deleteImageButton}
+                        onPress={() => handleDeleteImage(artifact.id)}
+                      >
+                        <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Upload Button and Text Input Row */}
+            <View style={styles.inputRow}>
+              {(() => {
+                if (!isScreenshotMode || artifacts.length === 0) {
+                  console.log('🔍 [RENDER] Not showing image:', { isScreenshotMode, artifactsLength: artifacts.length });
+                  return false;
+                }
+                const actionTitle = params?.actionTitle || (occurrenceData as any)?.action_title || '';
+                const isHighProtein = params?.occurrenceId === 'occ-area-2-1' || 
+                                      params?.occurrenceId === 'mock-occ-1' || 
+                                      actionTitle.toLowerCase().includes('high protein');
+                console.log('🔍 [RENDER] Checking high protein:', { 
+                  occurrenceId: params?.occurrenceId, 
+                  actionTitle, 
+                  isHighProtein,
+                  artifactsLength: artifacts.length 
+                });
+                return isHighProtein;
+              })() ? (
+                // Show photo instead of upload button in screenshot mode
+                <View style={styles.photoContainer}>
+                  <Image
+                    source={{ uri: artifacts[0].signed_url }}
+                    style={styles.photoInRow}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
+                  onPress={handleImagePicker}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+                  ) : (
+                    <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+                  )}
+                  <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
+                    {isUploading ? 'Uploading...' : 'Upload Photo'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TextInput
+                style={styles.textInputInRow}
+                placeholder="Add a note about your progress..."
+                placeholderTextColor={theme.colors.grey[500]}
+                multiline
+                value={note}
+                onChangeText={setNote}
+              />
+            </View>
+            
+            <View style={styles.actionButtons}>
+              <Button
+                title={
+                  isSubmitting 
+                    ? "Submitting..." 
+                    : (isCompleted ? "Re-submit" : "Mark as Done")
+                }
+                variant="black"
+                onPress={handleComplete}
+                disabled={isSubmitting}
+                style={{ borderRadius: theme.radius.xl }}
+              />
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Options Popover */}
-      <OptionsPopover
-        visible={showOptionsPopover}
-        onClose={() => setShowOptionsPopover(false)}
-        options={menuOptions}
-        triggerPosition={menuButtonLayout.x > 0 ? menuButtonLayout : undefined}
-      />
+      {!isPreviewMode && (
+        <OptionsPopover
+          visible={showOptionsPopover}
+          onClose={() => setShowOptionsPopover(false)}
+          options={menuOptions}
+          triggerPosition={menuButtonLayout.x > 0 ? menuButtonLayout : undefined}
+        />
+      )}
 
       {/* Edit Modal */}
       <EditActionModal
@@ -1575,100 +1689,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
         </KeyboardAvoidingView>
       </SafeAreaView>
-      
-      {/* Bottom Section - Floating above nav bar */}
-      <View style={[styles.bottomSection, { bottom: insets.bottom }]}>
-          {/* Uploaded Images Row */}
-          {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || params?.occurrenceId === 'mock-occ-1' || ((params?.actionTitle || (occurrenceData as any)?.action_title || '').toLowerCase().includes('high protein')))) && (
-            <View style={styles.uploadedImagesRow}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
-                {artifacts.map((artifact) => (
-                  <View key={artifact.id} style={styles.artifactImageContainer}>
-                    <Image
-                      source={{ uri: artifact.signed_url }}
-                      style={styles.uploadedImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.deleteImageButton}
-                      onPress={() => handleDeleteImage(artifact.id)}
-                    >
-                      <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Upload Button and Text Input Row */}
-          <View style={styles.inputRow}>
-            {(() => {
-              if (!isScreenshotMode || artifacts.length === 0) {
-                console.log('🔍 [RENDER] Not showing image:', { isScreenshotMode, artifactsLength: artifacts.length });
-                return false;
-              }
-              const actionTitle = params?.actionTitle || (occurrenceData as any)?.action_title || '';
-              const isHighProtein = params?.occurrenceId === 'occ-area-2-1' || 
-                                    params?.occurrenceId === 'mock-occ-1' || 
-                                    actionTitle.toLowerCase().includes('high protein');
-              console.log('🔍 [RENDER] Checking high protein:', { 
-                occurrenceId: params?.occurrenceId, 
-                actionTitle, 
-                isHighProtein,
-                artifactsLength: artifacts.length 
-              });
-              return isHighProtein;
-            })() ? (
-              // Show photo instead of upload button in screenshot mode
-              <View style={styles.photoContainer}>
-                <Image
-                  source={{ uri: artifacts[0].signed_url }}
-                  style={styles.photoInRow}
-                  resizeMode="cover"
-                />
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
-                onPress={handleImagePicker}
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
-                ) : (
-                  <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
-                )}
-                <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-                  {isUploading ? 'Uploading...' : 'Upload Photo'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TextInput
-              style={styles.textInputInRow}
-              placeholder="Add a note about your progress..."
-              placeholderTextColor={theme.colors.grey[500]}
-              multiline
-              value={note}
-              onChangeText={setNote}
-            />
-          </View>
-          
-          <View style={styles.actionButtons}>
-            <Button
-              title={
-                isSubmitting 
-                  ? "Submitting..." 
-                  : (isCompleted ? "Re-submit" : "Mark as Done")
-              }
-              variant="black"
-              onPress={handleComplete}
-              disabled={isSubmitting}
-              style={{ borderRadius: theme.radius.xl }}
-            />
-          </View>
-        </View>
     </View>
   );
 };
@@ -1703,7 +1723,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 0,
+    paddingBottom: 32,
   },
   heroSection: {
     paddingHorizontal: 24,
@@ -1863,15 +1883,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSection: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
     padding: 16,
-    paddingTop: 8,
+    paddingTop: 24,
     paddingBottom: 16,
     backgroundColor: 'transparent',
-    zIndex: 9999,
-    elevation: 9999,
   },
   uploadedImagesRow: {
     marginBottom: 16,
@@ -1890,14 +1905,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 80,
     height: 80,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   uploadText: {
     fontSize: 12,
@@ -1913,14 +1920,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 80,
     textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   actionButtons: {
     width: '100%',

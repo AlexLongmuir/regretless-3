@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, Alert } from 'react-native'
+import { View, Text, Alert, ScrollView } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button } from '../../components/Button'
@@ -68,13 +68,16 @@ export default function ActionsConfirmStep() {
     <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
       <CreateScreenHeader step="actions-confirm" />
       
-      <View style={{ 
-        flex: 1, 
-        justifyContent: 'flex-start', 
-        alignItems: 'center',
-        paddingHorizontal: 32,
-        paddingTop: 80
-      }}>
+      <ScrollView 
+        contentContainerStyle={{ 
+          flexGrow: 1,
+          justifyContent: 'flex-start', 
+          alignItems: 'center',
+          paddingHorizontal: 32,
+          paddingTop: 16
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Success Icon */}
         <View style={{
           width: 200,
@@ -125,7 +128,7 @@ export default function ActionsConfirmStep() {
         }}>
           You're now ready to start working towards your dream!
         </Text>
-      </View>
+      </ScrollView>
       
       {/* Sticky bottom buttons */}
       <View style={{ 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../utils/theme';
 import {
@@ -10,6 +10,7 @@ import {
   HistorySection,
 } from '../components';
 import { useData } from '../contexts/DataContext';
+import { trackEvent } from '../lib/mixpanel';
 
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
@@ -29,6 +30,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     React.useCallback(() => {
       console.log('ProgressPage: useFocusEffect triggered');
       onScreenFocus('dreams'); // Progress page shows dreams data
+      trackEvent('progress_viewed');
       // Let the refresh system handle the fetching based on staleness
       getDreamsWithStats();
       getProgress();
@@ -96,6 +98,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
 
 
   const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
+    trackEvent('progress_time_period_changed', { period });
     setSelectedTimePeriod(period);
   };
 
@@ -122,7 +125,10 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
         <ProgressPhotosSection
           photos={progressPhotos}
           onPhotoPress={handlePhotoPress}
-          onExpandPress={() => setIsPhotosExpanded(!isPhotosExpanded)}
+          onExpandPress={() => {
+            setIsPhotosExpanded(!isPhotosExpanded);
+            trackEvent('progress_photo_expanded');
+          }}
           isExpanded={isPhotosExpanded}
           columns={6}
         />
@@ -154,18 +160,31 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           });
 
           return (
-            <GoalProgressCard
+            <TouchableOpacity
               key={dream.id}
-              dreamId={dream.id}
-              title={dream.title}
-              targetDate={dream.end_date}
-              currentDay={currentDay}
-              totalDays={totalDays}
-              streakCount={dream.current_streak || 0}
-              actionsCompleted={dream.completed_total || 0}
-              totalActions={dream.total_actions || 0}
-              imageUri={dream.image_url}
-            />
+              onPress={() => {
+                trackEvent('progress_goal_card_pressed', { dream_id: dream.id, title: dream.title });
+                navigation.navigate('Dream', {
+                  dreamId: dream.id,
+                  title: dream.title,
+                  startDate: dream.start_date,
+                  endDate: dream.end_date,
+                  description: dream.description,
+                });
+              }}
+            >
+              <GoalProgressCard
+                dreamId={dream.id}
+                title={dream.title}
+                targetDate={dream.end_date}
+                currentDay={currentDay}
+                totalDays={totalDays}
+                streakCount={dream.current_streak || 0}
+                actionsCompleted={dream.completed_total || 0}
+                totalActions={dream.total_actions || 0}
+                imageUri={dream.image_url}
+              />
+            </TouchableOpacity>
           );
         })}
 

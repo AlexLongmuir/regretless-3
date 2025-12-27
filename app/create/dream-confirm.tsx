@@ -1,12 +1,17 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { theme } from '../../utils/theme'
+import { trackEvent } from '../../lib/mixpanel'
 
 export default function ConfirmStep() {
   const navigation = useNavigation<any>()
+
+  useEffect(() => {
+    trackEvent('create_dream_flow_completed')
+  }, [])
 
   const handleNext = () => {
     navigation.navigate('Areas')

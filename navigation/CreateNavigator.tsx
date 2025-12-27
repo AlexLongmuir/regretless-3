@@ -26,6 +26,7 @@ import AreasStep from '../app/create/areas';
 import AreasConfirmStep from '../app/create/areas-confirm';
 import ActionsStep from '../app/create/actions';
 import ActionsConfirmStep from '../app/create/actions-confirm';
+import ActionOccurrencePage from '../app/ActionOccurrencePage';
 
 // Create stack navigator for create flow
 const CreateStack = createNativeStackNavigator();
@@ -56,6 +57,11 @@ const CreateNavigator = () => (
     <CreateStack.Screen name="AreasConfirm" component={AreasConfirmStep} />
     <CreateStack.Screen name="Actions" component={ActionsStep} />
     <CreateStack.Screen name="ActionsConfirm" component={ActionsConfirmStep} />
+    <CreateStack.Screen 
+      name="ActionOccurrence" 
+      component={ActionOccurrencePage}
+      options={{ presentation: 'modal' }}
+    />
   </CreateStack.Navigator>
 );
 

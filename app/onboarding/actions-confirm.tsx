@@ -143,6 +143,26 @@ const ActionsConfirmStep: React.FC = () => {
     setGeneratedActions([...otherActions, ...updatedActions]);
   };
 
+  const handleActionPress = (actionId: string) => {
+    const action = currentAreaActions.find(a => a.id === actionId);
+    if (action && currentArea) {
+      const dreamTitle = state.answers[2] || 'My Dream';
+      navigation.navigate('ActionOccurrence' as never, {
+        actionTitle: action.title,
+        dreamTitle: dreamTitle,
+        areaName: currentArea.title,
+        areaEmoji: currentArea.icon,
+        estimatedTime: action.est_minutes,
+        difficulty: action.difficulty,
+        dreamImage: state.dreamImageUrl || undefined,
+        acceptanceCriteria: action.acceptance_criteria || [],
+        sliceCountTarget: action.slice_count_target,
+        acceptanceIntro: (action as any).acceptance_intro,
+        acceptanceOutro: (action as any).acceptance_outro,
+      } as never);
+    }
+  };
+
   const handleRegenerate = async () => {
     if (!feedback.trim()) {
       return;
@@ -299,7 +319,8 @@ const ActionsConfirmStep: React.FC = () => {
       {/* Area Navigation Header */}
       <View style={{ 
         paddingHorizontal: 16, 
-        paddingVertical: 12
+        paddingVertical: 12,
+        paddingTop: 16
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -317,8 +338,11 @@ const ActionsConfirmStep: React.FC = () => {
       </View>
       
       <ScrollView 
-        style={{ flex: 1 }} 
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ 
+          flexGrow: 1,
+          padding: 16, 
+          paddingBottom: 100 
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -327,7 +351,6 @@ const ActionsConfirmStep: React.FC = () => {
           
           <Text style={{ 
             fontSize: 12, 
-            fontWeight: 'bold',
             color: '#000', 
             marginBottom: 16,
             lineHeight: 16
@@ -338,6 +361,7 @@ const ActionsConfirmStep: React.FC = () => {
           {/* Action Cards */}
           <ActionChipsList
             actions={actionCards as any}
+            onPress={handleActionPress}
             onEdit={() => {}} // No-op for onboarding
             onRemove={() => {}} // No-op for onboarding
             onAdd={() => {}} // No-op for onboarding

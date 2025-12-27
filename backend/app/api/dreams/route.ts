@@ -11,7 +11,7 @@ async function getUser(req: Request) {
 }
 
 export async function POST(req: Request) {
-  console.error('🚀 [DREAMS API] POST request received')
+  console.log('🚀 [DREAMS API] POST request received')
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const user = await getUser(req)
-    console.error('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
+    console.log('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
     
     if (!user) {
       console.error('❌ [DREAMS API] Unauthorized - invalid token')
@@ -29,16 +29,16 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    console.error('📝 [DREAMS API] Request body:', JSON.stringify(body, null, 2))
+    console.log('📝 [DREAMS API] Request body:', JSON.stringify(body, null, 2))
     
     const { id, title, start_date = null, end_date = null, image_url = null, baseline = null, obstacles = null, enjoyment = null, time_commitment = null } = body
 
     // Use authenticated client that respects RLS
     const sb = supabaseServerAuth(token)
-    console.error('🔗 [DREAMS API] Authenticated Supabase client created')
+    console.log('🔗 [DREAMS API] Authenticated Supabase client created')
 
     if (!id) {
-      console.error('🆕 [DREAMS API] Creating new dream')
+      console.log('🆕 [DREAMS API] Creating new dream')
       if (!title?.trim()) {
         console.error('❌ [DREAMS API] No title provided')
         return NextResponse.json({ error: 'Title required' }, { status: 400 })
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         time_commitment,
         activated_at: null
       }
-      console.error('💾 [DREAMS API] Inserting dream:', JSON.stringify(insertData, null, 2))
+      console.log('💾 [DREAMS API] Inserting dream:', JSON.stringify(insertData, null, 2))
       
       // RLS will automatically filter by user_id, so we don't need to specify it in WHERE clauses
       const { data, error } = await sb.from('dreams').insert(insertData).select('id').single()
@@ -69,11 +69,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: error.message }, { status: 400 })
       }
       
-      console.error('✅ [DREAMS API] Dream created successfully:', data)
+      console.log('✅ [DREAMS API] Dream created successfully:', data)
       return NextResponse.json({ id: data!.id })
     }
 
-    console.error('🔄 [DREAMS API] Updating existing dream:', id)
+    console.log('🔄 [DREAMS API] Updating existing dream:', id)
     // RLS will automatically filter by user_id, so we don't need .eq('user_id', user.id)
     const { data: owns } = await sb.from('dreams').select('id, activated_at').eq('id', id).maybeSingle()
     if (!owns) {
@@ -130,18 +130,18 @@ export async function POST(req: Request) {
     }
 
     if (isActivated) {
-      console.error('📝 [DREAMS API] Dream is activated, allowing limited updates')
-      console.error('✅ [DREAMS API] Only allowed fields being updated for activated dream')
+      console.log('📝 [DREAMS API] Dream is activated, allowing limited updates')
+      console.log('✅ [DREAMS API] Only allowed fields being updated for activated dream')
     }
 
-    console.error('💾 [DREAMS API] Updating dream with patch:', JSON.stringify(patch, null, 2))
+    console.log('💾 [DREAMS API] Updating dream with patch:', JSON.stringify(patch, null, 2))
     const { error } = await sb.from('dreams').update(patch).eq('id', id)
     if (error) {
       console.error('❌ [DREAMS API] Update error:', error)
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
     
-    console.error('✅ [DREAMS API] Dream updated successfully')
+    console.log('✅ [DREAMS API] Dream updated successfully')
     return NextResponse.json({ id })
     
   } catch (error) {
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  console.error('🗑️ [DREAMS API] DELETE request received')
+  console.log('🗑️ [DREAMS API] DELETE request received')
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -161,7 +161,7 @@ export async function DELETE(req: Request) {
     }
 
     const user = await getUser(req)
-    console.error('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
+    console.log('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
     
     if (!user) {
       console.error('❌ [DREAMS API] Unauthorized - invalid token')
@@ -178,7 +178,7 @@ export async function DELETE(req: Request) {
 
     // Use authenticated client that respects RLS
     const sb = supabaseServerAuth(token)
-    console.error('🔗 [DREAMS API] Authenticated Supabase client created')
+    console.log('🔗 [DREAMS API] Authenticated Supabase client created')
 
     // Check if dream exists and user owns it
     const { data: owns, error: checkError } = await sb
@@ -198,7 +198,7 @@ export async function DELETE(req: Request) {
     }
 
     // Soft delete the dream by setting archived_at
-    console.error('🗑️ [DREAMS API] Soft deleting dream:', dreamId)
+    console.log('🗑️ [DREAMS API] Soft deleting dream:', dreamId)
     const { error: deleteError } = await sb
       .from('dreams')
       .update({ archived_at: new Date().toISOString() })
@@ -209,7 +209,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: deleteError.message }, { status: 400 })
     }
     
-    console.error('✅ [DREAMS API] Dream deleted successfully')
+    console.log('✅ [DREAMS API] Dream deleted successfully')
     return NextResponse.json({ success: true })
     
   } catch (error) {
@@ -219,7 +219,7 @@ export async function DELETE(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  console.error('📝 [DREAMS API] PATCH request received')
+  console.log('📝 [DREAMS API] PATCH request received')
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
@@ -229,7 +229,7 @@ export async function PATCH(req: Request) {
     }
 
     const user = await getUser(req)
-    console.error('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
+    console.log('👤 [DREAMS API] User auth result:', user ? `User ID: ${user.id}` : 'No user')
     
     if (!user) {
       console.error('❌ [DREAMS API] Unauthorized - invalid token')
@@ -237,7 +237,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json()
-    console.error('📝 [DREAMS API] Request body:', JSON.stringify(body, null, 2))
+    console.log('📝 [DREAMS API] Request body:', JSON.stringify(body, null, 2))
     
     const { id, action } = body
 
@@ -248,7 +248,7 @@ export async function PATCH(req: Request) {
 
     // Use authenticated client that respects RLS
     const sb = supabaseServerAuth(token)
-    console.error('🔗 [DREAMS API] Authenticated Supabase client created')
+    console.log('🔗 [DREAMS API] Authenticated Supabase client created')
 
     // Check if dream exists and user owns it
     const { data: owns, error: checkError } = await sb
@@ -271,10 +271,10 @@ export async function PATCH(req: Request) {
     
     if (action === 'archive') {
       updateData.archived_at = new Date().toISOString()
-      console.error('📦 [DREAMS API] Archiving dream:', id)
+      console.log('📦 [DREAMS API] Archiving dream:', id)
     } else if (action === 'unarchive') {
       updateData.archived_at = null
-      console.error('📤 [DREAMS API] Unarchiving dream:', id)
+      console.log('📤 [DREAMS API] Unarchiving dream:', id)
     } else {
       console.error('❌ [DREAMS API] Invalid action:', action)
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -290,7 +290,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: updateError.message }, { status: 400 })
     }
     
-    console.error('✅ [DREAMS API] Dream updated successfully')
+    console.log('✅ [DREAMS API] Dream updated successfully')
     return NextResponse.json({ success: true })
     
   } catch (error) {

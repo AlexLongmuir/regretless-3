@@ -11,7 +11,7 @@ async function getUser(req: Request) {
 }
 
 export async function POST(req: Request) {
-  console.error('⏰ [DEFER API] POST request received');
+  console.log('⏰ [DEFER API] POST request received');
   
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','');
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const user = await getUser(req);
-    console.error('👤 [DEFER API] User auth result:', user ? `User ID: ${user.id}` : 'No user');
+    console.log('👤 [DEFER API] User auth result:', user ? `User ID: ${user.id}` : 'No user');
     
     if (!user) {
       console.error('❌ [DEFER API] Unauthorized - invalid token');
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    console.error('📝 [DEFER API] Request body:', JSON.stringify(body, null, 2));
+    console.log('📝 [DEFER API] Request body:', JSON.stringify(body, null, 2));
     
     const { occurrenceId, newDueDate } = body;
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     // Use authenticated client that respects RLS
     const sb = supabaseServerAuth(token);
-    console.error('🔗 [DEFER API] Authenticated Supabase client created');
+    console.log('🔗 [DEFER API] Authenticated Supabase client created');
 
     // Check if occurrence exists and user has access to it
     const { data: owns, error: checkError } = await sb
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     }
 
     // Update the action occurrence with the new due date
-    console.error('⏰ [DEFER API] Deferring occurrence:', occurrenceId, 'to:', newDueDate);
+    console.log('⏰ [DEFER API] Deferring occurrence:', occurrenceId, 'to:', newDueDate);
     const { data, error } = await sb
       .from('action_occurrences')
       .update({ 
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to defer action occurrence' }, { status: 500 });
     }
 
-    console.error('✅ [DEFER API] Occurrence deferred successfully');
+    console.log('✅ [DEFER API] Occurrence deferred successfully');
     return NextResponse.json({ 
       success: true, 
       data,

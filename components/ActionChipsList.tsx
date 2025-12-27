@@ -270,7 +270,7 @@ export function ActionChip({
         </TouchableOpacity>
       )}
 
-      <View style={{ flexDirection: 'row', minHeight: 80 }}>
+      <View style={{ flexDirection: 'row', minHeight: 80, alignItems: 'center' }}>
         {/* Left Image Section */}
         <View style={{ width: 80, position: 'relative', marginRight: 16, height: 80 }}>
           {action.dream_image ? (
@@ -359,7 +359,7 @@ export function ActionChip({
         </View>
 
         {/* Right Content Section */}
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
           {/* Title */}
           <Text style={{ 
             fontSize: 14, 
@@ -410,20 +410,6 @@ export function ActionChip({
                 </Text>
               </View>
             )}
-          </View>
-
-          {/* Acceptance Criteria */}
-          <View>
-            {(action.acceptance_criteria || []).slice(0, 3).map((criterion, index) => (
-              <Text key={index} style={{ 
-                fontSize: 12, 
-                color: theme.colors.text.muted, 
-                marginBottom: 4,
-                lineHeight: 16
-              }}>
-                • {criterion.title}
-              </Text>
-            ))}
           </View>
         </View>
       </View>
