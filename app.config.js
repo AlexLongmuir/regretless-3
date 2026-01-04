@@ -16,7 +16,7 @@ export default {
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dreamerapp.app",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "usesAppleSignIn": true,
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
