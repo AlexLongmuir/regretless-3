@@ -287,54 +287,54 @@ export async function generateJson(opts: {
     if (!trimmedText.endsWith('}') && !trimmedText.endsWith(']')) {
       console.warn(`⚠️ JSON appears to be truncated (attempt ${attempt + 1}) - attempting to fix`);
     
-    // Special case: if the text ends with a number (like "slice_count_target": 3), 
-    // it's likely a truncated action that just needs closing braces
-    if (trimmedText.match(/\d+\s*$/)) {
-      console.log('🔧 Detected truncation after numeric value - adding closing braces');
-      text = trimmedText + '\n      }\n    ]\n  }';
-    } else {
-      // Try to find the last complete object and close the JSON properly
-    const lastCompleteBrace = trimmedText.lastIndexOf('}');
-    const lastCompleteBracket = trimmedText.lastIndexOf(']');
-    const lastComplete = Math.max(lastCompleteBrace, lastCompleteBracket);
-    
-    if (lastComplete > 0) {
-      // Find the last complete action object
-      const beforeLastComplete = trimmedText.substring(0, lastComplete + 1);
-      const afterLastComplete = trimmedText.substring(lastComplete + 1);
-      
-      // If there's incomplete content after the last complete object, try to close it
-      if (afterLastComplete.trim() && !afterLastComplete.includes('}')) {
-        // This looks like a truncated action, try to close the JSON structure
-        let fixedText = beforeLastComplete;
+      // Special case: if the text ends with a number (like "slice_count_target": 3), 
+      // it's likely a truncated action that just needs closing braces
+      if (trimmedText.match(/\d+\s*$/)) {
+        console.log('🔧 Detected truncation after numeric value - adding closing braces');
+        text = trimmedText + '\n      }\n    ]\n  }';
+      } else {
+        // Try to find the last complete object and close the JSON properly
+        const lastCompleteBrace = trimmedText.lastIndexOf('}');
+        const lastCompleteBracket = trimmedText.lastIndexOf(']');
+        const lastComplete = Math.max(lastCompleteBrace, lastCompleteBracket);
         
-        // If we're in the middle of an action object, try to close it
-        if (afterLastComplete.includes('"area_id"') || afterLastComplete.includes('"title"') || afterLastComplete.includes('"position"')) {
-          // This is likely a truncated action, try to complete it properly
-          if (afterLastComplete.includes('"position"') && !afterLastComplete.includes('}')) {
-            // The action has position but is missing closing brace
-            const positionMatch = afterLastComplete.match(/"position":\s*(\d+)/);
-            if (positionMatch) {
-              const position = positionMatch[1];
-              fixedText += `,\n      "position": ${position}\n    }`;
-            } else {
-              fixedText += ',\n      "position": 999\n    }';
+        if (lastComplete > 0) {
+          // Find the last complete action object
+          const beforeLastComplete = trimmedText.substring(0, lastComplete + 1);
+          const afterLastComplete = trimmedText.substring(lastComplete + 1);
+          
+          // If there's incomplete content after the last complete object, try to close it
+          if (afterLastComplete.trim() && !afterLastComplete.includes('}')) {
+            // This looks like a truncated action, try to close the JSON structure
+            let fixedText = beforeLastComplete;
+            
+            // If we're in the middle of an action object, try to close it
+            if (afterLastComplete.includes('"area_id"') || afterLastComplete.includes('"title"') || afterLastComplete.includes('"position"')) {
+              // This is likely a truncated action, try to complete it properly
+              if (afterLastComplete.includes('"position"') && !afterLastComplete.includes('}')) {
+                // The action has position but is missing closing brace
+                const positionMatch = afterLastComplete.match(/"position":\s*(\d+)/);
+                if (positionMatch) {
+                  const position = positionMatch[1];
+                  fixedText += `,\n      "position": ${position}\n    }`;
+                } else {
+                  fixedText += ',\n      "position": 999\n    }';
+                }
+              } else {
+                // This is likely a truncated action, close it with minimal required fields
+                fixedText += ',\n    {\n      "area_id": "truncated",\n      "title": "Complete remaining actions",\n      "est_minutes": 60,\n      "difficulty": "medium",\n      "acceptance_criteria": [{"title": "Action completed", "description": "Complete the remaining actions"}],\n      "position": 999\n    }';
+              }
             }
-          } else {
-            // This is likely a truncated action, close it with minimal required fields
-            fixedText += ',\n    {\n      "area_id": "truncated",\n      "title": "Complete remaining actions",\n      "est_minutes": 60,\n      "difficulty": "medium",\n      "acceptance_criteria": [{"title": "Action completed", "description": "Complete the remaining actions"}],\n      "position": 999\n    }';
+            
+            // Close the actions array and main object
+            fixedText += '\n  ]\n}';
+            
+            console.log('🔧 Attempting to fix truncated JSON:', fixedText);
+            text = fixedText;
           }
         }
-        
-        // Close the actions array and main object
-        fixedText += '\n  ]\n}';
-        
-        console.log('🔧 Attempting to fix truncated JSON:', fixedText);
-        text = fixedText;
       }
     }
-    }
-  }
   
   try {
     // Try to clean up common JSON formatting issues
