@@ -165,6 +165,19 @@ Indexes:
  - `(source_type)` for filtering
  - `(search_id)` for grouping
 
+### onboarding_sessions
+Stores draft onboarding data for anonymous/unauthenticated users to prevent data loss.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| session_id | uuid | Primary key, generated on client | NOT NULL, PRIMARY KEY, DEFAULT gen_random_uuid() |
+| device_id | text | Optional device identifier | |
+| data | jsonb | Full state of onboarding context | NOT NULL, DEFAULT '{}' |
+| created_at | timestamptz | When session was started | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When session was last updated | NOT NULL, DEFAULT now() |
+
+RLS: Public INSERT/UPDATE/SELECT policies to allow anonymous usage.
+
 ### notification_preferences
 User notification settings and preferences.
 

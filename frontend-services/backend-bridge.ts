@@ -337,7 +337,19 @@ export const generateOnboardingAreas = (body: OnboardingGenerateAreasRequest): P
 export const generateOnboardingActions = (body: OnboardingGenerateActionsRequest): Promise<Action[]> => 
   post('/api/create/generate-actions', body) // No token = unauthenticated mode
 
-export const activateDream = (body: ActivateDreamRequest, token?: string): Promise<{ success: boolean; message?: string; error?: string; scheduling?: any }> => 
+export interface SyncOnboardingRequest {
+  sessionId: string;
+  data: any;
+  deviceId?: string;
+}
+
+export const syncOnboardingDraft = (body: SyncOnboardingRequest): Promise<{ success: boolean }> =>
+  post('/api/onboarding/sync', body)
+
+export const getOnboardingDraft = (sessionId: string): Promise<{ data: any }> =>
+  fetch(`${API_BASE}/api/onboarding/sync?sessionId=${sessionId}`).then(res => res.json())
+
+export const activateDream = (body: ActivateDreamRequest, token?: string): Promise<{ success: boolean; message?: string; error?: string; scheduling?: any }> =>  
   post('/api/create/activate-dream', body, token)
 
 export const upsertAreas = (body: UpsertAreasRequest, token?: string): Promise<UpsertAreasResponse> => 

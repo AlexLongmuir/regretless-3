@@ -62,6 +62,14 @@ export interface AIGeneratedDream {
   created_at: string;
 }
 
+export interface OnboardingSession {
+  session_id: string;
+  device_id?: string;
+  data: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Area {
   id: string;
   dream_id: string;
@@ -176,6 +184,11 @@ export interface Database {
         Row: AIGeneratedDream;
         Insert: Omit<AIGeneratedDream, 'id' | 'created_at'>;
         Update: Partial<Omit<AIGeneratedDream, 'id' | 'created_at'>>;
+      };
+      onboarding_sessions: {
+        Row: OnboardingSession;
+        Insert: Omit<OnboardingSession, 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<OnboardingSession, 'created_at' | 'updated_at'>>;
       };
       areas: {
         Row: Area;

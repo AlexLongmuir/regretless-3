@@ -18,10 +18,11 @@ import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useEntitlementsContext } from '../../contexts/EntitlementsContext';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
-import { updateSubscriptionStatus, getPendingOnboardingDream, clearPendingOnboardingDream } from '../../utils/onboardingFlow';
+import { updateSubscriptionStatus, getPendingOnboardingDream, clearPendingOnboardingDream, PendingOnboardingDream } from '../../utils/onboardingFlow';
 import { createDreamFromOnboardingData } from '../../utils/onboardingDreamCreation';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { trackEvent } from '../../lib/mixpanel';
+import { getOnboardingDraft } from '../../frontend-services/backend-bridge';
 import { sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 const PostPurchaseSignInStep: React.FC = () => {
@@ -163,7 +164,31 @@ const PostPurchaseSignInStep: React.FC = () => {
               // If context doesn't have data, try AsyncStorage as fallback
               if (!dreamId) {
                 console.log('🔍 [ONBOARDING] No data in context, checking AsyncStorage...');
-                const pendingData = await getPendingOnboardingDream();
+                let pendingData = await getPendingOnboardingDream();
+
+                // If no local data, try fetching from remote draft session
+                if (!pendingData) {
+                  console.log('🔍 [ONBOARDING] No data in AsyncStorage, checking remote draft...');
+                  try {
+                    const sessionId = await AsyncStorage.getItem('onboarding_session_id');
+                    if (sessionId) {
+                      const { data } = await getOnboardingDraft(sessionId);
+                      if (data && data.generatedAreas?.length > 0) {
+                        console.log('✅ [ONBOARDING] Found remote draft data');
+                        pendingData = {
+                          name: data.name,
+                          answers: data.answers,
+                          dreamImageUrl: data.dreamImageUrl,
+                          generatedAreas: data.generatedAreas,
+                          generatedActions: data.generatedActions,
+                        } as PendingOnboardingDream;
+                      }
+                    }
+                  } catch (error) {
+                    console.warn('⚠️ [ONBOARDING] Failed to fetch remote draft:', error);
+                  }
+                }
+
                 if (pendingData && pendingData.generatedAreas.length > 0 && pendingData.generatedActions.length > 0) {
                   dreamId = await createDreamFromOnboardingData(
                     {
@@ -214,7 +239,31 @@ const PostPurchaseSignInStep: React.FC = () => {
               // If context doesn't have data, try AsyncStorage as fallback
               if (!dreamId) {
                 console.log('🔍 [ONBOARDING] No data in context, checking AsyncStorage...');
-                const pendingData = await getPendingOnboardingDream();
+                let pendingData = await getPendingOnboardingDream();
+
+                // If no local data, try fetching from remote draft session
+                if (!pendingData) {
+                  console.log('🔍 [ONBOARDING] No data in AsyncStorage, checking remote draft...');
+                  try {
+                    const sessionId = await AsyncStorage.getItem('onboarding_session_id');
+                    if (sessionId) {
+                      const { data } = await getOnboardingDraft(sessionId);
+                      if (data && data.generatedAreas?.length > 0) {
+                        console.log('✅ [ONBOARDING] Found remote draft data');
+                        pendingData = {
+                          name: data.name,
+                          answers: data.answers,
+                          dreamImageUrl: data.dreamImageUrl,
+                          generatedAreas: data.generatedAreas,
+                          generatedActions: data.generatedActions,
+                        } as PendingOnboardingDream;
+                      }
+                    }
+                  } catch (error) {
+                    console.warn('⚠️ [ONBOARDING] Failed to fetch remote draft:', error);
+                  }
+                }
+
                 if (pendingData && pendingData.generatedAreas.length > 0 && pendingData.generatedActions.length > 0) {
                   dreamId = await createDreamFromOnboardingData(
                     {

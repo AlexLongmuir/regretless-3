@@ -10,11 +10,17 @@
  * Following the user's preference for state-only contexts without network calls
  */
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncOnboardingDraft } from '../frontend-services/backend-bridge';
 import type { Area, Action } from '../backend/database/types';
 import type { DreamImage } from '../frontend-services/backend-bridge';
 
 interface OnboardingState {
+  // Session tracking
+  sessionId?: string;
+
   // User information
   name: string;
   
@@ -55,6 +61,7 @@ interface OnboardingContextType {
 }
 
 const defaultState: OnboardingState = {
+  sessionId: undefined,
   name: '',
   answers: {},
   dreamImageUrl: null,
@@ -74,6 +81,46 @@ interface OnboardingProviderProps {
 
 export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children }) => {
   const [state, setState] = useState<OnboardingState>(defaultState);
+
+  // Initialize session ID
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        let sid = await AsyncStorage.getItem('onboarding_session_id');
+        if (!sid) {
+          sid = Crypto.randomUUID();
+          await AsyncStorage.setItem('onboarding_session_id', sid);
+        }
+        setState(prev => ({ ...prev, sessionId: sid }));
+      } catch (error) {
+        console.error('Error initializing onboarding session:', error);
+      }
+    };
+    initSession();
+  }, []);
+
+  // Background sync
+  useEffect(() => {
+    if (!state.sessionId) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Filter out transient state
+        const { preloadedDefaultImages, hasActiveSubscription, ...dataToSave } = state;
+        
+        await syncOnboardingDraft({
+          sessionId: state.sessionId!,
+          data: dataToSave
+        });
+        // console.log('✅ [ONBOARDING] Background sync completed');
+      } catch (error) {
+        // Silent fail for background sync to not disturb user
+        console.warn('⚠️ [ONBOARDING] Background sync failed:', error);
+      }
+    }, 2000); // 2s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [state]);
 
   const updateName = (name: string) => {
     setState(prev => ({ ...prev, name }));

@@ -64,6 +64,10 @@ export default {
       "expo-web-browser",
       "expo-av"
     ],
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
     "extra": {
       "supabaseUrl": process.env.EXPO_PUBLIC_SUPABASE_URL,
       "supabaseAnonKey": process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
