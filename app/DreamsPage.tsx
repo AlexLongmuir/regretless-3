@@ -1,18 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet, Image, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { theme } from '../utils/theme';
-import { DreamCard, DreamChipList } from '../components';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
+import { DreamCard, DreamChipList, AchievementsButton, AchievementsSheet } from '../components';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { DreamChipSkeleton } from '../components/SkeletonLoader';
 import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
-import type { Dream, DreamWithStats } from '../backend/database/types';
+import type { Dream, DreamWithStats, Achievement, UserAchievement } from '../backend/database/types';
 import { trackEvent } from '../lib/mixpanel';
+import { getAchievements } from '../frontend-services/backend-bridge';
+import { supabaseClient } from '../lib/supabaseClient';
+import { StreakSheet } from '../components/StreakSheet';
 
 
 const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme, isDark]);
   const { state, getDreamsSummary, getDreamsWithStats, onScreenFocus, refresh } = useData();
   const { user, isAuthenticated, loading: authLoading, isCreatingOnboardingDream, hasPendingOnboardingDream } = useAuthContext();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -21,6 +27,9 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   const skeletonOpacity = useRef(new Animated.Value(1)).current;
   const [skeletonOverlayVisible, setSkeletonOverlayVisible] = useState(false);
   const prevCreatingDreamRef = useRef(false);
+  const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
+  const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
+  const [showStreakSheet, setShowStreakSheet] = useState(false);
   
   const dreams = state.dreamsSummary?.dreams || [];
   const dreamsWithStats = state.dreamsWithStats?.dreams || [];
@@ -40,6 +49,13 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
                              (isRefreshing && !hasCachedData && dreams.length === 0) ||
                              (isCreatingOnboardingDream || (hasPendingOnboardingDream && dreams.length === 0));
 
+  // Calculate overall streak (max streak of any dream or sum? Plan says Action Streak)
+  // Since we updated current_streak logic, we should probably aggregate or take the max?
+  // Let's assume for now we take the max streak across active dreams as the "User Streak" or use the backend value if available
+  const overallStreak = Math.max(...dreamsWithStats.map(d => d.current_streak || 0), 0);
+  // We'll use the same value for longest streak for now until we have a proper backend field for user-level stats
+  const longestStreak = overallStreak; // Placeholder
+
   // Smooth crossfade: show overlay when we need skeleton; fade out when content is ready
   useEffect(() => {
     if (shouldShowSkeleton) {
@@ -58,6 +74,24 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
       }).start(() => setSkeletonOverlayVisible(false));
     }
   }, [dreamsWithStats.length, skeletonOverlayVisible, skeletonOpacity]);
+
+  // Load achievements
+  useEffect(() => {
+    const loadAchievements = async () => {
+      if (!isAuthenticated || authLoading) return;
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await getAchievements(session.access_token);
+        if (response.success) {
+          setAchievements(response.data.achievements);
+        }
+      } catch (error) {
+        console.error('Error loading achievements:', error);
+      }
+    };
+    loadAchievements();
+  }, [isAuthenticated, authLoading]);
 
   // Initial data load on mount
   useEffect(() => {
@@ -223,12 +257,26 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
                 Keep pushing forward. Every step counts.
               </Text>
             </View>
-            <IconButton
-              icon="add"
-              onPress={() => handleAddDream('header')}
-              variant="secondary"
-              size="md"
-            />
+            <View style={styles.headerActions}>
+              <IconButton
+                icon="fire"
+                onPress={() => setShowStreakSheet(true)}
+                variant="secondary"
+                size="md"
+                style={styles.streakButton}
+              />
+              <AchievementsButton
+                onPress={() => setShowAchievementsSheet(true)}
+                count={achievements.filter(a => a.user_progress).length}
+                total={achievements.length}
+              />
+              <IconButton
+                icon="add"
+                onPress={() => handleAddDream('header')}
+                variant="secondary"
+                size="md"
+              />
+            </View>
           </View>
         </View>
 
@@ -254,14 +302,27 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
         </View>
 
       </ScrollView>
+
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+        achievements={achievements}
+      />
+      
+      <StreakSheet
+        visible={showStreakSheet}
+        onClose={() => setShowStreakSheet(false)}
+        streak={overallStreak}
+        longestStreak={longestStreak}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   scrollView: {
     flex: 1,
@@ -279,6 +340,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerText: {
     flex: 1,
   },
@@ -295,11 +361,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   subtitle: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 22,
   },
   footer: {
@@ -322,7 +388,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
@@ -330,19 +396,23 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: theme.spacing.xl,
   },
   addButton: {
     minWidth: 200,
+  },
+  streakButton: {
+    backgroundColor: theme.colors.warning[100],
+    borderWidth: 0,
   },
 });
 

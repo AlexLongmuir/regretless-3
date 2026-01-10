@@ -1,19 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { ListRow } from '../components/ListRow';
 import { notificationService } from '../lib/NotificationService';
 import { deleteAccount } from '../frontend-services/backend-bridge';
 import { trackEvent } from '../lib/mixpanel';
+import { resetDailyWelcome } from '../hooks/useDailyWelcome';
+import { AchievementUnlockedSheet } from '../components/AchievementUnlockedSheet';
+import { AchievementsSheet } from '../components/AchievementsSheet';
+import { checkNewAchievements, getAchievements } from '../frontend-services/backend-bridge';
+import { supabaseClient } from '../lib/supabaseClient';
+import type { AchievementUnlockResult, Achievement, UserAchievement } from '../backend/database/types';
 
 const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
+  const { theme, mode, setMode, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme, isDark]);
   const { user, signOut, loading } = useAuthContext();
-  const { state, getDreamsWithStats } = useData();
+  const { state, getDreamsWithStats, checkAchievements } = useData();
   const [dreamStats, setDreamStats] = useState({ created: 0, completed: 0 });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [testAchievements, setTestAchievements] = useState<AchievementUnlockResult[]>([]);
+  const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
+  const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
 
   // Initialize notification service
   useEffect(() => {
@@ -46,6 +59,7 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
       trackEvent('account_viewed');
     }, [])
   );
+
 
   const handleLogout = async () => {
     Alert.alert(
@@ -133,6 +147,92 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
     );
   };
 
+  const handleForceDailyWelcome = async () => {
+    Alert.alert(
+      'Force Daily Welcome',
+      'This will reset the daily welcome so it shows again on the next app foreground or reload.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            trackEvent('account_setting_pressed', { setting_name: 'force_daily_welcome' });
+            await resetDailyWelcome();
+            Alert.alert(
+              'Daily Welcome Reset',
+              'The daily welcome will appear the next time you return to the app.',
+              [{ text: 'OK' }]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleForceAchievementModal = async () => {
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        Alert.alert('Error', 'Not authenticated');
+        return;
+      }
+
+      // Try to get a real achievement first
+      const achievementsResponse = await checkNewAchievements(session.access_token);
+      
+      if (achievementsResponse.success && achievementsResponse.data.new_achievements.length > 0) {
+        // Show real achievements
+        setTestAchievements(achievementsResponse.data.new_achievements);
+        setShowAchievementModal(true);
+      } else {
+        // If no new achievements, get any unlocked achievement for testing
+        const allAchievementsResponse = await getAchievements(session.access_token);
+        if (allAchievementsResponse.success && allAchievementsResponse.data.achievements.length > 0) {
+          const unlockedAchievement = allAchievementsResponse.data.achievements.find(
+            (a: any) => a.user_progress
+          );
+          
+          if (unlockedAchievement) {
+            setTestAchievements([{
+              achievement_id: unlockedAchievement.id,
+              title: unlockedAchievement.title,
+              description: unlockedAchievement.description,
+              image_url: unlockedAchievement.image_url || '',
+            }]);
+            setShowAchievementModal(true);
+          } else {
+            Alert.alert(
+              'No Achievements',
+              'You don\'t have any unlocked achievements yet. Complete some actions to unlock achievements!'
+            );
+          }
+        } else {
+          Alert.alert('Error', 'Failed to load achievements');
+        }
+      }
+    } catch (error) {
+      console.error('Error forcing achievement modal:', error);
+      Alert.alert('Error', 'Failed to show achievement modal');
+    }
+  };
+
+  const handleCheckAchievements = async () => {
+    try {
+      await checkAchievements();
+      Alert.alert(
+        'Achievement Check',
+        'Checked for new achievements. If any were unlocked, they should appear automatically.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      Alert.alert('Error', 'Failed to check achievements');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
@@ -169,13 +269,21 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
         {/* Settings List */}
         <View style={styles.listContainer}>
           <ListRow
+            title="Display"
+            leftIcon="auto_awesome"
+            onPress={() => {
+              trackEvent('account_setting_pressed', { setting_name: 'display' });
+              navigation?.navigate('DisplaySettings');
+            }}
+            isFirst={true}
+          />
+          <ListRow
             title="Notification Settings"
             leftIcon="notifications"
             onPress={() => {
               trackEvent('account_setting_pressed', { setting_name: 'notifications' });
               navigation?.navigate('NotificationSettings');
             }}
-            isFirst={true}
           />
           <ListRow
             title="Contact Us"
@@ -202,14 +310,31 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
             }}
           />
           {(user?.id === '9e0ec607-8bad-4731-84eb-958f98833131' || user?.id === '0952cd47-5227-4f9f-98b3-1e89b2296157') && (
-            <ListRow
-              title="Screenshot Studio"
-              leftIcon="camera_alt"
-              onPress={() => {
-                trackEvent('account_setting_pressed', { setting_name: 'screenshot_studio' });
-                navigation?.navigate('ScreenshotMenu');
-              }}
-            />
+            <>
+              <ListRow
+                title="Screenshot Studio"
+                leftIcon="photo" // Changed from camera_alt as it might not be in the icon map, using photo which is
+                onPress={() => {
+                  trackEvent('account_setting_pressed', { setting_name: 'screenshot_studio' });
+                  navigation?.navigate('ScreenshotMenu');
+                }}
+              />
+              <ListRow
+                title="Force Daily Welcome"
+                leftIcon="refresh"
+                onPress={handleForceDailyWelcome}
+              />
+              <ListRow
+                title="Force Achievement Modal"
+                leftIcon="emoji_events"
+                onPress={handleForceAchievementModal}
+              />
+              <ListRow
+                title="Check Achievements (Global)"
+                leftIcon="refresh"
+                onPress={handleCheckAchievements}
+              />
+            </>
           )}
           <ListRow
             title="Log Out"
@@ -226,14 +351,46 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
           />
         </View>
       </ScrollView>
+
+      <AchievementUnlockedSheet
+        visible={showAchievementModal}
+        achievements={testAchievements}
+        onClose={() => {
+          setShowAchievementModal(false);
+          setTestAchievements([]);
+        }}
+        onViewAchievements={async () => {
+          setShowAchievementModal(false);
+          setTestAchievements([]);
+          // Load achievements and open achievements sheet
+          try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) {
+              const response = await getAchievements(session.access_token);
+              if (response.success) {
+                setAchievements(response.data.achievements);
+                setShowAchievementsSheet(true);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading achievements:', error);
+          }
+        }}
+      />
+
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+        achievements={achievements}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     paddingHorizontal: theme.spacing.md,
@@ -246,7 +403,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   profileSection: {
     flexDirection: 'row',
@@ -276,7 +433,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title1,
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.title1,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
     textAlign: 'left',
   },
@@ -285,7 +442,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
     textAlign: 'left',
   },
@@ -294,7 +451,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.tertiary,
     textAlign: 'left',
   },
   listContainer: {

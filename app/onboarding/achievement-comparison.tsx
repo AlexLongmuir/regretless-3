@@ -5,7 +5,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -47,7 +48,7 @@ const AchievementComparisonStep: React.FC = () => {
             <Image 
               source={require('../../assets/images/onboarding/chart.png')}
               style={styles.chartImage}
-              resizeMode="contain"
+              contentFit="contain"
             />
             <Text style={styles.description}>
               Turn vague goals concrete: 94 studies show better success with defined goals and plans

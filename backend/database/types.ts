@@ -62,6 +62,38 @@ export interface AIGeneratedDream {
   created_at: string;
 }
 
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: 'action_count' | 'streak' | 'dream_count' | 'area_count';
+  criteria_type: string;
+  criteria_value: number;
+  image_url?: string;
+  locked_image_url?: string;
+  hidden: boolean;
+  position: number;
+  created_at: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string;
+  seen: boolean;
+  progress?: number;
+  metadata?: any;
+  achievement?: Achievement; // Joined data
+}
+
+export interface AchievementUnlockResult {
+  achievement_id: string;
+  title: string;
+  description: string;
+  image_url: string;
+}
+
 export interface OnboardingSession {
   session_id: string;
   device_id?: string;

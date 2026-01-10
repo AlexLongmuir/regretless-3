@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, TextInput, Keyboard, Image } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, TextInput, Keyboard } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -107,7 +108,7 @@ const NameStep: React.FC = () => {
       
       {/* Preload Understanding screen's image invisibly so it's ready instantly on navigation */}
       <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        <Image source={silhouetteImage} fadeDuration={0} />
+        <Image source={silhouetteImage} transition={0} />
       </View>
     </KeyboardAvoidingView>
   );

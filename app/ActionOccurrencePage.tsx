@@ -13,7 +13,8 @@ import {
   Platform,
   Keyboard,
   Linking,
-  Pressable
+  Pressable,
+  Dimensions
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,15 +25,16 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
+import { Icon } from '../components/Icon';
 import { OptionsPopover } from '../components/OptionsPopover';
-import { AIRatingRing } from '../components';
 import { useToast } from '../components/toast/ToastProvider';
 import { SheetHeader } from '../components/SheetHeader';
 import { useData } from '../contexts/DataContext';
-import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArtifact, getArtifacts, deleteArtifact, completeOccurrence, generateAIReview, type Artifact } from '../frontend-services/backend-bridge';
+import { deleteActionOccurrence, updateActionOccurrence, updateAction, uploadArtifact, getArtifacts, deleteArtifact, completeOccurrence, type Artifact } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { ActionOccurrenceStatus } from '../backend/database/types';
 import { trackEvent } from '../lib/mixpanel';
@@ -47,6 +49,8 @@ interface EditActionModalProps {
 }
 
 function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: EditActionModalProps) {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createEditModalStyles(theme), [theme]);
   const [formData, setFormData] = useState({
     id: '',
     title: '',
@@ -154,7 +158,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <KeyboardAvoidingView 
-        style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+        style={{ flex: 1, backgroundColor: theme.colors.background.page }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
@@ -179,12 +183,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
         >
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Title</Text>
             <TextInput
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
-              placeholderTextColor={theme.colors.grey[500]}
+              placeholderTextColor={theme.colors.text.tertiary}
               style={{
                 backgroundColor: theme.colors.background.card,
                 borderRadius: 8,
@@ -197,12 +201,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
-              placeholderTextColor={theme.colors.grey[500]}
+              placeholderTextColor={theme.colors.text.tertiary}
               keyboardType="numeric"
               style={{
                 backgroundColor: theme.colors.background.card,
@@ -216,7 +220,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
           {/* Due Date (edit current occurrence) */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Due Date</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Due Date</Text>
             <TouchableOpacity
               onPress={() => {
                 Keyboard.dismiss();
@@ -248,20 +252,20 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   }}
                   minimumDate={new Date()}
                   maximumDate={dreamEndDate ? new Date(dreamEndDate) : undefined}
-                  themeVariant="light"
+                  themeVariant={isDark ? 'dark' : 'light'}
                 />
                 {Platform.OS === 'ios' && (
                   <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
                     <TouchableOpacity
                       onPress={() => setShowDatePicker(false)}
                       style={{
-                        backgroundColor: '#000',
+                        backgroundColor: theme.colors.primary[600],
                         paddingHorizontal: 20,
                         paddingVertical: 10,
                         borderRadius: 8
                       }}
                     >
-                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                      <Text style={{ color: theme.colors.text.inverse, fontWeight: '600' }}>Done</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -272,7 +276,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
           {/* Acceptance Criteria */}
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text.primary }}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={addCriterion}>
                 <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
@@ -280,12 +284,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
             
             {/* Intro */}
             <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.grey[600] }}>Intro (optional)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.secondary }}>Intro (optional)</Text>
               <TextInput
                 value={formData.acceptance_intro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
                 placeholder="One sentence setting intention..."
-                placeholderTextColor={theme.colors.grey[500]}
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
                 style={{
                   backgroundColor: theme.colors.background.card,
@@ -306,7 +310,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                     Step {index + 1}
                   </Text>
                   <TouchableOpacity onPress={() => removeCriterion(index)}>
-                    <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
+                    <Ionicons name="close-circle" size={20} color={theme.colors.error[500]} />
                   </TouchableOpacity>
                 </View>
                 
@@ -314,7 +318,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   value={criterion.title}
                   onChangeText={(text) => updateCriterion(index, 'title', text)}
                   placeholder="Short title (e.g. 'Read 10 pages')"
-                  placeholderTextColor={theme.colors.text.placeholder}
+                  placeholderTextColor={theme.colors.text.tertiary}
                   style={{
                     backgroundColor: theme.colors.background.card,
                     borderRadius: 8,
@@ -331,7 +335,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   value={criterion.description}
                   onChangeText={(text) => updateCriterion(index, 'description', text)}
                   placeholder="Description (e.g. 'Focus on understanding key concepts...')"
-                  placeholderTextColor={theme.colors.text.placeholder}
+                  placeholderTextColor={theme.colors.text.tertiary}
                   multiline
                   style={{
                     backgroundColor: theme.colors.background.card,
@@ -350,12 +354,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
             {/* Outro */}
             <View style={{ marginTop: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.grey[600] }}>Outro (optional)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.secondary }}>Outro (optional)</Text>
               <TextInput
                 value={formData.acceptance_outro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
                 placeholder="One sentence defining 'done'..."
-                placeholderTextColor={theme.colors.grey[500]}
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
                 style={{
                   backgroundColor: theme.colors.background.card,
@@ -371,7 +375,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
           {/* Action Type Segmented */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Action Type</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Action Type</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {([
                 { value: 'one-off' as const, label: 'One-off' },
@@ -384,7 +388,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: actionType === opt.value ? theme.colors.border.selected : theme.colors.background.card,
+                    backgroundColor: actionType === opt.value ? theme.colors.primary[600] : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
@@ -398,7 +402,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
           {/* Repeating options */}
           {actionType === 'repeating' && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Repeat Every</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {[
                   { value: 1, label: '1 day' },
@@ -411,7 +415,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                     style={{
                       flex: 1,
                       padding: 12,
-                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
+                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.primary[600] : theme.colors.background.card,
                       borderRadius: 8,
                       alignItems: 'center'
                     }}
@@ -426,7 +430,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
           {/* Finite total steps */}
           {actionType === 'finite' && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Total Steps</Text>
               <TextInput
                 value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
                 onChangeText={(text) => {
@@ -438,7 +442,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   setFormData(prev => ({ ...prev, slice_count_target: num }));
                 }}
                 placeholder="How many times will you do this?"
-                placeholderTextColor={theme.colors.grey[500]}
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="numeric"
                 style={{
                   backgroundColor: theme.colors.background.card,
@@ -453,7 +457,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
           {/* Difficulty (moved to bottom) */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Difficulty</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Difficulty</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['easy', 'medium', 'hard'] as const).map((diff) => (
                 <TouchableOpacity
@@ -462,7 +466,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
                   style={{
                     flex: 1,
                     padding: 12,
-                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
+                    backgroundColor: formData.difficulty === diff ? theme.colors.primary[600] : theme.colors.background.card,
                     borderRadius: 8,
                     alignItems: 'center'
                   }}
@@ -480,11 +484,373 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
   );
 }
 
+const createEditModalStyles = (theme: Theme) => StyleSheet.create({
+  // Styles are mostly inline in EditActionModal
+});
+
+// Save Action Sheet Component
+interface SaveActionSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  onSubmit: () => Promise<void>;
+  actionTitle?: string;
+  actionData?: any;
+  params?: any;
+  dreamAreaData?: any;
+  note: string;
+  setNote: (note: string) => void;
+  artifacts: Artifact[];
+  isUploading: boolean;
+  isSubmitting: boolean;
+  isCompleted: boolean;
+  handleImagePicker: () => Promise<void>;
+  handleDeleteImage: (artifactId: string) => void;
+  formatDate: (dateString: string) => string;
+  formatTime: (minutes: number) => string;
+}
+
+function SaveActionSheet({
+  visible,
+  onClose,
+  onSubmit,
+  actionTitle,
+  actionData,
+  params,
+  dreamAreaData,
+  note,
+  setNote,
+  artifacts,
+  isUploading,
+  isSubmitting,
+  isCompleted,
+  handleImagePicker,
+  handleDeleteImage,
+  formatDate,
+  formatTime,
+}: SaveActionSheetProps) {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createSaveSheetStyles(theme), [theme]);
+  const scrollRef = useRef<ScrollView>(null);
+  const descriptionSectionRef = useRef<View>(null);
+  const descriptionSectionY = useRef<number>(0);
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  const handleDescriptionFocus = () => {
+    // Scroll to position the input near the top of the visible area
+    setTimeout(() => {
+      const scrollY = Math.max(0, descriptionSectionY.current - 100);
+      scrollRef.current?.scrollTo({ 
+        y: scrollY, 
+        animated: true 
+      });
+    }, 150);
+  };
+
+  const DifficultyBars = ({ difficulty }: { difficulty: string }) => {
+    const getBarCount = (diff: string) => {
+      switch (diff) {
+        case 'easy': return 1;
+        case 'medium': return 2;
+        case 'hard': return 3;
+        default: return 1;
+      }
+    };
+
+    const getBarColor = (diff: string) => {
+      switch (diff) {
+        case 'easy': return theme.colors.difficulty.easy;
+        case 'medium': return theme.colors.difficulty.medium;
+        case 'hard': return theme.colors.difficulty.hard;
+        default: return theme.colors.difficulty.easy;
+      }
+    };
+
+    const barCount = getBarCount(difficulty);
+    const barColor = getBarColor(difficulty);
+
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 1, height: 12 }}>
+        {[1, 2, 3].map((bar) => (
+          <View
+            key={bar}
+            style={{
+              width: 3,
+              height: bar * 2 + 4,
+              backgroundColor: bar <= barCount ? barColor : theme.colors.disabled.inactive,
+              borderRadius: 1.5
+            }}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const handleSubmit = async () => {
+    Keyboard.dismiss();
+    await onSubmit();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.page }} edges={['top']}>
+        <SheetHeader
+          title="Save Action"
+          onClose={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        />
+
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
+        >
+          <ScrollView 
+            ref={scrollRef}
+            style={{ flex: 1 }} 
+            contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+          {/* Title */}
+          <Text style={styles.sheetActionTitle}>
+            {actionData?.title || actionTitle || 'Action'}
+          </Text>
+
+          {/* Sub Information Section */}
+          <View style={styles.subInfoSection}>
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="calendar-outline" size={16} color={theme.colors.text.secondary} />
+                <Text style={styles.detailValue}>
+                  Completed {formatDate(currentDate)}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
+                <Text style={styles.detailValue}>
+                  {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
+                <Text style={styles.detailValue}>
+                  {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Photo Upload Section */}
+          <View style={styles.photoSection}>
+            <Text style={styles.sectionLabel}>Photos</Text>
+            
+            {/* Uploaded Images */}
+            {artifacts.length > 0 && (
+              <View style={styles.uploadedImagesContainer}>
+                {artifacts.map((artifact) => (
+                  <View key={artifact.id} style={styles.artifactItem}>
+                    <Image
+                      source={{ uri: artifact.signed_url }}
+                      style={styles.artifactImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.deleteImageButton}
+                      onPress={() => handleDeleteImage(artifact.id)}
+                    >
+                      <Ionicons name="close-circle" size={24} color={theme.colors.error[500]} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Upload Button */}
+            <TouchableOpacity 
+              style={[styles.uploadButtonSheet, isUploading && styles.uploadButtonDisabled]}
+              onPress={handleImagePicker}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Ionicons name="hourglass-outline" size={24} color={theme.colors.text.tertiary} />
+                  <Text style={[styles.uploadTextSheet, isUploading && styles.uploadTextDisabled]}>
+                    Uploading...
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="add" size={24} color={theme.colors.text.primary} />
+                  <Text style={styles.uploadTextSheet}>
+                    Upload Photo
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Description Section */}
+          <View 
+            ref={descriptionSectionRef}
+            style={styles.descriptionSection}
+            onLayout={(event) => {
+              // Store the Y position of the description section within the ScrollView content
+              const { y } = event.nativeEvent.layout;
+              descriptionSectionY.current = y;
+            }}
+          >
+            <Text style={styles.sectionLabel}>Description</Text>
+            <TextInput
+              style={styles.descriptionInput}
+              placeholder="Add a description about your progress..."
+              placeholderTextColor={theme.colors.text.tertiary}
+              multiline
+              value={note}
+              onChangeText={setNote}
+              textAlignVertical="top"
+              onFocus={handleDescriptionFocus}
+            />
+          </View>
+          </ScrollView>
+
+          {/* Bottom Section with Mark as Done Button */}
+          <View style={styles.sheetBottomSection}>
+            <Button
+              title={
+                isSubmitting 
+                  ? "Submitting..." 
+                  : (isCompleted ? "Save" : "Mark as Done")
+              }
+              variant="black"
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              style={{ borderRadius: theme.radius.xl }}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const createSaveSheetStyles = (theme: Theme) => StyleSheet.create({
+  sheetActionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 24,
+  },
+  subInfoSection: {
+    marginBottom: 32,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+  },
+  photoSection: {
+    marginBottom: 32,
+  },
+  uploadedImagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  artifactItem: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  artifactImage: {
+    width: 100,
+    height: 100,
+    borderRadius: theme.radius.xl,
+  },
+  deleteImageButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: theme.colors.background.card,
+    borderRadius: 12,
+  },
+  uploadButtonSheet: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.xl,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  uploadTextSheet: {
+    fontSize: 14,
+    color: theme.colors.text.primary,
+    fontWeight: '500',
+  },
+  uploadButtonDisabled: {
+    opacity: 0.5,
+  },
+  uploadTextDisabled: {
+    color: theme.colors.text.tertiary,
+  },
+  descriptionSection: {
+    marginBottom: 32,
+  },
+  descriptionInput: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.xl,
+    padding: 16,
+    fontSize: 16,
+    color: theme.colors.text.primary,
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  sheetBottomSection: {
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.default,
+    backgroundColor: theme.colors.background.page,
+  },
+});
+
 const ActionOccurrencePage = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
   const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
   const { show: showToast } = useToast();
+  
+  // Calculate emoji dimensions
+  const screenHeight = Dimensions.get('window').height;
+  const screenWidth = Dimensions.get('window').width;
+  const emojiHeight = screenHeight * 0.45;
+  // Calculate emoji width to extend to screen edges (accounting for content padding)
+  const emojiWidth = screenWidth + (theme.spacing.md * 2);
   const params = route.params as {
     occurrenceId?: string;
     actionTitle?: string;
@@ -502,8 +868,6 @@ const ActionOccurrencePage = () => {
     isOverdue?: boolean;
     completedAt?: string;
     note?: string;
-    aiRating?: number;
-    aiFeedback?: string;
     acceptanceCriteria?: { title: string; description: string }[];
     acceptanceIntro?: string;
     acceptanceOutro?: string;
@@ -546,6 +910,7 @@ const ActionOccurrencePage = () => {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showSaveSheet, setShowSaveSheet] = useState(false);
   const [editingAction, setEditingAction] = useState<any>(null);
   const [menuButtonLayout, setMenuButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const menuButtonRef = useRef<View>(null);
@@ -554,19 +919,6 @@ const ActionOccurrencePage = () => {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // AI Review state
-  const [aiRating, setAiRating] = useState<number | null>(null);
-  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
-  const [isGeneratingReview, setIsGeneratingReview] = useState(false);
-
-  // Helper function to derive category from rating
-  const getCategoryFromRating = (rating: number): 'okay' | 'good' | 'very_good' | 'excellent' => {
-    if (rating >= 90) return 'excellent';
-    if (rating >= 75) return 'very_good';
-    if (rating >= 50) return 'good';
-    return 'okay';
-  };
 
   // Load artifacts when component mounts
   useEffect(() => {
@@ -625,11 +977,6 @@ const ActionOccurrencePage = () => {
           if (response.data.occurrence.note) {
             setNote(response.data.occurrence.note);
           }
-        // Load AI review data if available
-        if (response.data.occurrence.ai_rating) {
-          setAiRating(response.data.occurrence.ai_rating);
-          setAiFeedback(response.data.occurrence.ai_feedback);
-        }
         }
       } catch (error) {
         console.error('Error loading artifacts:', error);
@@ -702,16 +1049,19 @@ const ActionOccurrencePage = () => {
         return;
       }
 
-      // Launch image picker
+      // Launch image picker with multiple selection
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsMultipleSelection: true,
+        allowsEditing: false,
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        await handleImageUpload(result.assets[0]);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Upload all selected images
+        for (const asset of result.assets) {
+          await handleImageUpload(asset);
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -787,7 +1137,6 @@ const ActionOccurrencePage = () => {
     if (!params?.occurrenceId) return;
 
     setIsSubmitting(true);
-    setIsGeneratingReview(true);
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
@@ -810,30 +1159,6 @@ const ActionOccurrencePage = () => {
         has_artifacts: artifacts.length > 0,
       });
       
-        // Generate AI review if we have artifacts or a note
-        let finalAiRating = aiRating;
-        let finalAiFeedback = aiFeedback;
-        
-        if (artifacts.length > 0 || note.trim()) {
-          try {
-            const reviewResponse = await generateAIReview({
-              occurrenceId: params.occurrenceId,
-              note: note.trim() || undefined,
-              artifacts: artifacts
-            }, session.access_token);
-            
-            if (reviewResponse.success) {
-              finalAiRating = reviewResponse.data.rating;
-              finalAiFeedback = reviewResponse.data.feedback;
-              setAiRating(finalAiRating);
-              setAiFeedback(finalAiFeedback);
-            }
-        } catch (reviewError) {
-          console.error('Error generating AI review:', reviewError);
-          // Don't show error to user, just log it
-        }
-      }
-      
       // Navigate to confirmation page
       (navigation as any).navigate('ArtifactSubmitted', {
         occurrenceId: params.occurrenceId,
@@ -843,15 +1168,23 @@ const ActionOccurrencePage = () => {
         areaEmoji: dreamAreaData?.areaEmoji || params?.areaEmoji,
         note: note.trim(),
         artifacts: artifacts,
-        aiRating: finalAiRating,
-        aiFeedback: finalAiFeedback
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error completing action:', error);
-      showToast('Error', 'Failed to complete action. Please try again.');
+      const errorMessage = error?.message || error?.error || 'Failed to complete action. Please try again.';
+      // Try to parse JSON error message if it's a string
+      let displayMessage = errorMessage;
+      try {
+        if (typeof errorMessage === 'string' && errorMessage.startsWith('{')) {
+          const parsed = JSON.parse(errorMessage);
+          displayMessage = parsed.error || parsed.message || errorMessage;
+        }
+      } catch {
+        // If parsing fails, use the original message
+      }
+      showToast('Error', displayMessage);
     } finally {
       setIsSubmitting(false);
-      setIsGeneratingReview(false);
     }
   };
 
@@ -1066,7 +1399,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         const chatgptWebUrl = `https://chatgpt.com/?q=${encodedPrompt}`;
         await WebBrowser.openBrowserAsync(chatgptWebUrl, {
           presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
-          controlsColor: theme.colors.grey[900],
+          controlsColor: theme.colors.text.primary,
           enableBarCollapsing: false,
           showTitle: true,
         });
@@ -1253,7 +1586,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
 
   return (
     <View style={styles.wrapper}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <SafeAreaView style={[styles.container, { backgroundColor: getPageBackgroundColor() }]} edges={['top']}>
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
@@ -1270,37 +1603,64 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         />
         {!isPreviewMode && (
           <View style={styles.headerRight}>
-            <TouchableOpacity 
-              onPress={handleAIDiscussion}
-              style={{
-                height: 40,
-                borderRadius: 20,
-                overflow: 'hidden',
-                marginRight: 8,
-              }}
-            >
-              <BlurView 
-                intensity={100} 
-                tint="light" 
+            {isDark ? (
+              // In dark mode, use solid View to eliminate fuzzy edges
+              <TouchableOpacity 
+                onPress={handleAIDiscussion}
                 style={{
                   height: 40,
+                  borderRadius: 20,
                   paddingHorizontal: 16,
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backgroundColor: theme.colors.background.card,
                   borderWidth: 0.5,
-                  borderColor: 'rgba(255, 255, 255, 0.8)',
+                  borderColor: theme.colors.border.default,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  marginRight: 8,
                 }}
               >
                 <Text style={{ 
                   fontSize: 14, 
                   fontWeight: '600', 
-                  color: theme.colors.grey[900] 
+                  color: theme.colors.text.primary 
                 }}>
                   Plan with AI
                 </Text>
-              </BlurView>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ) : (
+              // In light mode, use BlurView for glass effect
+              <TouchableOpacity 
+                onPress={handleAIDiscussion}
+                style={{
+                  height: 40,
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  marginRight: 8,
+                }}
+              >
+                <BlurView 
+                  intensity={100} 
+                  tint="light" 
+                  style={{
+                    height: 40,
+                    paddingHorizontal: 16,
+                    backgroundColor: theme.colors.background.card + 'F0',
+                    borderWidth: 0.5,
+                    borderColor: theme.colors.border.default,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ 
+                    fontSize: 14, 
+                    fontWeight: '600', 
+                    color: theme.colors.text.primary 
+                  }}>
+                    Plan with AI
+                  </Text>
+                </BlurView>
+              </TouchableOpacity>
+            )}
             
             <View ref={menuButtonRef}>
               <IconButton
@@ -1320,30 +1680,30 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 style={styles.menuButton}
               />
             </View>
+            
           </View>
         )}
-      </View>
+          </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroContent}>
-            {/* Icon and Title Row */}
-            <View style={styles.iconTitleRow}>
-              {(dreamAreaData?.areaEmoji || params?.areaEmoji) ? (
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
-                </View>
-              ) : (
-                <View style={styles.iconPlaceholder}>
-                  <Ionicons name="flag" size={24} color={theme.colors.grey[500]} />
-                </View>
-              )}
-              <View style={styles.titleColumn}>
+          {/* ScrollView with Emoji and Content */}
+          <ScrollView 
+            style={styles.scrollView} 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Area Emoji - scrolls with content */}
+            {(dreamAreaData?.areaEmoji || params?.areaEmoji) && (
+              <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
+                <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+              </View>
+            )}
+
+            {/* Hero Section */}
+            <View style={styles.heroSection}>
+              <View style={styles.heroContent}>
+                {/* Icon and Title Row */}
+                <View style={styles.iconTitleRow}>
+                  <View style={styles.titleColumn}>
                 {dreamAreaData?.dreamTitle && (
                   <Pressable onPress={() => {
                     // Navigate to dream page - we need to get the dream ID from the action data
@@ -1404,7 +1764,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             {/* Details Row */}
             <View style={styles.detailRow}>
               <View style={styles.detailItem}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.grey[600]} />
+                <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
                 <Text style={styles.detailValue}>
                   {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
                 </Text>
@@ -1417,7 +1777,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               </View>
               {(actionData?.slice_count_target || params?.sliceCountTarget) && (
                 <View style={styles.detailItem}>
-                  <Ionicons name="layers-outline" size={16} color={theme.colors.grey[600]} />
+                  <Ionicons name="layers-outline" size={16} color={theme.colors.text.secondary} />
                   <Text style={styles.detailValue}>
                     {occurrenceData?.occurrence_no ? `${occurrenceData.occurrence_no} of ${actionData?.slice_count_target || params?.sliceCountTarget}` : `${actionData?.slice_count_target || params?.sliceCountTarget} repeats`}
                   </Text>
@@ -1431,20 +1791,16 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
           <View style={{ 
-            backgroundColor: '#FFFFFF', 
             borderRadius: 12, 
             overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: theme.colors.grey[200],
           }}>
             {/* Header Row */}
             <View style={{ 
-              backgroundColor: '#000000', // Black
               paddingVertical: 10,
               paddingHorizontal: 16,
             }}>
               <Text style={{ 
-                color: '#FFFFFF', 
+                color: theme.colors.text.primary, 
                 fontSize: 12, 
                 fontWeight: '700',
                 letterSpacing: 1,
@@ -1486,7 +1842,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 <View key={index} style={{ 
                   flexDirection: 'row', 
                   borderBottomWidth: 0,
-                  borderBottomColor: theme.colors.grey[100],
+                  borderBottomColor: theme.colors.border.default,
                 }}>
                   {/* Number Column */}
                   <View style={{ 
@@ -1498,7 +1854,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                     <Text style={{ 
                       fontSize: 16, 
                       fontWeight: '700', 
-                      color: '#000000' 
+                      color: theme.colors.text.primary 
                     }}>
                       {index + 1}
                     </Text>
@@ -1507,7 +1863,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                   {/* Vertical Divider */}
                   <View style={{
                     width: 1,
-                    backgroundColor: theme.colors.grey[100],
+                    backgroundColor: theme.colors.border.default,
                     marginVertical: 6,
                   }} />
                   
@@ -1522,7 +1878,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                       <Text style={{ 
                         fontSize: 14, 
                         fontWeight: '700', 
-                        color: theme.colors.grey[900],
+                        color: theme.colors.text.primary,
                         lineHeight: 20,
                         marginBottom: criteria.description ? 4 : 0
                       }}>
@@ -1532,7 +1888,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                         <Text style={{ 
                           fontSize: 14, 
                           fontWeight: '400', 
-                          color: theme.colors.grey[500],
+                          color: theme.colors.text.secondary,
                           lineHeight: 20,
                         }}>
                           {criteria.description}
@@ -1544,7 +1900,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               ))
               ) : (
                 <View style={{ padding: 16 }}>
-                  <Text style={{ color: theme.colors.grey[500] }}>No specific criteria defined</Text>
+                  <Text style={{ color: theme.colors.text.tertiary }}>No specific criteria defined</Text>
                 </View>
               );
             })()}
@@ -1552,121 +1908,24 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         </View>
 
         {/* AI Help Section - REMOVED */}
-
-        {/* AI Review Section */}
-        {aiRating !== null && (
-          <View style={styles.aiReviewSection}>
-            <Text style={styles.sectionTitle}>AI Review</Text>
-            <View style={styles.aiReviewContent}>
-              <AIRatingRing 
-                rating={aiRating} 
-                category={getCategoryFromRating(aiRating)} 
-                size={80} 
-                strokeWidth={6} 
-              />
-              {aiFeedback && (
-                <Text style={styles.aiFeedback}>{aiFeedback}</Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Bottom Section - Now part of scroll content */}
-        {!isPreviewMode && (
-          <View style={styles.bottomSection}>
-            {/* Uploaded Images Row */}
-            {artifacts.length > 0 && !(isScreenshotMode && (params?.occurrenceId === 'occ-area-2-1' || params?.occurrenceId === 'mock-occ-1' || ((params?.actionTitle || (occurrenceData as any)?.action_title || '').toLowerCase().includes('high protein')))) && (
-              <View style={styles.uploadedImagesRow}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
-                  {artifacts.map((artifact) => (
-                    <View key={artifact.id} style={styles.artifactImageContainer}>
-                      <Image
-                        source={{ uri: artifact.signed_url }}
-                        style={styles.uploadedImage}
-                        resizeMode="cover"
-                      />
-                      <TouchableOpacity
-                        style={styles.deleteImageButton}
-                        onPress={() => handleDeleteImage(artifact.id)}
-                      >
-                        <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Upload Button and Text Input Row */}
-            <View style={styles.inputRow}>
-              {(() => {
-                if (!isScreenshotMode || artifacts.length === 0) {
-                  console.log('🔍 [RENDER] Not showing image:', { isScreenshotMode, artifactsLength: artifacts.length });
-                  return false;
-                }
-                const actionTitle = params?.actionTitle || (occurrenceData as any)?.action_title || '';
-                const isHighProtein = params?.occurrenceId === 'occ-area-2-1' || 
-                                      params?.occurrenceId === 'mock-occ-1' || 
-                                      actionTitle.toLowerCase().includes('high protein');
-                console.log('🔍 [RENDER] Checking high protein:', { 
-                  occurrenceId: params?.occurrenceId, 
-                  actionTitle, 
-                  isHighProtein,
-                  artifactsLength: artifacts.length 
-                });
-                return isHighProtein;
-              })() ? (
-                // Show photo instead of upload button in screenshot mode
-                <View style={styles.photoContainer}>
-                  <Image
-                    source={{ uri: artifacts[0].signed_url }}
-                    style={styles.photoInRow}
-                    resizeMode="cover"
-                  />
-                </View>
-              ) : (
-                <TouchableOpacity 
-                  style={[styles.uploadButton, isUploading && styles.uploadButtonDisabled]}
-                  onPress={handleImagePicker}
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
-                  ) : (
-                    <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
-                  )}
-                  <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-                    {isUploading ? 'Uploading...' : 'Upload Photo'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TextInput
-                style={styles.textInputInRow}
-                placeholder="Add a note about your progress..."
-                placeholderTextColor={theme.colors.grey[500]}
-                multiline
-                value={note}
-                onChangeText={setNote}
-              />
-            </View>
-            
-            <View style={styles.actionButtons}>
-              <Button
-                title={
-                  isSubmitting 
-                    ? "Submitting..." 
-                    : (isCompleted ? "Re-submit" : "Mark as Done")
-                }
-                variant="black"
-                onPress={handleComplete}
-                disabled={isSubmitting}
-                style={{ borderRadius: theme.radius.xl }}
-              />
-            </View>
-          </View>
-        )}
       </ScrollView>
+
+      {/* Mark as Complete Button */}
+      {!isPreviewMode && (
+        <View style={styles.markCompleteSection}>
+          <Button
+            title={
+              isSubmitting 
+                ? "Submitting..." 
+                : (isCompleted ? "Re-submit" : "Mark as Complete")
+            }
+            variant="black"
+            onPress={() => setShowSaveSheet(true)}
+            disabled={isSubmitting}
+            style={{ borderRadius: theme.radius.xl }}
+          />
+        </View>
+      )}
 
       {/* Options Popover */}
       {!isPreviewMode && (
@@ -1687,13 +1946,36 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         dreamEndDate={undefined}
       />
 
+      {/* Save Action Sheet */}
+      <SaveActionSheet
+        visible={showSaveSheet}
+        onClose={() => setShowSaveSheet(false)}
+        onSubmit={async () => {
+          await handleComplete();
+          setShowSaveSheet(false);
+        }}
+        actionTitle={actionData?.title || params?.actionTitle}
+        actionData={actionData}
+        params={params}
+        dreamAreaData={dreamAreaData}
+        note={note}
+        setNote={setNote}
+        artifacts={artifacts}
+        isUploading={isUploading}
+        isSubmitting={isSubmitting}
+        isCompleted={isCompleted}
+        handleImagePicker={handleImagePicker}
+        handleDeleteImage={handleDeleteImage}
+        formatDate={formatDate}
+        formatTime={formatTime}
+      />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   wrapper: {
     flex: 1,
     position: 'relative',
@@ -1701,7 +1983,17 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  headerSafeArea: {
+    width: '100%',
   },
   header: {
     flexDirection: 'row',
@@ -1725,9 +2017,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 32,
   },
+  emojiBackground: {
+    overflow: 'hidden',
+    marginLeft: -theme.spacing.md,
+    marginRight: -theme.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.page,
+  },
+  emojiText: {
+    fontSize: 200,
+    textAlign: 'center',
+  },
   heroSection: {
     paddingHorizontal: 24,
-    paddingTop: 0,
+    paddingTop: theme.spacing.md,
     paddingBottom: 24,
     marginBottom: 8,
   },
@@ -1756,7 +2060,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.disabled.inactive,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1766,21 +2070,21 @@ const styles = StyleSheet.create({
   },
   dreamTitle: {
     fontSize: 12,
-    color: theme.colors.grey[600],
+                color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: 4,
   },
   areaTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: 8,
   },
   actionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+                        color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: 0,
   },
@@ -1803,7 +2107,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    color: theme.colors.grey[900],
+                        color: theme.colors.text.primary,
     fontWeight: '500',
     marginTop: 8,
     marginBottom: 8,
@@ -1817,7 +2121,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+                color: theme.colors.text.secondary,
   },
   aiHelpSection: {
     padding: 24,
@@ -1826,7 +2130,7 @@ const styles = StyleSheet.create({
   },
   aiHelpSecondaryText: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+                color: theme.colors.text.secondary,
     marginBottom: 8,
     lineHeight: 20,
   },
@@ -1838,7 +2142,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 16,
   },
   criteriaList: {
@@ -1864,65 +2168,10 @@ const styles = StyleSheet.create({
   criteriaOutroWithBullets: {
     marginTop: 12,
   },
-  aiReviewSection: {
-    padding: 24,
+  markCompleteSection: {
+    padding: 16,
     paddingTop: 8,
-    marginBottom: 16,
-  },
-  aiReviewContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    width: '100%',
-  },
-  aiFeedback: {
-    fontSize: 14,
-                  color: theme.colors.text.primary,
-    textAlign: 'left',
-    lineHeight: 20,
-    flex: 1,
-  },
-  bottomSection: {
-    padding: 16,
-    paddingTop: 24,
-    paddingBottom: 16,
-    backgroundColor: 'transparent',
-  },
-  uploadedImagesRow: {
-    marginBottom: 16,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-    gap: 12,
-  },
-  uploadButton: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: theme.radius.xl,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 80,
-    height: 80,
-  },
-  uploadText: {
-    fontSize: 12,
-    color: theme.colors.grey[900],
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  textInputInRow: {
-    flex: 1,
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: theme.radius.xl,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  actionButtons: {
-    width: '100%',
+    paddingBottom: 32,
   },
   imagesSection: {
     marginBottom: 16,
@@ -1930,7 +2179,7 @@ const styles = StyleSheet.create({
   imagesTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   imagesScroll: {
@@ -1953,22 +2202,6 @@ const styles = StyleSheet.create({
     right: -8,
                     backgroundColor: theme.colors.background.card,
     borderRadius: 10,
-  },
-  uploadButtonDisabled: {
-    opacity: 0.5,
-  },
-  uploadTextDisabled: {
-    color: theme.colors.grey[500],
-  },
-  photoContainer: {
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photoInRow: {
-    width: 80,
-    height: 80,
-    borderRadius: theme.radius.xl,
   },
 });
 

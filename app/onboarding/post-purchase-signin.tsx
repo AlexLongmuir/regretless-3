@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { BlurView } from 'expo-blur';
 import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -27,6 +28,7 @@ import { sanitizeErrorMessage } from '../../utils/errorSanitizer';
 
 const PostPurchaseSignInStep: React.FC = () => {
   const navigation = useNavigation();
+  const { isDark } = useTheme();
   const { signInWithApple, signInWithGoogle, signOut, loading: authLoading, user, isAuthenticated } = useAuthContext();
   const { state: onboardingState } = useOnboardingContext();
   const { 
@@ -377,7 +379,19 @@ const PostPurchaseSignInStep: React.FC = () => {
   };
 
   // Create Restore button matching IconButton style
-  const restoreButton = (
+  const { theme: dynamicTheme } = useTheme();
+  const restoreButton = isDark ? (
+    <TouchableOpacity
+      onPress={handleRestore}
+      style={styles.restoreButtonWrapper}
+    >
+      <View 
+        style={[styles.restoreButton, { backgroundColor: dynamicTheme.colors.background.card }]}
+      >
+        <Text style={styles.restoreText}>Restore</Text>
+      </View>
+    </TouchableOpacity>
+  ) : (
     <TouchableOpacity
       onPress={handleRestore}
       style={styles.restoreButtonWrapper}

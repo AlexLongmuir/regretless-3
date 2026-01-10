@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
-import { theme } from '../utils/theme';
+import React, { useState, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { OptionsPopover } from './OptionsPopover';
 
 interface ProgressGalleryItemProps {
@@ -28,6 +30,8 @@ export const ProgressGalleryItem: React.FC<ProgressGalleryItemProps> = ({
   onDreamSelect,
   dreams = [],
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [showDreamPopover, setShowDreamPopover] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
   
@@ -86,6 +90,8 @@ export const ProgressGalleryItem: React.FC<ProgressGalleryItemProps> = ({
           <Image
             source={{ uri: imageUri }}
             style={styles.image}
+            contentFit="cover"
+            transition={200}
           />
         ) : (
           <View style={styles.emptyContainer}>
@@ -120,7 +126,7 @@ export const ProgressGalleryItem: React.FC<ProgressGalleryItemProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'relative',
   },
@@ -147,7 +153,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: theme.colors.grey[300],
+    backgroundColor: theme.colors.border.default,
     borderRadius: theme.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -155,7 +161,7 @@ const styles = StyleSheet.create({
   dayText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 20,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.secondary,
     fontWeight: theme.typography.fontWeight.regular as any,
     textAlign: 'center',
     lineHeight: 20,
@@ -163,24 +169,24 @@ const styles = StyleSheet.create({
   monthText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.secondary,
     fontWeight: theme.typography.fontWeight.regular as any,
     textAlign: 'center',
     lineHeight: 12,
     marginTop: 2,
   },
   dreamDropdown: {
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.disabled.inactive,
     borderRadius: theme.radius.sm,
     paddingHorizontal: theme.spacing.xs,
     paddingVertical: theme.spacing.xs,
     marginTop: theme.spacing.xs,
     borderWidth: 1,
-    borderColor: theme.colors.grey[300],
+    borderColor: theme.colors.border.default,
   },
   dreamText: {
     fontSize: 10,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     fontWeight: '500',
   },

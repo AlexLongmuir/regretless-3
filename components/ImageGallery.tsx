@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions, Image, Alert } from 'react-native';
-import { theme } from '../utils/theme';
+import React, { useState, useRef, useMemo } from 'react';
+import { View, Text, Pressable, StyleSheet, Dimensions, Alert } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 import { OptionsPopover } from './OptionsPopover';
 import { ProgressGalleryItem } from './ProgressGalleryItem';
@@ -39,6 +41,8 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   imageDreamTags = {},
   onImageDreamTagChange,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [addButtonPosition, setAddButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | undefined>();
   const addButtonRef = useRef<View>(null);
@@ -171,7 +175,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   if (images.length === 0 && !editable) {
     return (
       <View style={styles.emptyState}>
-        <MaterialIcon name="photo" size={48} color={theme.colors.grey[400]} />
+        <MaterialIcon name="photo" size={48} color={theme.colors.text.tertiary} />
         <Text style={styles.emptyStateTitle}>{emptyStateTitle}</Text>
         <Text style={styles.emptyStateDescription}>{emptyStateDescription}</Text>
       </View>
@@ -201,13 +205,15 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
               <Image 
                 source={{ uri: image }} 
                 style={[styles.image, { width: imageSize, height: imageSize }]} 
+                contentFit="cover"
+                transition={200}
               />
               {editable && (
                 <Pressable
                   style={styles.removeImageButton}
                   onPress={() => handleRemoveImage(index)}
                 >
-                  <MaterialIcon name="close" size={16} color={theme.colors.surface[50]} />
+                  <MaterialIcon name="close" size={16} color={theme.colors.text.inverse} />
                 </Pressable>
               )}
             </View>
@@ -220,7 +226,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
             style={[styles.addImageButton, { width: imageSize, height: imageSize }]} 
             onPress={handleAddImage}
           >
-            <MaterialIcon name="add" size={20} color={theme.colors.grey[500]} />
+            <MaterialIcon name="add" size={20} color={theme.colors.text.tertiary} />
             <Text style={styles.addImageText}>{addButtonText}</Text>
           </Pressable>
         )}
@@ -228,7 +234,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
 
       {images.length === 0 && editable && emptyStateTitle && (
         <View style={styles.emptyState}>
-          <MaterialIcon name="add-a-photo" size={48} color={theme.colors.grey[400]} />
+          <MaterialIcon name="add-a-photo" size={48} color={theme.colors.text.tertiary} />
           <Text style={styles.emptyStateTitle}>{emptyStateTitle}</Text>
           <Text style={styles.emptyStateDescription}>{emptyStateDescription}</Text>
         </View>
@@ -244,7 +250,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     width: '100%',
   },
@@ -270,13 +276,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: theme.colors.surface[50],
+    borderColor: theme.colors.text.inverse,
   },
   addImageButton: {
     borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.disabled.inactive,
     borderWidth: 2,
-    borderColor: theme.colors.grey[300],
+    borderColor: theme.colors.border.default,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
@@ -284,7 +290,7 @@ const styles = StyleSheet.create({
   addImageText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     marginTop: theme.spacing.xs,
     textAlign: 'center',
     lineHeight: 12,
@@ -297,14 +303,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xs,
   },
   emptyStateDescription: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     textAlign: 'center',
     lineHeight: theme.typography.lineHeight.callout,
   },

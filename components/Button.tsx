@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, View, ActivityIndicator } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { Icon } from './Icon';
+import { triggerHaptic } from '../utils/haptics';
 
 interface ButtonProps {
   title: string;
@@ -11,7 +13,7 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
-  icon?: keyof typeof theme.icons;
+  icon?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -24,9 +26,19 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   icon,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const isDisabled = disabled || loading;
-  const textColor = variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse;
-  const indicatorColor = variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse;
+  const textColor = variant === 'secondary' ? theme.colors.text.primary : theme.colors.text.inverse;
+  const indicatorColor = variant === 'secondary' ? theme.colors.text.primary : theme.colors.text.inverse;
+
+  const handlePress = () => {
+    if (!isDisabled) {
+      triggerHaptic();
+    }
+    onPress();
+  };
 
   return (
     <Pressable
@@ -37,7 +49,7 @@ export const Button: React.FC<ButtonProps> = ({
         isDisabled && styles.disabled,
         style,
       ]}
-      onPress={onPress}
+      onPress={handlePress}
       disabled={isDisabled}
     >
       <View style={styles.content}>
@@ -49,7 +61,7 @@ export const Button: React.FC<ButtonProps> = ({
               <Icon 
                 name={icon} 
                 size={20} 
-                color={variant === 'secondary' ? theme.colors.grey[800] : theme.colors.text.inverse}
+                color={textColor}
               />
             )}
             <Text style={[
@@ -67,11 +79,11 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.xl, // Max border radius for fully rounded buttons
   },
   xs: {
     paddingHorizontal: theme.spacing.xs,
@@ -98,6 +110,8 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: theme.colors.background.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
   },
   outline: {
     backgroundColor: 'transparent',
@@ -111,8 +125,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.success[500],
   },
   disabled: {
-    backgroundColor: theme.colors.grey[300],
-    borderColor: theme.colors.grey[300],
+    backgroundColor: theme.colors.disabled.inactive,
+    borderColor: theme.colors.disabled.inactive,
   },
   text: {
     fontFamily: theme.typography.fontFamily.system,
@@ -124,19 +138,19 @@ const styles = StyleSheet.create({
     color: theme.colors.surface[50],
   },
   secondaryText: {
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
   },
   outlineText: {
     color: theme.colors.primary[600],
   },
   blackText: {
-    color: theme.colors.text.inverse,
+    color: '#FFFFFF', // Always white for black button
   },
   successText: {
-    color: theme.colors.text.inverse,
+    color: '#FFFFFF', // Always white for success button
   },
   disabledText: {
-    color: theme.colors.grey[500],
+    color: theme.colors.disabled.text,
   },
   content: {
     flexDirection: 'row',

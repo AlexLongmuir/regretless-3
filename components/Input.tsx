@@ -1,8 +1,9 @@
-import React, { useState, forwardRef, useEffect, useRef } from 'react';
+import React, { useState, forwardRef, useEffect, useRef, useMemo } from 'react';
 import { TextInput, View, Text, StyleSheet, ViewStyle, TextStyle, Platform, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { IconButton } from './IconButton';
 import { audioRecorder, AudioRecording } from '../lib/audioRecorder';
 import { transcribeAudio } from '../frontend-services/backend-bridge';
@@ -53,6 +54,8 @@ export const Input = forwardRef<TextInput, InputProps>(({
   initialDate,
   showMicButton = false,
 }, ref) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [internalDate, setInternalDate] = useState<Date>(() => initialDate || new Date());
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -253,7 +256,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor={theme.colors.grey[400]}
+            placeholderTextColor={theme.colors.text.tertiary}
             editable={false}
             secureTextEntry={secureTextEntry}
             multiline={multiline}
@@ -314,7 +317,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor={isRecording ? 'transparent' : theme.colors.grey[400]}
+            placeholderTextColor={isRecording ? 'transparent' : theme.colors.text.tertiary}
             editable={!disabled && type !== 'date' && !isTranscribing && !isRecording}
             secureTextEntry={secureTextEntry}
             multiline={multiline}
@@ -330,7 +333,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
               style={styles.micButton}
               activeOpacity={0.7}
             >
-              <MaterialIcon name="mic" size={18} color={theme.colors.grey[700]} />
+              <MaterialIcon name="mic" size={18} color={theme.colors.icon.default} />
             </TouchableOpacity>
           )}
 
@@ -342,7 +345,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
                 style={[styles.controlButton, styles.controlLeft]}
                 activeOpacity={0.7}
               >
-                <MaterialIcon name="close" size={18} color={theme.colors.grey[700]} />
+                <MaterialIcon name="close" size={18} color={theme.colors.icon.default} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -352,9 +355,9 @@ export const Input = forwardRef<TextInput, InputProps>(({
                 activeOpacity={0.7}
               >
                 {isTranscribing ? (
-                  <ActivityIndicator size="small" color={theme.colors.grey[700]} />
+                  <ActivityIndicator size="small" color={theme.colors.icon.default} />
                 ) : (
-                  <MaterialIcon name="check" size={18} color={theme.colors.grey[700]} />
+                  <MaterialIcon name="check" size={18} color={theme.colors.icon.default} />
                 )}
               </TouchableOpacity>
             </>
@@ -379,7 +382,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
           minimumDate={minimumDate}
-          themeVariant="light"
+          themeVariant={isDark ? 'dark' : 'light'}
         />
       )}
     </View>
@@ -388,7 +391,7 @@ export const Input = forwardRef<TextInput, InputProps>(({
 
 Input.displayName = 'Input';
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: theme.spacing.sm,
   },
@@ -400,7 +403,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.medium as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.xs,
   },
   smallLabel: {
@@ -411,9 +414,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.grey[300],
+    borderColor: theme.colors.border.default,
     borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     minHeight: 44,
   },
   smallInputContainer: {
@@ -424,11 +427,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.error[500],
   },
   inputContainerDisabled: {
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.disabled.inactive,
   },
   borderlessInputContainer: {
     borderWidth: 0,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
   },
   input: {
     flex: 1,
@@ -437,7 +440,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
     lineHeight: theme.typography.lineHeight.callout,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     backgroundColor: 'transparent',
     minHeight: 44,
   },
@@ -526,14 +529,14 @@ const styles = StyleSheet.create({
   },
   waveformBar: {
     width: 2,
-    backgroundColor: theme.colors.grey[600],
+    backgroundColor: theme.colors.icon.default,
     borderRadius: 1,
     marginHorizontal: 0.5,
   },
   recordingTimer: {
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     minWidth: 40,
     textAlign: 'right',
   },

@@ -20,8 +20,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabaseClient } from '../lib/supabaseClient';
-import { deleteDream as deleteDreamAPI, archiveDream as archiveDreamAPI, unarchiveDream as unarchiveDreamAPI, deferOccurrence as deferOccurrenceAPI, updateArea as updateAreaAPI, deleteArea as deleteAreaAPI } from '../frontend-services/backend-bridge';
+import { 
+  deleteDream as deleteDreamAPI, 
+  archiveDream as archiveDreamAPI, 
+  unarchiveDream as unarchiveDreamAPI, 
+  deferOccurrence as deferOccurrenceAPI, 
+  updateArea as updateAreaAPI, 
+  deleteArea as deleteAreaAPI,
+  getAchievements as getAchievementsAPI,
+  checkNewAchievements as checkNewAchievementsAPI,
+  type AchievementsResponse 
+} from '../frontend-services/backend-bridge';
 import { useAuthContext } from './AuthContext';
+import { type Achievement, type UserAchievement, type AchievementUnlockResult } from '../backend/database/types';
 import { 
   CACHE_KEYS, 
   CACHE_TTL, 

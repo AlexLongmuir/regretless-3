@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -7,7 +7,8 @@ import { Button, Input } from '../../components'
 import { AreaGrid } from '../../components/AreaChips'
 import { generateAreas, upsertAreas } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 import { trackEvent } from '../../lib/mixpanel'
 import type { Area } from '../../backend/database/types'
 
@@ -19,6 +20,8 @@ interface AreaSuggestion {
 }
 
 export default function AreasStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { 
     title, 
@@ -182,7 +185,7 @@ export default function AreasStep() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <View style={{ alignItems: 'center' }}>
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
           <Text style={styles.loadingTitle}>
@@ -191,7 +194,7 @@ export default function AreasStep() {
           <Text style={styles.loadingDescription}>
             This segments your goal into well defined chunks to make it easy for you to check off goals quicker & see success
           </Text>
-          <ActivityIndicator size="large" color="#000" style={{ marginTop: 32 }} />
+          <ActivityIndicator size="large" color={theme.colors.primary[600]} style={{ marginTop: 32 }} />
         </View>
       </View>
     )
@@ -309,10 +312,10 @@ export default function AreasStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     flex: 1,
@@ -326,7 +329,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: theme.spacing.sm,
   },
@@ -334,7 +337,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: 18,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: 8,
   },
@@ -342,20 +345,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: 18,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: theme.spacing.xl,
   },
   loadingTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text.primary,
     marginBottom: 16,
     lineHeight: 24
   },
   loadingDescription: {
     fontSize: 16,
-    color: '#000',
+    color: theme.colors.text.primary,
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 22
@@ -363,11 +366,11 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   footerText: {
     fontSize: 14,
-    color: '#000',
+    color: theme.colors.text.primary,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -378,6 +381,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     fontSize: 16,
+    color: theme.colors.text.primary,
     textAlignVertical: 'top',
   },
   buttonContainer: {

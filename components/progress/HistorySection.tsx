@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
 
 type TimePeriod = 'Week' | 'Month' | 'Year' | 'All Time';
 
@@ -19,6 +20,8 @@ const HistorySection: React.FC<HistorySectionProps> = ({
   onTimePeriodChange,
   selectedPeriod = 'Week',
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const timePeriods: TimePeriod[] = ['Week', 'Month', 'Year', 'All Time'];
 
@@ -69,19 +72,19 @@ const HistorySection: React.FC<HistorySectionProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
   container: {
     marginBottom: theme.spacing.lg,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.md,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.background.input,
     borderRadius: theme.radius.md,
     padding: 4,
     marginBottom: theme.spacing.lg,
@@ -94,29 +97,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedPeriodButton: {
-    backgroundColor: theme.colors.surface[50],
-    shadowColor: theme.colors.grey[900],
+    backgroundColor: isDark 
+      ? theme.colors.background.card 
+      : theme.colors.background.pressed, // Use grey[200] in light mode for better contrast
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 1,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.1 : 0.05, // Lighter shadow in light mode
     shadowRadius: 2,
     elevation: 2,
   },
   periodButtonText: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
   selectedPeriodButtonText: {
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.lg,
   },
@@ -127,12 +132,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
   statLabel: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     fontWeight: '500',
   },

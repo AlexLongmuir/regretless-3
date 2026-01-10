@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { ActionChipsList } from '../components/ActionChipsList';
 import { ActionChipSkeleton } from '../components/SkeletonLoader';
@@ -40,6 +41,8 @@ const inspirationalQuotes = [
 ];
 
 const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme, isDark]);
   const [showLoading, setShowLoading] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
   const [fetchingDates, setFetchingDates] = useState<Set<string>>(new Set());
@@ -523,10 +526,10 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   scrollView: {
     flex: 1,
@@ -556,7 +559,7 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 30,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     flex: 1,
   },
   navigationButtons: {
@@ -565,7 +568,7 @@ const styles = StyleSheet.create({
   },
   quote: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 22,
     marginBottom: theme.spacing.lg,
   },
@@ -579,16 +582,16 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     borderWidth: 2,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
     borderStyle: 'dashed',
   },
   emptyStateText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     textAlign: 'center',
   },
 });

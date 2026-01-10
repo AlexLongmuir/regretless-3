@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { Button } from '../components/Button';
 import { useData } from '../contexts/DataContext';
@@ -11,6 +12,8 @@ interface ScreenshotMenuPageProps {
 }
 
 const ScreenshotMenuPage: React.FC<ScreenshotMenuPageProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { isScreenshotMode, toggleScreenshotMode } = useData();
 
   const handleToggle = (value: boolean) => {
@@ -113,10 +116,10 @@ const ScreenshotMenuPage: React.FC<ScreenshotMenuPageProps> = ({ navigation }) =
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   header: {
     flexDirection: 'row',
@@ -129,7 +132,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   content: {
     flex: 1,
@@ -140,7 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -158,18 +161,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
   description: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.md,
     marginTop: theme.spacing.sm,
   },

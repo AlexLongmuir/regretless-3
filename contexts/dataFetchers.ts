@@ -267,6 +267,18 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
       console.log('All completed occurrences:', allCompleted?.length || 0);
     }
 
+    // Get all occurrences (not just completed) for historical overdue calculations
+    const { data: allOccurrences, error: allOccurrencesError } = await supabaseClient
+      .from('v_action_occurrence_status')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (allOccurrencesError) {
+      console.error('Error fetching all occurrences:', allOccurrencesError);
+    } else {
+      console.log('All occurrences:', allOccurrences?.length || 0);
+    }
+
     // Get progress photos (artifacts)
     const { data: artifacts, error: artifactsError } = await supabaseClient
       .from('action_artifacts')
@@ -324,9 +336,17 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
       } : null
     });
 
-    // Calculate weekly progress (simplified - active days this week)
+    // Calculate weekly progress based on COMPLETED dates (not due dates)
+    // This matches how the streak is calculated - using allCompleted instead of weekOccurrences
     const activeDays = new Set<string>();
-    const completedThisWeek = weekOccurrences?.filter(o => o.completed_at) || [];
+    
+    // Get all completions that happened this week (regardless of when they were due)
+    const completedThisWeek = allCompleted?.filter(o => {
+      const completedDate = new Date(o.completed_at!);
+      const completedDateStr = completedDate.toISOString().slice(0, 10);
+      return completedDateStr >= startOfWeekStr && completedDateStr <= endOfWeekStr;
+    }) || [];
+    
     completedThisWeek.forEach(o => {
       const date = new Date(o.completed_at!);
       activeDays.add(date.toISOString().slice(0, 10));
@@ -360,11 +380,12 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
       weeklyProgress[dayName] = 'active';
     });
 
-    // Mark current day
+    // Mark current day (only if it's not already active)
     const currentDayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][today.getDay()] as keyof typeof weeklyProgress;
     if (weeklyProgress[currentDayName] === 'future') {
       weeklyProgress[currentDayName] = 'current';
     }
+    // If current day is already active, keep it as active (don't override)
 
     // Mark missed days (past days that weren't completed)
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -382,12 +403,11 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
     // Calculate this week stats
     const actionsPlanned = weekOccurrences?.length || 0;
     const actionsDone = completedThisWeek.length;
-    const actionsOverdue = weekOccurrences?.filter(o => 
-      !o.completed_at && new Date(o.due_on) < today
-    ).length || 0;
+    const actionsOverdue = weekOccurrences?.filter(o => o.is_overdue).length || 0;
 
     // Calculate history stats for different time periods
     const calculateStatsForPeriod = (startDate: Date, endDate?: Date) => {
+      // Filter completed actions for actionsComplete and activeDays
       const filtered = allCompleted?.filter(o => {
         const completedDate = new Date(o.completed_at!);
         const isAfterStart = completedDate >= startDate;
@@ -401,10 +421,20 @@ export const fetchProgress = async (): Promise<ProgressPayload | undefined> => {
         uniqueActiveDays.add(date.toISOString().slice(0, 10));
       });
       
+      // Calculate overdue actions for this period
+      // Count occurrences that are overdue and have due_on within the period
+      const overdueCount = allOccurrences?.filter(o => {
+        if (!o.is_overdue) return false;
+        const dueDate = new Date(o.due_on);
+        const isAfterStart = dueDate >= startDate;
+        const isBeforeEnd = !endDate || dueDate <= endDate;
+        return isAfterStart && isBeforeEnd;
+      }).length || 0;
+      
       return {
         actionsComplete: filtered.length,
         activeDays: uniqueActiveDays.size,
-        actionsOverdue: 0,
+        actionsOverdue: overdueCount,
       };
     };
 
@@ -544,7 +574,7 @@ export const fetchDreamDetail = async (dreamId: string): Promise<DreamDetailPayl
     supabaseClient.from('dreams').select('*').eq('id', dreamId).single(),
     supabaseClient.from('areas').select('*').eq('dream_id', dreamId).is('deleted_at', null).order('position', { ascending: true }),
     supabaseClient.from('actions').select('*').eq('dream_id', dreamId).is('deleted_at', null).order('position', { ascending: true }),
-    supabaseClient.from('action_occurrences').select('*').eq('dream_id', dreamId).order('due_on', { ascending: true }).limit(200),
+    supabaseClient.from('v_action_occurrence_status').select('*').eq('dream_id', dreamId).order('due_on', { ascending: true }).limit(200),
   ]);
   
   if (dreamRes.error || areasRes.error || actionsRes.error || occRes.error) {

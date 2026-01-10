@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import * as StoreReview from 'expo-store-review';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
@@ -76,14 +77,17 @@ const RatingStep: React.FC = () => {
               <Image 
                 source={require('../../assets/images/onboarding/user-images/20250916_1911_Professional Woman Portrait_simple_compose_01k59vj1yje2vrjgm9xmqk2jz1.png')}
                 style={styles.avatar}
+                contentFit="cover"
               />
               <Image 
                 source={require('../../assets/images/onboarding/user-images/20250916_1912_Cafe Portrait Relaxation_simple_compose_01k59vhpmvfhxr16vh7ckf2nke.png')}
                 style={styles.avatar}
+                contentFit="cover"
               />
               <Image 
                 source={require('../../assets/images/onboarding/user-images/20250916_1906_Casual Indoor Selfie_simple_compose_01k59v95vsfgrb7s3sftspaqnc.png')}
                 style={styles.avatar}
+                contentFit="cover"
               />
             </View>
             <Text style={styles.userCountText}>+ many more Dreamer users</Text>
@@ -95,6 +99,7 @@ const RatingStep: React.FC = () => {
             <Image 
               source={require('../../assets/images/onboarding/user-images/20250916_1907_Street Selfie Moment_simple_compose_01k59vbb8te8vs2fe7yv8c4t92.png')}
               style={styles.testimonialAvatar}
+              contentFit="cover"
             />
             <View style={styles.testimonialInfo}>
               <Text style={styles.testimonialName}>Marcus Johnson</Text>
@@ -115,6 +120,7 @@ const RatingStep: React.FC = () => {
             <Image 
               source={require('../../assets/images/onboarding/user-images/20250916_1904_Golden Hour Portrait_simple_compose_01k59v5jqpfy5t97a7p5rqck6b.png')}
               style={styles.testimonialAvatar}
+              contentFit="cover"
             />
             <View style={styles.testimonialInfo}>
               <Text style={styles.testimonialName}>Sarah Chen</Text>
@@ -135,6 +141,7 @@ const RatingStep: React.FC = () => {
             <Image 
               source={require('../../assets/images/onboarding/user-images/20250916_1904_Cafe Portrait Relaxation_simple_compose_01k59v5zd1f7aa9dpecjwgh8xe.png')}
               style={styles.testimonialAvatar}
+              contentFit="cover"
             />
             <View style={styles.testimonialInfo}>
               <Text style={styles.testimonialName}>Priya Patel</Text>

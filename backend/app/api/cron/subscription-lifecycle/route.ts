@@ -49,11 +49,21 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     let expiredCount = 0;
     
+    // #region agent log
+    const fs = require('fs');
+    const logPath = '/Users/alex/regretless-3/.cursor/debug.log';
+    fs.appendFileSync(logPath, JSON.stringify({location:'subscription-lifecycle/route.ts:49',message:'Starting subscription check - checking for push notification sending code',data:{subscriptionCount:subscriptions.length,hasExpoPushToken:typeof process.env.EXPO_ACCESS_TOKEN !== 'undefined',hasExpoPushTokenValue:!!process.env.EXPO_ACCESS_TOKEN},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C,D'}) + '\n');
+    // #endregion
+    
     // Check for expired subscriptions
     for (const subscription of subscriptions) {
       const expirationDate = new Date(subscription.current_period_end);
       
       if (expirationDate < now) {
+        // #region agent log
+        fs.appendFileSync(logPath, JSON.stringify({location:'subscription-lifecycle/route.ts:57',message:'Subscription expired - checking if push notification is sent',data:{userId:subscription.user_id,expirationDate:subscription.current_period_end},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'}) + '\n');
+        // #endregion
+        
         // Mark as expired
         await supabase
           .from('user_subscriptions')
@@ -66,6 +76,10 @@ export async function GET(request: NextRequest) {
         
         expiredCount++;
         console.warn(`⚠️ Marked subscription expired for user ${subscription.user_id}`);
+        
+        // #region agent log
+        fs.appendFileSync(logPath, JSON.stringify({location:'subscription-lifecycle/route.ts:70',message:'After marking expired - no push notification sending code found',data:{userId:subscription.user_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'}) + '\n');
+        // #endregion
       }
     }
     

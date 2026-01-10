@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 import { supabaseClient } from './supabaseClient';
 import type { NotificationPreferences } from '../backend/database/types';
 
@@ -28,6 +28,9 @@ export class NotificationService {
   }
 
   async initialize(): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:30',message:'initialize() called',data:{isInitialized:this.isInitialized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (this.isInitialized) return;
 
     try {
@@ -51,9 +54,74 @@ export class NotificationService {
       }
 
       this.isInitialized = true;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:54',message:'initialize() completed successfully',data:{platform:Platform.OS},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.log('NotificationService initialized successfully');
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:57',message:'initialize() failed',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.error('Failed to initialize NotificationService:', error);
+    }
+  }
+
+  async getDevicePermissionStatus(): Promise<Notifications.NotificationPermissionsStatus> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:60',message:'getDevicePermissionStatus() called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    try {
+      const status = await Notifications.getPermissionsAsync();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:62',message:'getDevicePermissionStatus() result',data:{status:status.status,granted:status.granted,canAskAgain:status.canAskAgain},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return status;
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:64',message:'getDevicePermissionStatus() error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      console.error('Failed to get notification permission status:', error);
+      // Return a default denied status on error
+      return {
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+      };
+    }
+  }
+
+  async canRequestPermissions(): Promise<boolean> {
+    try {
+      const permissions = await this.getDevicePermissionStatus();
+      // Can request if status is undetermined, or if denied but canAskAgain is true
+      return (
+        permissions.status === 'undetermined' ||
+        (permissions.status === 'denied' && permissions.canAskAgain)
+      );
+    } catch (error) {
+      console.error('Failed to check if permissions can be requested:', error);
+      return false;
+    }
+  }
+
+  async openDeviceSettings(): Promise<void> {
+    try {
+      // Try to use Linking.openSettings() if available (Android)
+      if (Linking.openSettings) {
+        await Linking.openSettings();
+        return;
+      }
+      
+      // Fallback for iOS: try app-settings: URL scheme
+      const settingsUrl = Platform.OS === 'ios' ? 'app-settings:' : 'android.settings.APPLICATION_DETAILS_SETTINGS';
+      const supported = await Linking.canOpenURL(settingsUrl);
+      if (supported) {
+        await Linking.openURL(settingsUrl);
+      } else {
+        console.warn('Unable to open device settings - please enable notifications manually in your device settings');
+      }
+    } catch (error) {
+      console.error('Failed to open device settings:', error);
     }
   }
 
@@ -81,6 +149,9 @@ export class NotificationService {
   }
 
   async getNotificationPreferences(userId: string): Promise<NotificationPreferences | null> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:132',message:'getNotificationPreferences() called',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     try {
       console.log('Fetching notification preferences for user:', userId);
       const { data, error } = await supabaseClient
@@ -90,13 +161,22 @@ export class NotificationService {
         .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 rows
 
       if (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:141',message:'getNotificationPreferences() error',data:{userId,error:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         console.error('Error fetching notification preferences:', error);
         return null;
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:146',message:'getNotificationPreferences() result',data:{userId,hasPreferences:!!data,preferences:data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       console.log('Notification preferences fetched:', data);
       return data;
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:149',message:'getNotificationPreferences() exception',data:{userId,error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       console.error('Error fetching notification preferences:', error);
       return null;
     }
@@ -166,12 +246,33 @@ export class NotificationService {
   }
 
   async scheduleDailyReminder(userId: string): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:217',message:'scheduleDailyReminder() called',data:{userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     try {
       // Cancel existing daily reminders
       await Notifications.cancelAllScheduledNotificationsAsync();
 
       const preferences = await this.getNotificationPreferences(userId);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:223',message:'scheduleDailyReminder() preferences check',data:{userId,hasPreferences:!!preferences,dailyReminders:preferences?.daily_reminders},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       if (!preferences || !preferences.daily_reminders) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:224',message:'scheduleDailyReminder() early return',data:{userId,reason:!preferences?'no_preferences':'daily_reminders_disabled'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        return;
+      }
+
+      // Check permissions before scheduling
+      const permissionStatus = await this.getDevicePermissionStatus();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:232',message:'scheduleDailyReminder() permission check',data:{userId,permissionStatus:permissionStatus.status,granted:permissionStatus.granted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (permissionStatus.status !== 'granted') {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:234',message:'scheduleDailyReminder() permission denied',data:{userId,permissionStatus:permissionStatus.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         return;
       }
 
@@ -196,8 +297,11 @@ export class NotificationService {
       // Generate smart message
       const message = this.generateSmartMessage(currentStreak, totalOverdue);
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:248',message:'scheduleDailyReminder() before scheduleNotificationAsync',data:{userId,hours,minutes,message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       // Schedule daily notification
-      await Notifications.scheduleNotificationAsync({
+      const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: '🌟 Keep Going!',
           body: message,
@@ -212,8 +316,14 @@ export class NotificationService {
         },
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:264',message:'scheduleDailyReminder() scheduled successfully',data:{userId,notificationId,reminderTime:preferences.reminder_time},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       console.log('Daily reminder scheduled for', preferences.reminder_time);
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationService.ts:266',message:'scheduleDailyReminder() error',data:{userId,error:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       console.error('Error scheduling daily reminder:', error);
     }
   }

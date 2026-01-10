@@ -1,21 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import {
-  DayStreakCard,
   ThisWeekCard,
   ProgressPhotosSection,
   GoalProgressCard,
-  HistorySection,
+  AchievementsButton,
+  AchievementsSheet,
+  IconButton
 } from '../components';
+import { StreakSheet } from '../components/StreakSheet';
 import { useData } from '../contexts/DataContext';
 import { trackEvent } from '../lib/mixpanel';
+import { getAchievements } from '../frontend-services/backend-bridge';
+import { supabaseClient } from '../lib/supabaseClient';
+import type { Achievement, UserAchievement } from '../backend/database/types';
 
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
-  const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
-  const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme, isDark]);
+  const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
+  const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
+  const [showStreakSheet, setShowStreakSheet] = useState(false);
   const { state, getDreamsWithStats, getProgress, onScreenFocus, isScreenshotMode } = useData();
+
+  // Load achievements
+  useEffect(() => {
+    const loadAchievements = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await getAchievements(session.access_token);
+        if (response.success) {
+          setAchievements(response.data.achievements);
+        }
+      } catch (error) {
+        console.error('Error loading achievements:', error);
+      }
+    };
+    loadAchievements();
+  }, []);
 
   // Load data on mount
   useEffect(() => {
@@ -57,33 +83,18 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     console.log('No progress data available yet');
   }
   
-  const weeklyProgress = progress?.weeklyProgress || {
-    monday: 'future' as const,
-    tuesday: 'future' as const,
-    wednesday: 'future' as const,
-    thursday: 'future' as const,
-    friday: 'future' as const,
-    saturday: 'future' as const,
-    sunday: 'future' as const,
-  };
   const thisWeekStats = progress?.thisWeekStats || {
     actionsPlanned: 0,
     actionsDone: 0,
     actionsOverdue: 0,
   };
-  const historyStats = progress?.historyStats || {
-    week: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-    month: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-    year: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-    allTime: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
-  };
-
-  // Get stats for the selected time period
-  const currentHistoryStats = historyStats[selectedTimePeriod.toLowerCase() as keyof typeof historyStats] || historyStats.week;
   const progressPhotos = progress?.progressPhotos || [];
 
   // Calculate overall streak from progress data (across all dreams)
-  const overallStreak = progress?.overallStreak || 0;
+  // For MVP, we'll take the max streak of any dream as the "overall streak"
+  // Since our new logic is dream-specific, aggregating is tricky without backend support
+  const overallStreak = Math.max(...dreams.map(d => d.current_streak || 0), 0);
+  const longestStreak = overallStreak; // Placeholder
 
   // Log if we have no data at all
   const hasRealData = dreams.length > 0 || progressPhotos.length > 0 || overallStreak > 0;
@@ -96,12 +107,6 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     console.log('Photo pressed:', photo.id);
   };
 
-
-  const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
-    trackEvent('progress_time_period_changed', { period });
-    setSelectedTimePeriod(period);
-  };
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -111,10 +116,26 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Progress</Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>Progress</Text>
+            <View style={styles.headerActions}>
+              <IconButton
+                icon="fire"
+                onPress={() => setShowStreakSheet(true)}
+                variant="secondary"
+                size="md"
+                style={styles.streakButton}
+              />
+              <AchievementsButton
+                onPress={() => setShowAchievementsSheet(true)}
+                count={achievements.filter(a => a.user_progress).length}
+                total={achievements.length}
+              />
+            </View>
+          </View>
         </View>
 
-        <DayStreakCard streakCount={overallStreak} weeklyProgress={weeklyProgress} />
+        {/* Removed DayStreakCard - using StreakSheet in header instead */}
         
         <ThisWeekCard
           actionsPlanned={thisWeekStats.actionsPlanned}
@@ -125,12 +146,6 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
         <ProgressPhotosSection
           photos={progressPhotos}
           onPhotoPress={handlePhotoPress}
-          onExpandPress={() => {
-            setIsPhotosExpanded(!isPhotosExpanded);
-            trackEvent('progress_photo_expanded');
-          }}
-          isExpanded={isPhotosExpanded}
-          columns={6}
         />
 
         {dreams.map((dream) => {
@@ -187,23 +202,28 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
             </TouchableOpacity>
           );
         })}
-
-        <HistorySection
-          actionsComplete={currentHistoryStats.actionsComplete}
-          activeDays={currentHistoryStats.activeDays}
-          actionsOverdue={currentHistoryStats.actionsOverdue}
-          onTimePeriodChange={handleTimePeriodChange}
-          selectedPeriod={selectedTimePeriod}
-        />
       </ScrollView>
+
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+        achievements={achievements}
+      />
+
+      <StreakSheet
+        visible={showStreakSheet}
+        onClose={() => setShowStreakSheet(false)}
+        streak={overallStreak}
+        longestStreak={longestStreak}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   scrollView: {
     flex: 1,
@@ -216,10 +236,24 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: theme.spacing.lg,
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
+  },
+  streakButton: {
+    backgroundColor: theme.colors.warning[100],
+    borderWidth: 0,
   },
 });
 

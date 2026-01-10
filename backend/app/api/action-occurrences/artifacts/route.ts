@@ -51,24 +51,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update the occurrence with the note
-    const { data: updatedOccurrence, error: updateError } = await supabase
+    // #region agent log
+    // Get occurrence data before update to check for existing occurrences
+    const { data: occurrenceBeforeUpdate } = await supabase
       .from('action_occurrences')
-      .update({
-        note: note || null,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .select('action_id, occurrence_no, planned_due_on, actions!inner(repeat_every_days)')
       .eq('id', occurrenceId)
-      .select()
       .single();
+    
+    // Check existing occurrences for this action
+    const { data: existingOccurrences } = await supabase
+      .from('action_occurrences')
+      .select('occurrence_no, planned_due_on')
+      .eq('action_id', occurrenceBeforeUpdate?.action_id || '')
+      .order('occurrence_no', { ascending: true });
+    
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:56',message:'Before update - occurrence data',data:{occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,currentOccurrenceNo:occurrenceBeforeUpdate?.occurrence_no,repeatEveryDays:occurrenceBeforeUpdate?.actions?.repeat_every_days,existingOccurrences:existingOccurrences?.map(o=>({no:o.occurrence_no,date:o.planned_due_on})),maxOccurrenceNo:existingOccurrences?.length?Math.max(...existingOccurrences.map(o=>o.occurrence_no)):0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    // Update the occurrence with the note and completed_at
+    // Always update completed_at to current time (allows re-completion)
+    const updateData = {
+      note: note || null,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // First, try the update
+    const { error: updateError } = await supabase
+      .from('action_occurrences')
+      .update(updateData)
+      .eq('id', occurrenceId);
 
     if (updateError) {
-      console.error('Error updating action occurrence:', updateError);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:68',message:'Update error detected',data:{errorCode:updateError.code,errorMessage:updateError.message,errorDetails:updateError.details,errorHint:updateError.hint,occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,isDuplicateKey:updateError.code==='23505'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      console.error('Error updating action occurrence:', {
+        error: updateError,
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        occurrenceId
+      });
       return NextResponse.json(
-        { error: 'Failed to update action occurrence' },
+        { 
+          error: 'Failed to update action occurrence',
+          details: updateError.message || 'Unknown error',
+          code: updateError.code
+        },
         { status: 500 }
       );
+    }
+    
+    // #region agent log
+    // After successful update, check if trigger created new occurrence
+    setTimeout(async () => {
+      const { data: occurrencesAfterUpdate } = await supabase
+        .from('action_occurrences')
+        .select('occurrence_no, planned_due_on, completed_at')
+        .eq('action_id', occurrenceBeforeUpdate?.action_id || '')
+        .order('occurrence_no', { ascending: true });
+      
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:95',message:'After update - occurrences after trigger',data:{actionId:occurrenceBeforeUpdate?.action_id,occurrencesAfter:occurrencesAfterUpdate?.map(o=>({no:o.occurrence_no,date:o.planned_due_on,completed:!!o.completed_at}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    }, 1000);
+    // #endregion
+
+    // Then fetch the updated occurrence separately
+    const { data: updatedOccurrence, error: fetchError } = await supabase
+      .from('action_occurrences')
+      .select('*')
+      .eq('id', occurrenceId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching updated occurrence:', fetchError);
+      // Still return success since the update worked
+      return NextResponse.json({ 
+        success: true, 
+        data: null,
+        message: 'Action occurrence completed successfully' 
+      });
     }
 
     return NextResponse.json({ 

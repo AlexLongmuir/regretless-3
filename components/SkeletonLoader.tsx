@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, Animated, Easing } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface SkeletonLoaderProps {
   width?: number | string;
@@ -15,6 +16,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
   borderRadius = 4,
   style
 }) => {
+  const { theme } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -41,7 +43,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
 
   const backgroundColor = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [theme.colors.grey[100], theme.colors.grey[200]],
+    outputRange: [theme.colors.disabled.inactive, theme.colors.grey[200]],
   });
 
   return (
@@ -64,6 +66,8 @@ interface ActionChipSkeletonProps {
 }
 
 export const ActionChipSkeleton: React.FC<ActionChipSkeletonProps> = ({ style }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   // Randomize some widths to make skeletons look more varied
   const titleWidths = ['85%', '75%', '90%', '70%'];
   const subtitleWidths = ['55%', '65%', '50%', '60%'];
@@ -92,6 +96,9 @@ interface DreamChipSkeletonProps {
 }
 
 export const DreamChipSkeleton: React.FC<DreamChipSkeletonProps> = ({ style }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   return (
     <View style={[styles.dreamChipSkeleton, style]}>
       <View style={styles.dreamChipContent}>
@@ -122,6 +129,8 @@ interface AreaChipSkeletonProps {
 }
 
 export const AreaChipSkeleton: React.FC<AreaChipSkeletonProps> = ({ style }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   // Randomize title width to make skeletons look more varied
   const titleWidths = ['70%', '80%', '75%', '85%'];
   const titleWidth = titleWidths[Math.floor(Math.random() * titleWidths.length)];
@@ -144,14 +153,14 @@ export const AreaChipSkeleton: React.FC<AreaChipSkeletonProps> = ({ style }) => 
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   chipSkeleton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
   },
   chipHeader: {
     flexDirection: 'row',
@@ -168,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dreamChipSkeleton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
@@ -187,12 +196,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   areaChipSkeleton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 80,

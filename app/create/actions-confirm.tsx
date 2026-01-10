@@ -6,10 +6,11 @@ import { Button } from '../../components/Button'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { activateDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function ActionsConfirmStep() {
+  const { theme } = useTheme()
   const navigation = useNavigation<any>()
   const { areas, actions, dreamId } = useCreateDream()
   const [isActivating, setIsActivating] = useState(false)
@@ -65,7 +66,7 @@ export default function ActionsConfirmStep() {
   const totalActions = actions.length
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
       <CreateScreenHeader step="actions-confirm" />
       
       <ScrollView 
@@ -101,7 +102,7 @@ export default function ActionsConfirmStep() {
         <Text style={{ 
           fontSize: 24, 
           fontWeight: 'bold', 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           marginBottom: 16,
           textAlign: 'center'
         }}>
@@ -111,7 +112,7 @@ export default function ActionsConfirmStep() {
         {/* Description */}
         <Text style={{ 
           fontSize: 16, 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           textAlign: 'center',
           lineHeight: 22,
           marginBottom: 24
@@ -122,7 +123,7 @@ export default function ActionsConfirmStep() {
 
         <Text style={{ 
           fontSize: 16, 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           textAlign: 'center',
           lineHeight: 22
         }}>
@@ -138,7 +139,7 @@ export default function ActionsConfirmStep() {
         right: 0, 
         padding: 16,
         paddingBottom: BOTTOM_NAV_PADDING,
-        backgroundColor: theme.colors.pageBackground
+        backgroundColor: theme.colors.background.page
       }}>
         <Button 
           title="View Dream" 

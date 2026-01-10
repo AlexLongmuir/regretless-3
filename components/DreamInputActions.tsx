@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native'
-import { theme } from '../utils/theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 
 interface DreamInputActionsProps {
   onOpenCelebrities: () => void
@@ -13,6 +14,9 @@ export const DreamInputActions: React.FC<DreamInputActionsProps> = ({
   onOpenDreamboard,
   title,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   return (
     <View style={styles.container}>
       {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -30,7 +34,7 @@ export const DreamInputActions: React.FC<DreamInputActionsProps> = ({
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flexDirection: 'column',
     gap: theme.spacing.sm,
@@ -40,7 +44,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   actions: {
     gap: theme.spacing.sm,
@@ -48,14 +52,14 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     minHeight: 48,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'flex-start',
     gap: 8,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
     paddingHorizontal: theme.spacing.md,
   },
   left: {},
@@ -65,7 +69,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     flexShrink: 1,
     fontFamily: theme.typography.fontFamily.system,

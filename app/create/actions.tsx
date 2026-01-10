@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -6,7 +6,8 @@ import { Button, ActionChipsList, IconButton } from '../../components'
 import { generateActions, upsertActions } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useAuth } from '../../hooks/useAuth'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 import { trackEvent } from '../../lib/mixpanel'
 import type { Action, Area } from '../../backend/database/types'
 
@@ -25,6 +26,8 @@ interface ActionCard {
 }
 
 export default function ActionsStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { user } = useAuth()
   const { 
@@ -302,7 +305,7 @@ export default function ActionsStep() {
           {/* Loading indicator */}
           <ActivityIndicator 
             size="large" 
-            color="#000" 
+            color={theme.colors.primary[600]} 
             style={{ marginTop: 32 }} 
           />
         </View>
@@ -313,8 +316,8 @@ export default function ActionsStep() {
   // Show completion if no areas
   if (!currentArea) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 18, color: '#000', marginBottom: 16 }}>No areas found</Text>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16 }}>No areas found</Text>
         <Button 
           title="Go Back" 
           variant="secondary"
@@ -327,8 +330,8 @@ export default function ActionsStep() {
   // Check if current area has temporary ID
   if (currentArea.id.startsWith('temp_')) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 18, color: '#000', marginBottom: 16, textAlign: 'center' }}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16, textAlign: 'center' }}>
           Areas are still being saved. Please wait...
         </Text>
         <Button 
@@ -370,7 +373,7 @@ export default function ActionsStep() {
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 24, marginRight: 8 }}>{currentArea.icon || '🚀'}</Text>
             <View>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#000' }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.text.primary }}>
                 {currentArea.title}
               </Text>
               <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
@@ -517,10 +520,10 @@ export default function ActionsStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   headerContainer: {
     height: 52,
@@ -545,20 +548,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text.primary,
     marginBottom: 16,
     lineHeight: 16,
   },
   loadingTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: theme.colors.text.primary,
     marginBottom: 16,
     lineHeight: 24
   },
   loadingDescription: {
     fontSize: 16,
-    color: '#000',
+    color: theme.colors.text.primary,
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 22
@@ -566,11 +569,11 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   footerText: {
     fontSize: 14,
-    color: '#000',
+    color: theme.colors.text.primary,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -581,6 +584,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     fontSize: 16,
+    color: theme.colors.text.primary,
     textAlignVertical: 'top',
   },
   buttonContainer: {

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface AIRatingRingProps {
   rating: number;
@@ -16,6 +17,8 @@ const AIRatingRing: React.FC<AIRatingRingProps> = ({
   size = 120, 
   strokeWidth = 8 
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDasharray = circumference;
@@ -62,7 +65,7 @@ const AIRatingRing: React.FC<AIRatingRingProps> = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={theme.colors.grey[400]}
+          stroke={theme.colors.disabled.inactive}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
@@ -90,7 +93,7 @@ const AIRatingRing: React.FC<AIRatingRingProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -7,9 +7,12 @@ import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
 import { upsertDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 
 export default function QuestionsStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { dreamId, title, start_date, end_date, image_url, baseline, obstacles, enjoyment, setField } = useCreateDream()
 
@@ -119,10 +122,10 @@ export default function QuestionsStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     flex: 1,
@@ -137,7 +140,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: theme.spacing['2xl'],
   },
@@ -147,7 +150,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     borderRadius: theme.radius.xl,

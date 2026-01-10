@@ -5,7 +5,8 @@
  * It makes HTTP requests to the backend API endpoints.
  */
 
-import type { Dream, Area, Action } from '../backend/database/types'
+import { supabaseClient } from '../lib/supabaseClient'
+import type { Dream, Area, Action, Achievement, UserAchievement, AchievementUnlockResult } from '../backend/database/types'
 
 const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL! // e.g. https://api.yourapp.com
 
@@ -815,5 +816,93 @@ export const transcribeAudio = async (file: any, token?: string): Promise<Transc
   } catch (error) {
     console.log('💥 [BACKEND-BRIDGE] Transcribe audio Network/Parse Error:', error)
     throw error
+  }
+}
+
+// Achievements API
+
+export interface AchievementsResponse {
+  achievements: (Achievement & {
+    user_progress?: UserAchievement | null
+  })[]
+}
+
+export const getAchievements = async (token: string): Promise<{ success: boolean; data: AchievementsResponse; message: string }> => {
+  // Using Supabase Client directly for now as per plan scope
+  try {
+    const { data: achievements, error: achievementsError } = await supabaseClient
+      .from('achievements')
+      .select('*')
+      .order('position', { ascending: true })
+
+    if (achievementsError) throw achievementsError
+
+    const { data: userAchievements, error: userError } = await supabaseClient
+      .from('user_achievements')
+      .select('*')
+      .eq('user_id', (await supabaseClient.auth.getUser()).data.user?.id)
+
+    if (userError) throw userError
+
+    // Merge data
+    const merged = achievements.map(ach => ({
+      ...ach,
+      user_progress: userAchievements?.find(ua => ua.achievement_id === ach.id) || null
+    }))
+
+    return { success: true, data: { achievements: merged }, message: 'Success' }
+  } catch (error: any) {
+    return { success: false, data: { achievements: [] }, message: error.message }
+  }
+}
+
+/**
+ * Check for newly unlocked achievements
+ * 
+ * This function checks the database for achievements that have been unlocked
+ * since the user last checked. It can be called from anywhere in the app:
+ * - When a dream is completed (DreamCompletedPage)
+ * - When an action is completed (currently not active - achievements trigger on dream completion)
+ * - For testing purposes (AccountPage)
+ * - Any other appropriate trigger point
+ * 
+ * The modal will appear above all other UI when new achievements are found.
+ * Achievements are automatically unlocked when criteria are met (e.g., completing
+ * 1, 10, 100 actions, completing dreams, maintaining streaks, etc.)
+ */
+export const checkNewAchievements = async (token: string): Promise<{ success: boolean; data: { new_achievements: AchievementUnlockResult[] }; message: string }> => {
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:874',message:'Calling RPC check_new_achievements',data:{hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
+    
+    const { data, error } = await supabaseClient.rpc('check_new_achievements')
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:877',message:'RPC response received',data:{hasData:!!data,hasError:!!error,errorCode:error?.code,errorMessage:error?.message,dataLength:data?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion
+    
+    if (error) throw error
+    return { success: true, data: { new_achievements: data || [] }, message: 'Success' }
+  } catch (error: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:882',message:'RPC call error',data:{errorCode:error?.code,errorMessage:error?.message,errorDetails:error?.details,errorHint:error?.hint},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+    // #endregion
+    return { success: false, data: { new_achievements: [] }, message: error.message }
+  }
+}
+
+export const markAchievementsSeen = async (achievementIds: string[], token: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const { error } = await supabaseClient
+      .from('user_achievements')
+      .update({ seen: true })
+      .in('achievement_id', achievementIds)
+      .eq('user_id', (await supabaseClient.auth.getUser()).data.user?.id)
+
+    if (error) throw error
+    return { success: true, message: 'Success' }
+  } catch (error: any) {
+    return { success: false, message: error.message }
   }
 }

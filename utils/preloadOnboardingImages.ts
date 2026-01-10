@@ -8,7 +8,7 @@
  * Image.prefetch() to preload them into React Native's image cache.
  */
 
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 
 /**
  * All onboarding images that need to be preloaded

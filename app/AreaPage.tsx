@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 import { ActionChipsList } from '../components/ActionChipsList';
 import { OptionsPopover } from '../components/OptionsPopover';
@@ -36,6 +37,15 @@ interface AreaPageProps {
 const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
   const params = route?.params || {};
   const { areaId, areaTitle: initialAreaTitle = 'Area', areaEmoji: initialAreaEmoji = '🚀', dreamId, dreamTitle = 'Dream' } = params;
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
+  // Calculate emoji dimensions
+  const screenHeight = Dimensions.get('window').height;
+  const screenWidth = Dimensions.get('window').width;
+  const emojiHeight = screenHeight * 0.45;
+  // Calculate emoji width to extend to screen edges (accounting for content padding)
+  const emojiWidth = screenWidth + (theme.spacing.md * 2);
   
   const { state, getDreamDetail, completeOccurrence, deferOccurrence, updateArea, deleteArea } = useData();
   const [actions, setActions] = useState<any[]>([]);
@@ -496,28 +506,34 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar style="dark" />
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <IconButton
-            icon="chevron_left"
-            onPress={handleBack}
-            variant="secondary"
-            size="md"
-          />
-          <View ref={optionsButtonRef}>
-            <IconButton
-              icon="more_horiz"
-              onPress={handleOptionsPress}
-              variant="secondary"
-              size="md"
-            />
-          </View>
+      <StatusBar style="light" />
+      <View style={styles.container}>
+        {/* Header Overlay */}
+        <View style={styles.headerOverlay} pointerEvents="box-none">
+          <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+            <View style={styles.header}>
+              <IconButton
+                icon="chevron_left"
+                onPress={handleBack}
+                variant="secondary"
+                size="md"
+              />
+              <View ref={optionsButtonRef}>
+                <IconButton
+                  icon="more_horiz"
+                  onPress={handleOptionsPress}
+                  variant="secondary"
+                  size="md"
+                />
+              </View>
+            </View>
+          </SafeAreaView>
         </View>
 
+        {/* ScrollView with Emoji and Content */}
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-          {/* Area Emoji */}
-          <View style={styles.emojiContainer}>
+          {/* Area Emoji - scrolls with content */}
+          <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
             <Text style={styles.areaEmoji}>{areaEmoji}</Text>
           </View>
 
@@ -577,7 +593,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           presentationStyle="pageSheet"
         >
           <KeyboardAvoidingView 
-            style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+            style={{ flex: 1, backgroundColor: theme.colors.background.page }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
@@ -631,18 +647,27 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           onClose={() => setShowAddActionModal(false)}
           onSave={handleAddAction}
         />
-      </SafeAreaView>
+      </View>
     </>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
+  },
+  headerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  headerSafeArea: {
+    width: '100%',
   },
   header: {
-    backgroundColor: theme.colors.pageBackground,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
@@ -655,26 +680,30 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
     paddingBottom: BOTTOM_NAV_PADDING,
   },
-  emojiContainer: {
+  emojiBackground: {
+    overflow: 'hidden',
+    marginLeft: -theme.spacing.md,
+    marginRight: -theme.spacing.md,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.background.page,
   },
   areaEmoji: {
-    fontSize: 150,
+    fontSize: 200,
+    textAlign: 'center',
   },
   dreamTitle: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: theme.spacing.xs,
   },
   areaTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: theme.spacing.lg,
   },
@@ -690,12 +719,12 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
   },
   progressPercentage: {
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
   },
   progressBar: {
     height: 8,

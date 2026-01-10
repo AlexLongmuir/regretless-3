@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 interface UtilityTool {
@@ -12,6 +13,9 @@ interface UtilityTool {
 }
 
 const UtilitiesPage = ({ navigation }: { navigation?: any }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const tools: UtilityTool[] = [
     {
       id: 'dream-board-converter',
@@ -35,7 +39,6 @@ const UtilitiesPage = ({ navigation }: { navigation?: any }) => {
       onPress: () => console.log('Social Media Analyzer pressed'),
     },
   ];
-
 
   return (
     <View style={styles.container}>
@@ -71,10 +74,10 @@ const UtilitiesPage = ({ navigation }: { navigation?: any }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[100],
+    backgroundColor: theme.colors.background.page, // Was surface[100], page is better
   },
   scrollView: {
     flex: 1,
@@ -98,13 +101,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
     textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 22,
     textAlign: 'left',
   },
@@ -120,7 +123,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: theme.spacing.md,
     elevation: 4,
-    shadowColor: theme.colors.primary[900],
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
   toolTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.surface[50],
+    color: theme.colors.surface[50], // Keep white as card is primary[600]
     marginBottom: theme.spacing.sm,
     textAlign: 'left',
     flexWrap: 'wrap',

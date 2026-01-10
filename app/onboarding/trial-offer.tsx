@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -142,7 +143,8 @@ const TrialOfferStep: React.FC = () => {
           <Image 
             source={require('../../assets/images/onboarding/screenshots/WholeApp.png')} 
             style={styles.screenshot}
-            resizeMode="contain"
+            contentFit="contain"
+            transition={200}
           />
         </View>
         

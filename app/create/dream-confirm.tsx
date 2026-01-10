@@ -3,10 +3,11 @@ import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
 import { trackEvent } from '../../lib/mixpanel'
 
 export default function ConfirmStep() {
+  const { theme } = useTheme()
   const navigation = useNavigation<any>()
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function ConfirmStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
       <CreateScreenHeader step="confirm" />
       
       <View style={{ 
@@ -51,7 +52,7 @@ export default function ConfirmStep() {
         <Text style={{ 
           fontSize: 24, 
           fontWeight: 'bold', 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           marginBottom: 16,
           textAlign: 'center'
         }}>
@@ -61,7 +62,7 @@ export default function ConfirmStep() {
         {/* Description */}
         <Text style={{ 
           fontSize: 16, 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           textAlign: 'center',
           lineHeight: 22
         }}>
@@ -77,7 +78,7 @@ export default function ConfirmStep() {
         right: 0, 
         padding: 16,
         paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
+        backgroundColor: theme.colors.background.page
       }}>
         <Button 
           title="Next" 

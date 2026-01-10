@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { Icon } from './Icon';
 
 interface SheetHeaderProps {
-  title: string;
+  title?: string;
   onClose: () => void;
   onBack?: () => void;
   onDone?: () => void;
@@ -39,19 +40,6 @@ export const RoundedXIcon = ({ size, color }: { size: number; color: string }) =
   );
 };
 
-// Reusable glass button wrapper
-const GlassButton: React.FC<{
-  onPress: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}> = ({ onPress, disabled, children }) => (
-  <TouchableOpacity onPress={onPress} disabled={disabled} style={styles.glassButtonWrapper}>
-    <BlurView intensity={100} tint="light" style={styles.glassButton}>
-      {children}
-    </BlurView>
-  </TouchableOpacity>
-);
-
 export const SheetHeader: React.FC<SheetHeaderProps> = ({
   title,
   onClose,
@@ -60,33 +48,75 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
   doneDisabled = false,
   doneLoading = false,
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
+  // Reusable glass button wrapper - moved inside component to access styles and isDark
+  const GlassButton: React.FC<{
+    onPress: () => void;
+    disabled?: boolean;
+    children: React.ReactNode;
+  }> = ({ onPress, disabled, children }) => {
+    // In dark mode, completely remove BlurView and use solid View to eliminate fuzzy edges
+    if (isDark) {
+      return (
+        <TouchableOpacity onPress={onPress} disabled={disabled} style={styles.glassButtonWrapper}>
+          <View 
+            style={[
+              styles.glassButton,
+              { backgroundColor: theme.colors.background.card },
+            ]}
+          >
+            {children}
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    
+    // In light mode, use BlurView for glass effect
+    return (
+      <TouchableOpacity onPress={onPress} disabled={disabled} style={styles.glassButtonWrapper}>
+        <BlurView 
+          intensity={100} 
+          tint="light" 
+          style={styles.glassButton}
+        >
+          {children}
+        </BlurView>
+      </TouchableOpacity>
+    );
+  };
+  
   return (
     <View style={styles.header}>
       {/* Left button: X (close) or Back chevron */}
       {onBack ? (
         <GlassButton onPress={onBack}>
           <View style={{ marginLeft: -1 }}>
-            <Icon name="chevron_left_rounded" size={42} color={theme.colors.grey[900]} />
+            <Icon name="chevron_left_rounded" size={42} color={theme.colors.text.primary} />
           </View>
         </GlassButton>
       ) : (
         <GlassButton onPress={onClose}>
-          <RoundedXIcon size={38} color={theme.colors.grey[900]} />
+          <RoundedXIcon size={38} color={theme.colors.text.primary} />
         </GlassButton>
       )}
 
       {/* Center title */}
-      <View style={styles.titleContainer}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+      {title && (
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+      )}
+      {!title && <View style={{ flex: 1 }} />}
 
       {/* Right button: Done/Check or empty space */}
       {onDone ? (
         <GlassButton onPress={onDone} disabled={doneDisabled || doneLoading}>
           {doneLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.grey[900]} />
+            <ActivityIndicator size="small" color={theme.colors.text.primary} />
           ) : (
-            <Icon name="check" size={24} color={doneDisabled ? theme.colors.grey[400] : theme.colors.grey[900]} />
+            <Icon name="check" size={24} color={doneDisabled ? theme.colors.disabled.inactive : theme.colors.text.primary} />
           )}
         </GlassButton>
       ) : (
@@ -96,7 +126,7 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -104,9 +134,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: theme.colors.pageBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.grey[200],
+    backgroundColor: 'transparent', // Transparent to show background images behind
+    borderBottomWidth: 0, // Remove border when transparent
+    borderBottomColor: 'transparent',
   },
   glassButtonWrapper: {
     width: 44,
@@ -118,12 +148,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: theme.colors.background.card + 'F0', // ~95% opacity (only used in light mode)
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderColor: theme.colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -140,7 +170,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
 });
 

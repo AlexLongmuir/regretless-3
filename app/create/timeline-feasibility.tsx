@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet, TextInput, Platform, TouchableOpacity } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -7,9 +7,12 @@ import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { runTimelineFeasibility, upsertDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 
 export default function TimelineFeasibilityStep() {
+  const { theme, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { 
     title, 
@@ -468,7 +471,7 @@ export default function TimelineFeasibilityStep() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
           {/* Clock Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>⏰</Text>
@@ -507,7 +510,7 @@ export default function TimelineFeasibilityStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
       <CreateScreenHeader step="feasibility" />
       
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
@@ -515,7 +518,7 @@ export default function TimelineFeasibilityStep() {
         <Text style={{ 
           fontSize: 18, 
           fontWeight: 'bold', 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           marginBottom: 24,
           lineHeight: 24
         }}>
@@ -591,6 +594,7 @@ export default function TimelineFeasibilityStep() {
                     onChange={handleStartDateChange}
                     minimumDate={new Date()}
                     style={styles.datePickerCompact}
+                    themeVariant={isDark ? 'dark' : 'light'}
                   />
                 ) : (
                   <TouchableOpacity
@@ -608,6 +612,7 @@ export default function TimelineFeasibilityStep() {
                         display="default"
                         onChange={handleStartDateChange}
                         minimumDate={new Date()}
+                        themeVariant={isDark ? 'dark' : 'light'}
                       />
                     )}
                   </TouchableOpacity>
@@ -630,6 +635,7 @@ export default function TimelineFeasibilityStep() {
                     onChange={handleEndDateChange}
                     minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
                     style={styles.datePickerCompact}
+                    themeVariant={isDark ? 'dark' : 'light'}
                   />
                 ) : (
                   <TouchableOpacity
@@ -647,6 +653,7 @@ export default function TimelineFeasibilityStep() {
                         display="default"
                         onChange={handleEndDateChange}
                         minimumDate={currentStartDate ? new Date(currentStartDate) : new Date()}
+                        themeVariant={isDark ? 'dark' : 'light'}
                       />
                     )}
                   </TouchableOpacity>
@@ -670,18 +677,18 @@ export default function TimelineFeasibilityStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',
     borderRadius: theme.radius.xl,
   },
   cardContainer: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -702,13 +709,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 0.5,
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.border.default,
     marginLeft: 16,
   },
   rowLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     flex: 0,
     minWidth: 100,
   },
@@ -720,7 +727,7 @@ const styles = StyleSheet.create({
     width: 120,
   },
   dateInputContainer: {
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.background.input,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -731,12 +738,12 @@ const styles = StyleSheet.create({
   dateInputText: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   daysInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.background.input,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -745,14 +752,14 @@ const styles = StyleSheet.create({
   daysInput: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     minWidth: 40,
     textAlign: 'right',
     padding: 0,
   },
   daysSuffix: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginLeft: 4,
   },
 })

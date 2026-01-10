@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, Image, ScrollView, StyleSheet } from 'react-native'
+import React, { useEffect, useState, useMemo } from 'react'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native'
+import { Image } from 'expo-image'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 import { Button } from '../components/Button'
-import { theme } from '../utils/theme'
-import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation'
+import { IconButton } from '../components/IconButton'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 import { useData } from '../contexts/DataContext'
 import { supabaseClient } from '../lib/supabaseClient'
 import type { Artifact } from '../frontend-services/backend-bridge'
@@ -12,9 +16,12 @@ import type { Artifact } from '../frontend-services/backend-bridge'
 export default function ArtifactSubmittedPage() {
   const navigation = useNavigation<any>()
   const route = useRoute()
+  const { theme, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const { checkDreamCompletion } = useData()
   const [isDreamComplete, setIsDreamComplete] = useState(false)
   const [dreamId, setDreamId] = useState<string | null>(null)
+  const [artifacts, setArtifacts] = useState<Artifact[]>([])
   
   const params = route.params as {
     occurrenceId?: string
@@ -27,6 +34,15 @@ export default function ArtifactSubmittedPage() {
     aiRating?: number
     aiFeedback?: string
   }
+
+  // Initialize artifacts from params
+  useEffect(() => {
+    if (params.artifacts) {
+      setArtifacts(params.artifacts)
+    }
+  }, [params.artifacts])
+
+  // Remove photo upload handlers - no longer needed
 
   // Check if dream is complete when component mounts
   useEffect(() => {
@@ -87,15 +103,6 @@ export default function ArtifactSubmittedPage() {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
   }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return theme.colors.difficulty.easy
-      case 'medium': return theme.colors.difficulty.medium
-      case 'hard': return theme.colors.difficulty.hard
-      default: return theme.colors.difficulty.easy
-    }
-  }
-
   const DifficultyBars = ({ difficulty }: { difficulty: string }) => {
     const getBarCount = (diff: string) => {
       switch (diff) {
@@ -137,7 +144,23 @@ export default function ArtifactSubmittedPage() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <IconButton
+            icon="close"
+            onPress={() => navigation.goBack()}
+            variant="secondary"
+            size="md"
+          />
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Action Complete</Text>
+          </View>
+          <View style={{ width: 44 }} />
+        </View>
+
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Success Icon */}
         <View style={styles.successIcon}>
           <Text style={styles.checkmark}>✓</Text>
@@ -156,7 +179,7 @@ export default function ArtifactSubmittedPage() {
             {/* Details Row */}
             <View style={styles.detailRow}>
               <View style={styles.detailItem}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.grey[600]} />
+                <Ionicons name="time-outline" size={16} color={theme.colors.icon.default} />
                 <Text style={styles.detailValue}>1 hr</Text>
               </View>
               <View style={styles.detailItem}>
@@ -164,7 +187,7 @@ export default function ArtifactSubmittedPage() {
                 <Text style={styles.detailValue}>Medium</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="refresh-outline" size={16} color={theme.colors.grey[600]} />
+                <Ionicons name="refresh-outline" size={16} color={theme.colors.icon.default} />
                 <Text style={styles.detailValue}>3 days</Text>
               </View>
             </View>
@@ -172,7 +195,7 @@ export default function ArtifactSubmittedPage() {
         </View>
 
         {/* Submitted Content */}
-        {(params.artifacts && params.artifacts.length > 0) || params.note ? (
+        {((artifacts.length > 0) || params.note) && (
           <View style={styles.submittedContent}>
             <Text style={styles.sectionTitle}>What You Submitted</Text>
             
@@ -183,48 +206,69 @@ export default function ArtifactSubmittedPage() {
               </View>
             )}
 
-            {params.artifacts && params.artifacts.length > 0 && (
+            {artifacts.length > 0 && (
               <View style={styles.photosSection}>
-                <Text style={styles.photosLabel}>Photos ({params.artifacts.length}):</Text>
+                <Text style={styles.photosLabel}>Photos ({artifacts.length}):</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
-                  {params.artifacts.map((artifact) => (
+                  {artifacts.map((artifact) => (
                     <Image
                       key={artifact.id}
                       source={{ uri: artifact.signed_url }}
                       style={styles.submittedPhoto}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      transition={200}
                     />
                   ))}
                 </ScrollView>
               </View>
             )}
           </View>
-        ) : null}
-      </ScrollView>
-      
-      {/* Sticky bottom button */}
-      <View style={styles.bottomButton}>
-        <Button 
-          title="Done" 
-          variant="black"
-          onPress={handleDone}
-          style={{ borderRadius: theme.radius.xl }}
-        />
-      </View>
+        )}
+        </ScrollView>
+        
+        {/* Bottom button */}
+        <View style={styles.bottomButton}>
+          <Button 
+            title="Done" 
+            variant="black"
+            onPress={handleDone}
+            style={{ borderRadius: theme.radius.xl }}
+          />
+        </View>
+      </SafeAreaView>
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for bottom button
+    paddingBottom: 32,
   },
   successIcon: {
     width: 200,
@@ -252,27 +296,27 @@ const styles = StyleSheet.create({
   },
   dreamTitle: {
     fontSize: 12,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: 4,
   },
   areaTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: 8,
   },
   actionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: 0,
   },
   detailLabel: {
     fontSize: 14,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     fontWeight: '500',
     marginTop: 8,
     marginBottom: 8,
@@ -291,12 +335,12 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 16,
   },
   submittedContent: {
@@ -309,12 +353,12 @@ const styles = StyleSheet.create({
   noteLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   noteText: {
     fontSize: 16,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     lineHeight: 22,
   },
   photosSection: {
@@ -323,7 +367,7 @@ const styles = StyleSheet.create({
   photosLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   photosScroll: {
@@ -336,12 +380,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   bottomButton: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: 16,
-    paddingBottom: BOTTOM_NAV_PADDING,
-    backgroundColor: theme.colors.pageBackground,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
 })

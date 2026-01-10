@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
@@ -7,7 +7,8 @@ import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
 import { runGoalFeasibility, upsertDream, TitleSuggestion } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 
 interface GoalSuggestion extends TitleSuggestion {
   id: string
@@ -22,6 +23,8 @@ interface LastAnalysisInputs {
 }
 
 export default function GoalFeasibilityStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { 
     title, 
@@ -273,7 +276,7 @@ export default function GoalFeasibilityStep() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
           {/* Rocket Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
@@ -282,7 +285,7 @@ export default function GoalFeasibilityStep() {
           <Text style={{ 
             fontSize: 18, 
             fontWeight: 'bold', 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             lineHeight: 24
           }}>
@@ -292,7 +295,7 @@ export default function GoalFeasibilityStep() {
           {/* Description */}
           <Text style={{ 
             fontSize: 16, 
-            color: '#000', 
+            color: theme.colors.text.primary, 
             textAlign: 'center',
             paddingHorizontal: 32,
             lineHeight: 22
@@ -303,7 +306,7 @@ export default function GoalFeasibilityStep() {
           {/* Loading indicator */}
           <ActivityIndicator 
             size="large" 
-            color="#000" 
+            color={theme.colors.primary[600]} 
             style={{ marginTop: 32 }} 
           />
         </View>
@@ -313,7 +316,7 @@ export default function GoalFeasibilityStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}
+      style={{ flex: 1, backgroundColor: theme.colors.background.page }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
@@ -390,7 +393,7 @@ export default function GoalFeasibilityStep() {
                   key={goal.id}
                   onPress={() => handleGoalSelect(goal.id)}
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: theme.colors.background.card,
                     height: 44,
                     paddingHorizontal: 16,
                     borderRadius: 12,
@@ -400,7 +403,7 @@ export default function GoalFeasibilityStep() {
                   }}
                 >
                   <Text style={{ fontSize: 16 }}>{goal.emoji}</Text>
-                  <Text style={{ fontSize: 14, color: '#000', flex: 1 }}>{goal.title}</Text>
+                  <Text style={{ fontSize: 14, color: theme.colors.text.primary, flex: 1 }}>{goal.title}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -421,11 +424,11 @@ export default function GoalFeasibilityStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

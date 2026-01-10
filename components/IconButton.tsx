@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { Icon } from './Icon';
 
 interface IconButtonProps {
@@ -27,30 +28,74 @@ export const IconButton: React.FC<IconButtonProps> = ({
   iconSize: customIconSize,
   iconWrapperStyle,
 }) => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const iconSize = customIconSize || (size === 'sm' ? 18 : size === 'lg' ? 28 : 24);
   const buttonSize = size === 'sm' ? 32 : size === 'lg' ? 44 : 40;
   const borderRadius = buttonSize / 2;
   
   const iconColor = customIconColor || (variant === 'ghost' 
-    ? theme.colors.grey[700] 
+    ? theme.colors.icon.default 
     : variant === 'secondary'
-    ? theme.colors.grey[800]
+    ? theme.colors.text.secondary
     : variant === 'primary'
-    ? theme.colors.grey[900]
-    : theme.colors.grey[900]);
+    ? theme.colors.text.primary
+    : theme.colors.text.primary);
 
   const iconElement = (
     <Icon 
       name={icon} 
       size={iconSize} 
-      color={disabled ? theme.colors.grey[400] : iconColor}
+      color={disabled ? theme.colors.disabled.inactive : iconColor}
     />
   );
 
+  // Use dynamic tint based on theme - dark for dark mode, light for light mode
+  const blurTint = isDark ? 'dark' : 'light';
+  
+  // Adjust activeOpacity for better contrast in dark mode
+  // In dark mode, use lower opacity so the icon stays more visible
+  const activeOpacity = isDark ? 0.7 : 0.8;
+
+  // In dark mode, completely remove BlurView and use solid View to eliminate fuzzy edges
+  if (isDark) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={activeOpacity}
+        style={[
+          styles.glassButtonWrapper,
+          { width: buttonSize, height: buttonSize, borderRadius },
+          style,
+        ]}
+      >
+        <View
+          style={[
+            styles.glassButton,
+            { width: buttonSize, height: buttonSize, borderRadius },
+            disabled && styles.disabled,
+            { backgroundColor: theme.colors.background.card },
+          ]}
+        >
+          {iconWrapperStyle ? (
+            <View style={iconWrapperStyle}>
+              {iconElement}
+            </View>
+          ) : (
+            iconElement
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // In light mode, use BlurView for glass effect
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
+      activeOpacity={activeOpacity}
       style={[
         styles.glassButtonWrapper,
         { width: buttonSize, height: buttonSize, borderRadius },
@@ -59,7 +104,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     >
       <BlurView 
         intensity={100} 
-        tint="light" 
+        tint={blurTint}
         style={[
           styles.glassButton,
           { width: buttonSize, height: buttonSize, borderRadius },
@@ -78,17 +123,17 @@ export const IconButton: React.FC<IconButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   glassButtonWrapper: {
     overflow: 'hidden',
   },
   glassButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: theme.colors.background.card + 'F0', // ~95% opacity (only used in light mode)
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    shadowColor: '#000',
+    borderColor: theme.colors.border.default,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,

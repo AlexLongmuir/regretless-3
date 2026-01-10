@@ -1,11 +1,19 @@
-import React from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { View, Text, ScrollView, StyleSheet, Image } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Button } from '../components/Button'
-import { theme } from '../utils/theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation'
+import { AchievementUnlockedSheet } from '../components/AchievementUnlockedSheet'
+import { AchievementsSheet } from '../components/AchievementsSheet'
+import { checkNewAchievements, getAchievements } from '../frontend-services/backend-bridge'
+import { supabaseClient } from '../lib/supabaseClient'
+import type { AchievementUnlockResult, Achievement, UserAchievement } from '../backend/database/types'
 
 export default function DreamCompletedPage() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<any>()
   const route = useRoute()
   const params = route.params as {
@@ -15,6 +23,39 @@ export default function DreamCompletedPage() {
     totalActions?: number
     totalAreas?: number
   }
+  
+  // Achievements state
+  const [newAchievements, setNewAchievements] = useState<AchievementUnlockResult[]>([]);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
+  const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
+
+  // Check for new achievements when dream is completed
+  // TRIGGER: This modal is triggered when a user completes a dream (via DreamCompletedPage).
+  // The modal appears above all other UI (as a Modal component with transparent overlay).
+  // Achievements are checked automatically whenever checkNewAchievements() is called,
+  // which can happen:
+  // - When a dream is completed (this page)
+  // - When explicitly called from other parts of the app (e.g., AccountPage for testing)
+  // - The modal will appear whenever new achievements are found, regardless of where checkNewAchievements() is called
+  useEffect(() => {
+    const checkAchievements = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session?.access_token) return;
+        
+        const achievementsResponse = await checkNewAchievements(session.access_token);
+        if (achievementsResponse.success && achievementsResponse.data.new_achievements.length > 0) {
+          setNewAchievements(achievementsResponse.data.new_achievements);
+          setShowAchievementModal(true);
+        }
+      } catch (error) {
+        console.error('Error checking achievements:', error);
+      }
+    };
+    
+    checkAchievements();
+  }, []);
 
   const handleDone = () => {
     // Navigate back to dreams list
@@ -100,14 +141,46 @@ export default function DreamCompletedPage() {
           style={{ borderRadius: theme.radius.xl }}
         />
       </View>
+
+      <AchievementUnlockedSheet
+        visible={showAchievementModal}
+        achievements={newAchievements}
+        onClose={() => {
+          setShowAchievementModal(false);
+          setNewAchievements([]);
+        }}
+        onViewAchievements={async () => {
+          setShowAchievementModal(false);
+          setNewAchievements([]);
+          // Load achievements and open achievements sheet
+          try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.access_token) {
+              const response = await getAchievements(session.access_token);
+              if (response.success) {
+                setAchievements(response.data.achievements);
+                setShowAchievementsSheet(true);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading achievements:', error);
+          }
+        }}
+      />
+
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+        achievements={achievements}
+      />
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   scrollView: {
     flex: 1,
@@ -137,20 +210,20 @@ const styles = StyleSheet.create({
   },
   dreamTitle: {
     fontSize: 12,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: 4,
   },
   completionTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: 8,
   },
   completionDate: {
     fontSize: 14,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     fontWeight: '500',
     marginBottom: 24,
   },
@@ -165,11 +238,11 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   statLabel: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginTop: 4,
   },
   messageSection: {
@@ -179,13 +252,13 @@ const styles = StyleSheet.create({
   messageTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
   messageText: {
     fontSize: 16,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     lineHeight: 22,
     textAlign: 'center',
     marginBottom: 12,
@@ -197,7 +270,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -220,7 +293,7 @@ const styles = StyleSheet.create({
   },
   nextStepText: {
     fontSize: 16,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     flex: 1,
   },
   bottomButton: {
@@ -230,6 +303,6 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     paddingBottom: BOTTOM_NAV_PADDING,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
 })

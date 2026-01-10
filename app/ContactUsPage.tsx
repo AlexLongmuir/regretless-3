@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { ListRow } from '../components/ListRow';
 import { IconButton } from '../components/IconButton';
 
 const ContactUsPage = ({ navigation }: { navigation?: any }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const handleEmailPress = () => {
     const email = 'alexlongmuir@icloud.com';
     const subject = 'Support Request';
@@ -57,10 +61,10 @@ const ContactUsPage = ({ navigation }: { navigation?: any }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     paddingHorizontal: theme.spacing.lg,
@@ -75,7 +79,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   backButton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
   },
   title: {
@@ -83,7 +87,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.largeTitle,
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.largeTitle,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
     textAlign: 'left',
   },
@@ -92,7 +96,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   listContainer: {
     width: '100%',

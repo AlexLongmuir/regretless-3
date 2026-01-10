@@ -6,11 +6,13 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { Button } from '../components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntitlementsContext } from '../contexts/EntitlementsContext';
@@ -35,6 +37,8 @@ try {
 }
 
 const SubscriptionLockoutPage: React.FC = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const { hasProAccess, restorePurchases, refreshCustomerInfo } = useEntitlementsContext();
   const { user, signOut } = useAuthContext();
@@ -383,7 +387,7 @@ const SubscriptionLockoutPage: React.FC = () => {
     try {
       await WebBrowser.openBrowserAsync('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
-        controlsColor: theme.colors.grey[900],
+        controlsColor: theme.colors.text.primary,
         enableBarCollapsing: false,
         showTitle: true,
       });
@@ -396,7 +400,7 @@ const SubscriptionLockoutPage: React.FC = () => {
     try {
       await WebBrowser.openBrowserAsync('https://www.notion.so/dreamerapp/Dreamer-Support-2c54af3195c3801dafd7dd198a42d7d5', {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
-        controlsColor: theme.colors.grey[900],
+        controlsColor: theme.colors.text.primary,
         enableBarCollapsing: false,
         showTitle: true,
       });
@@ -499,7 +503,7 @@ const SubscriptionLockoutPage: React.FC = () => {
     return plans;
   }, [offering, selectedPlan]);
 
-  const timelineItems = [
+  const timelineItems = useMemo(() => [
     {
       id: 'features',
       title: 'Unlock Features',
@@ -524,10 +528,21 @@ const SubscriptionLockoutPage: React.FC = () => {
       color: theme.colors.primary[500],
       isActive: true,
     },
-  ];
+  ], [theme]);
 
   // Sign Out button for header (left side) - matching restore button style
-  const signOutButton = (
+  const signOutButton = isDark ? (
+    <TouchableOpacity
+      onPress={handleSignOut}
+      style={styles.restoreButtonWrapper}
+    >
+      <View 
+        style={[styles.restoreButton, { backgroundColor: theme.colors.background.card }]}
+      >
+        <Text style={styles.restoreText}>Sign Out</Text>
+      </View>
+    </TouchableOpacity>
+  ) : (
     <TouchableOpacity
       onPress={handleSignOut}
       style={styles.restoreButtonWrapper}
@@ -543,7 +558,18 @@ const SubscriptionLockoutPage: React.FC = () => {
   );
 
   // Restore button for header (right side) - matching trial-continuation style
-  const restoreButton = (
+  const restoreButton = isDark ? (
+    <TouchableOpacity
+      onPress={handleRestore}
+      style={styles.restoreButtonWrapper}
+    >
+      <View 
+        style={[styles.restoreButton, { backgroundColor: theme.colors.background.card }]}
+      >
+        <Text style={styles.restoreText}>Restore</Text>
+      </View>
+    </TouchableOpacity>
+  ) : (
     <TouchableOpacity
       onPress={handleRestore}
       style={styles.restoreButtonWrapper}
@@ -558,13 +584,20 @@ const SubscriptionLockoutPage: React.FC = () => {
     </TouchableOpacity>
   );
 
-  // Show loading indicator during the initial debounce period
+  // Show splash screen during the initial debounce period
   // This prevents the lockout screen from flashing for users who have a subscription
   // but whose status is being synced
   if (isCheckingStatus) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="small" color={theme.colors.primary[600]} />
+      <View style={styles.splashContainer}>
+        <View style={styles.splashTitleContainer}>
+          <Image 
+            source={require('../assets/star.png')} 
+            style={styles.splashIcon}
+            contentFit="contain"
+          />
+          <Text style={styles.splashText}>Dreamer</Text>
+        </View>
       </View>
     );
   }
@@ -712,10 +745,10 @@ const SubscriptionLockoutPage: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   header: {
     height: 52,
@@ -742,7 +775,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: 34,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.md,
@@ -752,7 +785,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: theme.spacing.xl,
   },
@@ -797,14 +830,14 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
   timelineDescription: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 18,
   },
   pricingContainer: {
@@ -814,15 +847,15 @@ const styles = StyleSheet.create({
   },
   pricingOption: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
     padding: theme.spacing.md,
     position: 'relative',
   },
   selectedPricingOption: {
-    borderColor: theme.colors.grey[900],
+    borderColor: theme.colors.text.primary,
     borderWidth: 2,
   },
   pricingContent: {
@@ -840,17 +873,17 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginRight: theme.spacing.sm,
   },
   selectedPricingTitle: {
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   badge: {
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: theme.colors.grey[900],
+    backgroundColor: theme.colors.text.primary,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     borderRadius: 12,
@@ -860,27 +893,27 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: '#fff',
+    color: theme.colors.text.inverse,
   },
   pricingPrice: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     marginRight: theme.spacing.md,
   },
   selectedPricingPrice: {
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   pricingPriceSubtitle: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     marginTop: theme.spacing.xs,
   },
   selectedPricingPriceSubtitle: {
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   offerSection: {
     alignItems: 'center',
@@ -901,10 +934,10 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: theme.colors.background.card + 'F0', // ~95% opacity
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    shadowColor: '#000',
+    borderColor: theme.colors.border.default,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -918,30 +951,46 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
   },
   pricingText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
   },
   legalText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.caption2,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginTop: theme.spacing.sm,
   },
   linkText: {
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textDecorationLine: 'underline',
   },
-  loadingContainer: {
+  splashContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  splashTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  splashIcon: {
+    width: 40,
+    height: 40,
+    marginRight: theme.spacing.sm,
+  },
+  splashText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
   },
 });
 

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { Icon } from './Icon';
+import { Theme } from '../utils/theme';
 
 interface ListRowProps {
   title: string;
@@ -35,6 +36,9 @@ export const ListRow: React.FC<ListRowProps> = ({
   isFirst = false,
   isLast = false,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -48,7 +52,7 @@ export const ListRow: React.FC<ListRowProps> = ({
           value={toggleValue}
           onValueChange={onToggleChange}
           trackColor={{ false: theme.colors.grey[300], true: theme.colors.success[500] }}
-          thumbColor={toggleValue ? theme.colors.surface[50] : theme.colors.surface[50]}
+          thumbColor={theme.colors.surface[50]}
         />
       );
     }
@@ -128,15 +132,15 @@ export const ListRow: React.FC<ListRowProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: 'transparent',
     borderBottomWidth: 0.5,
-    borderBottomColor: theme.colors.primary[100],
+    borderBottomColor: theme.colors.border.default, // Use semantic border color
     minHeight: 44,
   },
   smallContainer: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.surface[50], // Use semantic surface color
     borderRadius: 12,
     marginBottom: theme.spacing.sm,
     minHeight: 36,
@@ -176,13 +180,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary, // Use semantic text color
   },
   smallTitle: {
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   destructiveTitle: {
     color: theme.colors.error[500],
@@ -195,7 +199,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: 16,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary, // Use semantic text color
     marginBottom: 2,
     fontStyle: 'italic',
   },
@@ -204,7 +208,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.caption1,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary, // Use semantic text color
     marginTop: 2,
   },
   rightContainer: {
@@ -215,7 +219,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.tertiary, // Use semantic text color
     marginBottom: 4,
   },
 });

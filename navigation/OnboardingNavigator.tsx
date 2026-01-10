@@ -14,11 +14,13 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { startSessionReplay, stopSessionReplay, isMixpanelConfigured } from '../lib/mixpanel';
 import { useAuthContext } from '../contexts/AuthContext';
 import { onboardingImages, preloadOnboardingImages } from '../utils/preloadOnboardingImages';
+import { LightThemeProvider } from '../contexts/LightThemeProvider';
 
 // Import onboarding flow screens
 import IntroStep from '../app/onboarding/intro';
@@ -112,7 +114,7 @@ const OnboardingNavigator = () => {
   }, [user?.id]);
 
   return (
-    <>
+    <LightThemeProvider>
       <OnboardingStack.Navigator 
         screenOptions={{ 
           headerShown: false,
@@ -327,11 +329,11 @@ const OnboardingNavigator = () => {
       {/* Force load critical first few images by rendering them invisibly */}
       {/* This is more reliable than Image.prefetch() for local assets */}
       <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        <Image source={onboardingImages.individualityImage} fadeDuration={0} />
-        <Image source={onboardingImages.cityImage} fadeDuration={0} />
-        <Image source={onboardingImages.silhouetteImage} fadeDuration={0} />
+        <Image source={onboardingImages.individualityImage} transition={0} />
+        <Image source={onboardingImages.cityImage} transition={0} />
+        <Image source={onboardingImages.silhouetteImage} transition={0} />
       </View>
-    </>
+    </LightThemeProvider>
   );
 };
 

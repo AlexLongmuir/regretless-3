@@ -45,11 +45,21 @@ export async function GET(request: NextRequest) {
     let expiredCount = 0;
     const expiredUsers = [];
 
+    // #region agent log
+    const fs = require('fs');
+    const logPath = '/Users/alex/regretless-3/.cursor/debug.log';
+    fs.appendFileSync(logPath, JSON.stringify({location:'check-expired-trials/route.ts:45',message:'Starting trial check - checking for push notification sending code',data:{trialCount:trialSubscriptions.length,hasExpoPushToken:typeof process.env.EXPO_ACCESS_TOKEN !== 'undefined',hasExpoPushTokenValue:!!process.env.EXPO_ACCESS_TOKEN},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C,D'}) + '\n');
+    // #endregion
+
     for (const subscription of trialSubscriptions) {
       const trialStatus = getTrialStatus(subscription);
       
       if (trialStatus.has_expired) {
         console.log(`⏰ Trial expired for user ${subscription.user_id}`);
+        
+        // #region agent log
+        fs.appendFileSync(logPath, JSON.stringify({location:'check-expired-trials/route.ts:52',message:'Trial expired - checking if push notification is sent',data:{userId:subscription.user_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'}) + '\n');
+        // #endregion
         
         // Update subscription to inactive
         const { error: updateError } = await supabase
@@ -71,6 +81,10 @@ export async function GET(request: NextRequest) {
           });
           
           console.log(`✅ Marked trial as expired for user ${subscription.user_id}`);
+          
+          // #region agent log
+          fs.appendFileSync(logPath, JSON.stringify({location:'check-expired-trials/route.ts:75',message:'After marking trial expired - no push notification sending code found',data:{userId:subscription.user_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'}) + '\n');
+          // #endregion
         }
       }
     }

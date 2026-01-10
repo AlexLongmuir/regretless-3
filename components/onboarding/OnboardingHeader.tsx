@@ -5,10 +5,11 @@
  * Automatically calculates progress based on current screen in the onboarding flow
  */
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
 import { IconButton } from '../IconButton';
 
 // Define the complete onboarding flow order
@@ -58,6 +59,8 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
   showBackButton = true,
   rightElement,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const route = useRoute();
   
   // Calculate progress automatically if not provided
@@ -112,7 +115,7 @@ export const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     height: 52,
     paddingHorizontal: theme.spacing.lg, // Match main content padding
@@ -134,7 +137,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: theme.colors.grey[400], // Darker incomplete grey
+    backgroundColor: theme.colors.disabled.inactive, // Darker incomplete grey
     borderRadius: 2,
     overflow: 'hidden',
   },

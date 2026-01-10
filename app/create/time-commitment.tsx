@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { View, Text, ScrollView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function TimeCommitmentStep() {
+  const { theme, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { 
     timeCommitment, 
@@ -82,16 +85,10 @@ export default function TimeCommitmentStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={styles.container}>
       <CreateScreenHeader step="time-commitment" />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
-        <Text style={{ 
-          fontSize: 18, 
-          fontWeight: 'bold', 
-          color: '#000', 
-          marginBottom: 32,
-          lineHeight: 24
-        }}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+        <Text style={styles.title}>
           On average, how much time are you willing to spend a day working towards this dream?
         </Text>
 
@@ -111,6 +108,7 @@ export default function TimeCommitmentStep() {
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={handleTimePickerChange}
               style={styles.timePicker}
+              themeVariant={isDark ? 'dark' : 'light'}
               minimumDate={(() => {
                 const minDate = new Date()
                 minDate.setHours(0, 10, 0, 0) // Minimum 10 minutes
@@ -145,7 +143,25 @@ export default function TimeCommitmentStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: theme.spacing['4xl'],
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 32,
+    lineHeight: 24,
+  },
   timeDisplay: {
     alignItems: 'center',
     marginBottom: 24,
@@ -153,7 +169,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
   },
   timePickerContainer: {
     alignItems: 'center',
@@ -165,7 +181,7 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
@@ -173,7 +189,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

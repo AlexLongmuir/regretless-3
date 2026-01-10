@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import type { Dream } from '../backend/database/types';
 
 interface DreamCardProps {
@@ -14,6 +15,9 @@ export const DreamCard: React.FC<DreamCardProps> = ({
   onPress,
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -63,13 +67,13 @@ export const DreamCard: React.FC<DreamCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   cardContainer: {
     marginBottom: theme.spacing.md,
     borderRadius: theme.radius.xl,
     overflow: 'hidden',
     elevation: 4,
-    shadowColor: theme.colors.grey[900],
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -78,7 +82,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   card: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.xl,
   },
   content: {
@@ -87,13 +91,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
     lineHeight: 28,
   },
   description: {
     fontSize: theme.typography.fontSize.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
     lineHeight: 20,
   },
@@ -108,7 +112,7 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.xs,
@@ -116,6 +120,6 @@ const styles = StyleSheet.create({
   dateValue: {
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.secondary,
   },
 });

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface AITipProps {
   tip: string;
@@ -10,7 +11,7 @@ interface AITipProps {
 }
 
 // Helper function to generate SVG with theme colors
-const getArisSvg = () => {
+const getArisSvg = (theme: Theme) => {
   const primaryLight = theme.colors.primary[100]; // #D1E9F1
   const primaryDark = theme.colors.primary[800]; // #091A2B
   const primaryMain = theme.colors.primary[600]; // #0F2A3F
@@ -45,6 +46,9 @@ const getArisSvg = () => {
 };
 
 export const AITip: React.FC<AITipProps> = ({ tip, style, variant = 'light' }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const containerStyle = [
     styles.container,
     variant === 'dark' && styles.darkContainer,
@@ -64,7 +68,7 @@ export const AITip: React.FC<AITipProps> = ({ tip, style, variant = 'light' }) =
   return (
     <View style={containerStyle}>
       <View style={styles.iconContainer}>
-        <SvgXml xml={getArisSvg()} width={48} height={48} />
+        <SvgXml xml={getArisSvg(theme)} width={48} height={48} />
       </View>
       <View style={styles.textContainer}>
         <Text style={titleStyle}>Great progress!</Text>
@@ -74,10 +78,10 @@ export const AITip: React.FC<AITipProps> = ({ tip, style, variant = 'light' }) =
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     alignItems: 'center',
@@ -96,19 +100,20 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
     marginBottom: 2,
   },
   darkTitle: {
-    color: theme.colors.surface[50],
+    color: theme.colors.text.inverse,
   },
   description: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
     lineHeight: theme.typography.lineHeight.callout,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   darkDescription: {
-    color: theme.colors.surface[200],
+    color: theme.colors.text.inverse,
+    opacity: 0.9,
   },
 });

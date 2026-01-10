@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TouchableOpacity, Alert, Modal, TextInput, ScrollView, Image, Platform, Keyboard } from 'react-native'
+import { View, Text, TouchableOpacity, Alert, Modal, TextInput, ScrollView, Platform, Keyboard } from 'react-native'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Button } from './Button'
@@ -7,6 +8,7 @@ import { Input } from './Input'
 import { useData } from '../contexts/DataContext'
 import { theme } from '../utils/theme'
 import { SheetHeader } from './SheetHeader'
+import { triggerHaptic } from '../utils/haptics'
 
 interface ActionCard {
   id: string
@@ -121,7 +123,11 @@ export function ActionChip({
 
 
   const isEmoji = (str: string) => {
-    return !str.startsWith('http') && /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(str)
+    if (str.startsWith('http')) return false;
+    // Check if it's a single character that's not ASCII
+    if (str.length > 2) return false;
+    // Simple check: if it contains characters outside ASCII range, likely an emoji
+    return /[^\x00-\x7F]/.test(str) && str.length <= 2;
   }
 
   const DifficultyBars = ({ difficulty }: { difficulty: string }) => {
@@ -164,9 +170,16 @@ export function ActionChip({
   }
 
 
+  const handleMainPress = () => {
+    if (onPress) {
+      triggerHaptic();
+      onPress(action.id);
+    }
+  };
+
   return (
     <TouchableOpacity
-      onPress={() => onPress?.(action.id)}
+      onPress={handleMainPress}
       activeOpacity={onPress ? 0.7 : 1}
       style={[
         {
@@ -184,7 +197,10 @@ export function ActionChip({
       {/* Remove Button */}
       {showRemoveButton && onRemove && !action.hideEditButtons && (
         <TouchableOpacity
-          onPress={handleDelete}
+          onPress={() => {
+            triggerHaptic();
+            handleDelete();
+          }}
           style={{
             position: 'absolute',
             top: 8,
@@ -215,7 +231,10 @@ export function ActionChip({
         }}>
           {!isFirst && onMoveUp && (
             <TouchableOpacity
-              onPress={() => onMoveUp(action.id)}
+              onPress={() => {
+                triggerHaptic();
+                onMoveUp(action.id);
+              }}
               style={{
                 width: 24,
                 height: 24,
@@ -231,7 +250,10 @@ export function ActionChip({
           )}
           {!isLast && onMoveDown && (
             <TouchableOpacity
-              onPress={() => onMoveDown(action.id)}
+              onPress={() => {
+                triggerHaptic();
+                onMoveDown(action.id);
+              }}
               style={{
                 width: 24,
                 height: 24,
@@ -251,7 +273,10 @@ export function ActionChip({
       {/* Edit Button */}
       {showEditButton && onEdit && !action.hideEditButtons && (
         <TouchableOpacity
-          onPress={handleEdit}
+          onPress={() => {
+            triggerHaptic();
+            handleEdit();
+          }}
           style={{
             position: 'absolute',
             bottom: 8,
@@ -297,7 +322,8 @@ export function ActionChip({
                   height: '100%',
                   borderRadius: 8
                 }}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
               />
             )
           ) : (
@@ -418,9 +444,14 @@ export function ActionChip({
 }
 
 export function AddActionChip({ onPress, style }: AddActionChipProps) {
+  const handlePress = () => {
+    triggerHaptic();
+    onPress();
+  };
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       style={[
         {
           marginBottom: 16,
@@ -568,7 +599,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               {(['easy', 'medium', 'hard'] as const).map((diff) => (
                 <TouchableOpacity
                   key={diff}
-                  onPress={() => setFormData(prev => ({ ...prev, difficulty: diff }))}
+                  onPress={() => {
+                    triggerHaptic();
+                    setFormData(prev => ({ ...prev, difficulty: diff }));
+                  }}
                   style={{
                     flex: 1,
                     padding: 12,
@@ -601,7 +635,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
               ].map((option) => (
                 <TouchableOpacity
                   key={option.label}
-                  onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
+                  onPress={() => {
+                    triggerHaptic();
+                    setFormData(prev => ({ ...prev, repeat_every_days: option.value }));
+                  }}
                   style={{
                     flex: 1,
                     padding: 12,
@@ -650,7 +687,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
-              <TouchableOpacity onPress={addCriterion}>
+              <TouchableOpacity onPress={() => {
+                triggerHaptic();
+                addCriterion();
+              }}>
                 <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
@@ -681,7 +721,10 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
                     Step {index + 1}
                   </Text>
-                  <TouchableOpacity onPress={() => removeCriterion(index)}>
+                  <TouchableOpacity onPress={() => {
+                    triggerHaptic();
+                    removeCriterion(index);
+                  }}>
                     <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
                   </TouchableOpacity>
                 </View>
@@ -894,7 +937,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                 {(['inbox','choose'] as const).map((opt) => (
                   <TouchableOpacity
                     key={opt}
-                    onPress={() => setLinkMode(opt)}
+                    onPress={() => {
+                      triggerHaptic();
+                      setLinkMode(opt);
+                    }}
                     style={{ flex: 1, padding: 12, backgroundColor: linkMode === opt ? theme.colors.border.selected : theme.colors.background.card, borderRadius: 8, alignItems: 'center' }}
                   >
                     <Text style={{ color: linkMode === opt ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600' }}>
@@ -912,6 +958,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                       <TouchableOpacity
                         key={d.id}
                         onPress={async () => {
+                          triggerHaptic();
                           setSelectedDreamId(d.id)
                           setSelectedAreaId(null)
                           if (!state.dreamDetail[d.id]) {
@@ -940,7 +987,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                         {areasForSelectedDream.map(a => (
                           <TouchableOpacity
                             key={a.id}
-                            onPress={() => setSelectedAreaId(a.id)}
+                            onPress={() => {
+                              triggerHaptic();
+                              setSelectedAreaId(a.id);
+                            }}
                             style={{
                               paddingVertical: 10,
                               paddingHorizontal: 12,
@@ -1003,6 +1053,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
             <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Due Date</Text>
             <TouchableOpacity
               onPress={() => {
+                triggerHaptic();
                 Keyboard.dismiss();
                 setShowDatePicker(true);
               }}
@@ -1037,7 +1088,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                 {Platform.OS === 'ios' && (
                   <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
                     <TouchableOpacity
-                      onPress={() => setShowDatePicker(false)}
+                      onPress={() => {
+                        triggerHaptic();
+                        setShowDatePicker(false);
+                      }}
                       style={{
                         backgroundColor: '#000',
                         paddingHorizontal: 20,
@@ -1057,7 +1111,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
-              <TouchableOpacity onPress={addCriterion}>
+              <TouchableOpacity onPress={() => {
+                triggerHaptic();
+                addCriterion();
+              }}>
                 <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
@@ -1089,7 +1146,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
                     Step {index + 1}
                   </Text>
-                  <TouchableOpacity onPress={() => removeCriterion(index)}>
+                  <TouchableOpacity onPress={() => {
+                    triggerHaptic();
+                    removeCriterion(index);
+                  }}>
                     <Ionicons name="close-circle" size={20} color={theme.colors.icon.error} />
                   </TouchableOpacity>
                 </View>
@@ -1165,6 +1225,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                 <TouchableOpacity
                   key={option.value}
                   onPress={() => {
+                    triggerHaptic();
                     setActionType(option.value);
                     if (option.value === 'one-off') {
                       setFormData(prev => ({ ...prev, repeat_every_days: undefined, slice_count_target: undefined }));
@@ -1202,10 +1263,13 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                 ].map((option) => (
                   <TouchableOpacity
                     key={option.value}
-                    onPress={() => setFormData(prev => ({ 
-                      ...prev, 
-                      repeat_every_days: option.value as 1 | 2 | 3
-                    }))}
+                    onPress={() => {
+                      triggerHaptic();
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        repeat_every_days: option.value as 1 | 2 | 3
+                      }));
+                    }}
                     style={{
                       flex: 1,
                       padding: 12,
@@ -1269,7 +1333,10 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
               {(['easy', 'medium', 'hard'] as const).map((diff) => (
                 <TouchableOpacity
                   key={diff}
-                  onPress={() => setFormData(prev => ({ ...prev, difficulty: diff }))}
+                  onPress={() => {
+                    triggerHaptic();
+                    setFormData(prev => ({ ...prev, difficulty: diff }));
+                  }}
                   style={{
                     flex: 1,
                     padding: 12,

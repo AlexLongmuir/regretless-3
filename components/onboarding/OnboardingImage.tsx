@@ -4,9 +4,11 @@
  * Provides consistent image styling with the notebook writing image
  */
 
-import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
-import { theme } from '../../utils/theme';
+import React, { useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
 
 interface OnboardingImageProps {
   source: any;
@@ -19,19 +21,22 @@ export const OnboardingImage: React.FC<OnboardingImageProps> = ({
   style,
   borderRadius = 16,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   return (
     <View style={styles.container}>
       <Image
         source={source}
         style={[styles.image, { borderRadius }, style]}
-        resizeMode="contain"
-        fadeDuration={0}
+        contentFit="contain"
+        transition={0}
       />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',

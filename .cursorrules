@@ -1,0 +1,46 @@
+# Cursor Rules for Regretless-3
+
+## Dark Mode Theme Requirements
+
+**CRITICAL**: When creating or modifying any UI component, page, or styling code:
+
+1. **Always use the `useTheme` hook** from `contexts/ThemeContext` instead of static theme imports
+2. **Use semantic color tokens** from `theme.colors.*` (e.g., `theme.colors.background.page`, `theme.colors.text.primary`)
+3. **Never use hardcoded colors** like `#FFFFFF`, `#000000`, etc. - always use theme colors
+4. **Wrap StyleSheet.create in useMemo** with a `createStyles(theme)` function pattern
+5. **Ensure dark mode support** - all colors should adapt automatically via the theme system
+6. **Check StatusBar styling** - use `StatusBar` from `expo-status-bar` with `style={isDark ? 'light' : 'dark'}`
+7. **For BlurView components** - set `tint={isDark ? "dark" : "light"}` and consider adding a `key` prop to force re-render on theme changes
+
+### Example Pattern:
+
+```typescript
+const MyComponent = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  // ... component code
+};
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    backgroundColor: theme.colors.background.page, // NOT '#FFFFFF'
+    // ... other styles using theme colors
+  },
+});
+```
+
+### Safe Area Patterns:
+
+- Use `SafeAreaView` from `react-native-safe-area-context` with `edges={['top']}` for headers
+- Match the pattern used in `NotificationSettingsPage.tsx` and `DisplaySettingsPage.tsx`
+
+## Database Schema Documentation
+
+**CRITICAL**: When making any database changes (creating/modifying tables, views, functions, triggers, indexes, RLS policies, etc.):
+
+1. **Always update `backend/database/schema.md`** to reflect the changes
+2. Document new tables, columns, constraints, and relationships
+3. Update any affected views, functions, or triggers in the documentation
+4. Include SQL setup examples if adding new tables
+5. Update RLS policies section if security changes are made
+6. Keep the schema documentation in sync with the actual database state

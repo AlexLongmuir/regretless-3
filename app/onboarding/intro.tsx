@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -40,7 +41,8 @@ const IntroStep: React.FC = () => {
       <Image 
         source={require('../../assets/images/onboarding/screenshots/DreamsPage.png')} 
         style={styles.screenshot}
-        resizeMode="contain"
+        contentFit="contain"
+        transition={200}
       />
 
       <View style={styles.content}>
@@ -70,9 +72,9 @@ const IntroStep: React.FC = () => {
 
       {/* Force load critical onboarding images by rendering them invisibly to ensure instant navigation */}
       <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }} pointerEvents="none">
-        <Image source={onboardingImages.individualityImage} />
-        <Image source={onboardingImages.cityImage} />
-        <Image source={onboardingImages.silhouetteImage} />
+        <Image source={onboardingImages.individualityImage} transition={0} />
+        <Image source={onboardingImages.cityImage} transition={0} />
+        <Image source={onboardingImages.silhouetteImage} transition={0} />
       </View>
     </View>
   );

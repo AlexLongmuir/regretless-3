@@ -3,9 +3,10 @@ import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
 
 export default function AreasConfirmStep() {
+  const { theme } = useTheme()
   const navigation = useNavigation<any>()
 
   const handleCreateGoal = () => {
@@ -13,7 +14,7 @@ export default function AreasConfirmStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
       <CreateScreenHeader step="areas-confirm" />
       
       <View style={{ 
@@ -46,7 +47,7 @@ export default function AreasConfirmStep() {
         <Text style={{ 
           fontSize: 24, 
           fontWeight: 'bold', 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           marginBottom: 16,
           textAlign: 'center'
         }}>
@@ -56,7 +57,7 @@ export default function AreasConfirmStep() {
         {/* Description */}
         <Text style={{ 
           fontSize: 16, 
-          color: '#000', 
+          color: theme.colors.text.primary, 
           textAlign: 'center',
           lineHeight: 22
         }}>
@@ -72,7 +73,7 @@ export default function AreasConfirmStep() {
         right: 0, 
         padding: 16,
         paddingBottom: 32,
-        backgroundColor: theme.colors.pageBackground
+        backgroundColor: theme.colors.background.page
       }}>
         <Button 
           title="Create Goal" 

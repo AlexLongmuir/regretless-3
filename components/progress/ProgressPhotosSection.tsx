@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
-import { theme } from '../../utils/theme';
-import { Icon } from '../Icon';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
+import { FullScreenPhotoViewer } from './FullScreenPhotoViewer';
 
 interface ProgressPhoto {
   id: string;
@@ -12,13 +14,20 @@ interface ProgressPhoto {
 interface ProgressPhotosSectionProps {
   photos: ProgressPhoto[];
   onPhotoPress?: (photo: ProgressPhoto) => void;
-  onExpandPress?: () => void;
-  isExpanded?: boolean;
-  columns?: number;
 }
 
 // Skeleton loading component for individual photos
 const PhotoSkeleton: React.FC = () => {
+  const { theme } = useTheme();
+  const skeletonStyles = useMemo(() => StyleSheet.create({
+    photoSkeleton: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: theme.colors.border.default,
+      borderRadius: theme.radius.sm,
+    },
+  }), [theme]);
+  
   const animatedValue = useMemo(() => new Animated.Value(0), []);
   
   React.useEffect(() => {
@@ -48,7 +57,7 @@ const PhotoSkeleton: React.FC = () => {
   return (
     <Animated.View
       style={[
-        styles.photoSkeleton,
+        skeletonStyles.photoSkeleton,
         {
           opacity,
         },
@@ -60,15 +69,14 @@ const PhotoSkeleton: React.FC = () => {
 const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
   photos,
   onPhotoPress,
-  onExpandPress,
-  isExpanded = false,
-  columns = 6,
 }) => {
-  const [showColumnSelector, setShowColumnSelector] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState(columns);
-  const [sectionExpanded, setSectionExpanded] = useState(true);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const columns = 3; // Always use 3 columns
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   const handleImageLoadStart = useCallback((photoId: string) => {
     setLoadingStates(prev => ({ ...prev, [photoId]: true }));
@@ -84,6 +92,15 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     setErrorStates(prev => ({ ...prev, [photoId]: true }));
   }, []);
 
+  const handlePhotoPress = useCallback((photo: ProgressPhoto) => {
+    const index = photos.findIndex((p) => p.id === photo.id);
+    if (index >= 0) {
+      setSelectedPhotoIndex(index);
+      setViewerVisible(true);
+    }
+    onPhotoPress?.(photo);
+  }, [photos, onPhotoPress]);
+
   const renderPhoto = useCallback(({ item }: { item: ProgressPhoto }) => {
     const isLoading = loadingStates[item.id] ?? true;
     const hasError = errorStates[item.id] ?? false;
@@ -96,7 +113,7 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     return (
       <TouchableOpacity
         style={styles.photoContainer}
-        onPress={() => onPhotoPress?.(item)}
+        onPress={() => handlePhotoPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.photoWrapper}>
@@ -110,22 +127,15 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
             source={{ uri: item.uri }}
             style={styles.photo}
             onLoadStart={() => handleImageLoadStart(item.id)}
-            onLoadEnd={() => handleImageLoadEnd(item.id)}
+            onLoad={() => handleImageLoadEnd(item.id)}
             onError={() => handleImageError(item.id)}
-            resizeMode="cover"
-            progressiveRenderingEnabled={true}
+            contentFit="cover"
+            transition={200}
           />
         </View>
       </TouchableOpacity>
     );
-  }, [loadingStates, errorStates, onPhotoPress, handleImageLoadStart, handleImageLoadEnd, handleImageError]);
-
-  const displayPhotos = sectionExpanded ? photos : photos.slice(0, 18);
-
-  const handleColumnSelect = (newColumns: number) => {
-    setSelectedColumns(newColumns);
-    setShowColumnSelector(false);
-  };
+  }, [loadingStates, errorStates, handlePhotoPress, handleImageLoadStart, handleImageLoadEnd, handleImageError]);
 
   // Create a grid layout by organizing photos into rows
   const createGridRows = (photos: ProgressPhoto[], columns: number) => {
@@ -136,122 +146,60 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     return rows;
   };
 
-  const gridRows = createGridRows(displayPhotos, selectedColumns);
+  const gridRows = createGridRows(photos, columns);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Progress Photos</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.columnButton}
-            onPress={() => setShowColumnSelector(!showColumnSelector)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.photoCount}>{selectedColumns}x</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.expandButton}
-            onPress={() => setSectionExpanded(!sectionExpanded)}
-            activeOpacity={0.7}
-          >
-            <Icon
-              name={sectionExpanded ? "expand_less" : "expand_more"}
-              size={20}
-              color={theme.colors.grey[500]}
-            />
-          </TouchableOpacity>
-        </View>
       </View>
       
-      {showColumnSelector && (
-        <View style={styles.columnSelector}>
-          <Text style={styles.selectorTitle}>Select Columns</Text>
-          <View style={styles.columnOptions}>
-            {[3, 4, 5, 6, 7].map((num) => (
-              <TouchableOpacity
-                key={num}
-                style={[
-                  styles.columnOption,
-                  selectedColumns === num && styles.selectedColumnOption,
-                ]}
-                onPress={() => handleColumnSelect(num)}
-              >
-                <Text
-                  style={[
-                    styles.columnOptionText,
-                    selectedColumns === num && styles.selectedColumnOptionText,
-                  ]}
-                >
-                  {num}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+      {photos.length > 0 ? (
+        <View style={styles.gridContainer}>
+          {gridRows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.gridRow}>
+              {row.map((photo) => (
+                <View key={photo.id} style={styles.gridItem}>
+                  {renderPhoto({ item: photo })}
+                </View>
+              ))}
+              {/* Fill remaining space in the row if it's not full */}
+              {row.length < columns && (
+                Array.from({ length: columns - row.length }).map((_, emptyIndex) => (
+                  <View key={`empty-${rowIndex}-${emptyIndex}`} style={styles.gridItem} />
+                ))
+              )}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>No progress photos yet</Text>
+          <Text style={styles.emptyStateSubtext}>Complete actions and add photos to see your progress here</Text>
         </View>
       )}
-      
-                  {sectionExpanded && (
-                    <>
-                      {displayPhotos.length > 0 ? (
-                        <View style={styles.gridContainer}>
-                          {gridRows.map((row, rowIndex) => (
-                            <View key={rowIndex} style={styles.gridRow}>
-                              {row.map((photo) => (
-                                <View key={photo.id} style={styles.gridItem}>
-                                  {renderPhoto({ item: photo })}
-                                </View>
-                              ))}
-                              {/* Fill remaining space in the row if it's not full */}
-                              {row.length < selectedColumns && (
-                                Array.from({ length: selectedColumns - row.length }).map((_, emptyIndex) => (
-                                  <View key={`empty-${rowIndex}-${emptyIndex}`} style={styles.gridItem} />
-                                ))
-                              )}
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
-                        <View style={styles.emptyState}>
-                          <Text style={styles.emptyStateText}>No progress photos yet</Text>
-                          <Text style={styles.emptyStateSubtext}>Complete actions and add photos to see your progress here</Text>
-                        </View>
-                      )}
-                    </>
-                  )}
+
+      <FullScreenPhotoViewer
+        visible={viewerVisible}
+        photos={photos}
+        initialIndex={selectedPhotoIndex}
+        onClose={() => setViewerVisible(false)}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: theme.spacing.lg,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  columnButton: {
-    marginRight: theme.spacing.sm,
-  },
-  expandButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoCount: {
-    fontSize: 14,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.primary,
   },
   gridContainer: {
     paddingVertical: theme.spacing.sm,
@@ -271,7 +219,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.disabled.inactive,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -282,7 +230,7 @@ const styles = StyleSheet.create({
   photoSkeleton: {
     width: '100%',
     height: '100%',
-    backgroundColor: theme.colors.grey[300],
+    backgroundColor: theme.colors.border.default,
     borderRadius: theme.radius.sm,
   },
   loadingOverlay: {
@@ -293,45 +241,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.grey[200],
-  },
-  columnSelector: {
-    backgroundColor: theme.colors.surface[50],
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.grey[200],
-  },
-  selectorTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.grey[900],
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  columnOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  columnOption: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.grey[100],
-    minWidth: 40,
-    alignItems: 'center',
-  },
-  selectedColumnOption: {
-    backgroundColor: theme.colors.primary[600],
-  },
-  columnOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.grey[700],
-  },
-  selectedColumnOptionText: {
-    color: theme.colors.surface[50],
+    backgroundColor: theme.colors.disabled.inactive,
   },
   emptyState: {
     alignItems: 'center',
@@ -342,13 +252,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 20,
   },

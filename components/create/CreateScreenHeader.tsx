@@ -1,13 +1,16 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { IconButton } from '../IconButton'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 
 export const CreateScreenHeader: React.FC<{ step?: string }> = ({ 
   step = 'title' 
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation()
   const { reset } = useCreateDream()
   
@@ -61,7 +64,7 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
     </View>
   )
 }
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     height: 52,
     paddingHorizontal: theme.spacing.lg,

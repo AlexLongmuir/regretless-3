@@ -1,6 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { theme } from '../../utils/theme';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
+import { Icon } from '../Icon';
 
 interface GoalProgressCardProps {
   dreamId: string;
@@ -25,6 +28,8 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
   totalActions,
   imageUri,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   // Debug logging
   console.log(`GoalProgressCard for ${title}:`, {
     actionsCompleted,
@@ -110,7 +115,7 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
       <View style={styles.content}>
         <View style={styles.imageContainer}>
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.image} />
+            <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" transition={200} />
           ) : (
             <View style={[styles.image, styles.placeholderImage]}>
               <Text style={styles.placeholderText}>📸</Text>
@@ -123,7 +128,12 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
             <Text style={styles.dayProgress}>
               {getDayDisplay()}
             </Text>
-            {streakCount > 0 && <Text style={styles.streakText}>🔥 {streakCount}</Text>}
+            {streakCount > 0 && (
+              <View style={styles.streakContainer}>
+                <Text style={styles.streakText}>{streakCount}</Text>
+                <Icon name="fire" size={16} color={theme.colors.text.tertiary} />
+              </View>
+            )}
           </View>
           
           <Text style={styles.title} numberOfLines={2}>
@@ -155,9 +165,9 @@ const GoalProgressCard: React.FC<GoalProgressCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
@@ -182,7 +192,7 @@ const styles = StyleSheet.create({
   placeholderImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.disabled.inactive,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: theme.radius.md,
@@ -203,23 +213,28 @@ const styles = StyleSheet.create({
   dayProgress: {
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   streakText: {
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
   },
   title: {
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
     lineHeight: 20,
   },
   endDate: {
     fontSize: theme.typography.fontSize.caption1,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   expiredText: {
     color: theme.colors.success[600],
@@ -245,19 +260,19 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginRight: theme.spacing.xs,
     lineHeight: 28,
   },
   progressLabel: {
     fontSize: 14,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     fontWeight: '400',
     lineHeight: 14,
   },
   progressText: {
     fontSize: 12,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     fontWeight: '400',
     textAlign: 'right',
     minWidth: 40,
@@ -268,13 +283,13 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 11,
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.disabled.inactive,
     borderRadius: 5.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: theme.colors.grey[900],
+    backgroundColor: theme.colors.text.primary,
     borderRadius: 5.5,
   },
 });

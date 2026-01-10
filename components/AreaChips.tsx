@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { theme } from '../utils/theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
+import { triggerHaptic } from '../utils/haptics'
 
 interface AreaChipProps {
   id: string
@@ -48,6 +50,7 @@ export function AreaChip({
   completedActions = 0,
   totalActions = 0
 }: AreaChipProps) {
+  const { theme } = useTheme();
   const handleDelete = () => {
     Alert.alert(
       'Delete Area',
@@ -79,9 +82,16 @@ export function AreaChip({
 
   const ChipWrapper = clickable ? TouchableOpacity : View
 
+  const handlePress = () => {
+    if (clickable) {
+      triggerHaptic();
+      onPress?.(id);
+    }
+  };
+
   return (
     <ChipWrapper
-      onPress={clickable ? () => onPress?.(id) : undefined}
+      onPress={clickable ? handlePress : undefined}
       activeOpacity={clickable ? 0.7 : 1}
       style={[
         {
@@ -101,7 +111,10 @@ export function AreaChip({
       {/* Move Up Button */}
       {canMoveUp && onMoveUp && (
         <TouchableOpacity
-          onPress={onMoveUp}
+          onPress={() => {
+            triggerHaptic();
+            onMoveUp();
+          }}
           style={{
             position: 'absolute',
             top: 8,
@@ -122,7 +135,10 @@ export function AreaChip({
       {/* Move Down Button */}
       {canMoveDown && onMoveDown && (
         <TouchableOpacity
-          onPress={onMoveDown}
+          onPress={() => {
+            triggerHaptic();
+            onMoveDown();
+          }}
           style={{
             position: 'absolute',
             top: canMoveUp ? 36 : 8,
@@ -143,7 +159,10 @@ export function AreaChip({
       {/* Remove Button */}
       {showRemoveButton && onRemove && (
         <TouchableOpacity
-          onPress={handleDelete}
+          onPress={() => {
+            triggerHaptic();
+            handleDelete();
+          }}
           style={{
             position: 'absolute',
             top: 8,
@@ -163,7 +182,10 @@ export function AreaChip({
       {/* Edit Button */}
       {showEditButton && onEdit && (
         <TouchableOpacity
-          onPress={() => onEdit(id)}
+          onPress={() => {
+            triggerHaptic();
+            onEdit(id);
+          }}
           style={{
             position: 'absolute',
             bottom: 8,
@@ -247,9 +269,16 @@ export function AreaChip({
 }
 
 export function AddAreaChip({ onPress, style }: AddAreaChipProps) {
+  const { theme } = useTheme();
+  
+  const handlePress = () => {
+    triggerHaptic();
+    onPress();
+  };
+  
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       style={[
         {
           justifyContent: 'center',
@@ -261,7 +290,7 @@ export function AddAreaChip({ onPress, style }: AddAreaChipProps) {
       <Text style={{ 
         fontSize: 14, 
         fontWeight: '500',
-        color: theme.colors.text.muted,
+        color: theme.colors.text.tertiary,
         textAlign: 'center'
       }}>
         + Add Area
@@ -277,6 +306,8 @@ interface AddAreaChipInGridProps {
 }
 
 export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
+  const { theme } = useTheme();
+  
   return (
     <View style={[
       {
@@ -287,7 +318,7 @@ export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
         alignItems: 'center',
         minHeight: 80,
         borderWidth: 2,
-        borderColor: theme.colors.disabled.inactive,
+        borderColor: theme.colors.border.default,
         borderStyle: 'dashed'
       },
       style
@@ -323,6 +354,8 @@ interface AreaGridProps {
 }
 
 export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, clickable = false, showProgress = false, style, title = "Areas", showAddButton = true, showEditButtons = true, showRemoveButtons = true }: AreaGridProps) {
+  const { theme } = useTheme();
+  
   const handleMoveUp = (index: number) => {
     if (index > 0 && onReorder) {
       const newAreas = [...areas]
@@ -362,7 +395,10 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
           )}
           {showAddButton && (
             <TouchableOpacity
-              onPress={onAdd}
+              onPress={() => {
+                triggerHaptic();
+                onAdd();
+              }}
               style={{
                 width: 32,
                 height: 32,

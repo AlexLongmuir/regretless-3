@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Modal, View, Text, TouchableOpacity, FlatList, Image, TextInput, StyleSheet, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Keyboard } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, FlatList, TextInput, StyleSheet, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView, Keyboard } from 'react-native'
+import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { theme } from '../utils/theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 import { getDefaultCelebrities, generateCelebrityDreams, getGeneratedDreams, type CelebrityProfile, type GeneratedDreamSuggestion } from '../frontend-services/backend-bridge'
 import { supabaseClient } from '../lib/supabaseClient'
 import { EmojiListRow } from './EmojiListRow'
@@ -166,6 +168,8 @@ interface CelebritySelectorProps {
 type ViewMode = 'home' | 'results' | 'past'
 
 export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, onClose, onGenerated, onSelectTitle }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets()
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -440,8 +444,8 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
         <Image 
           source={{ uri: item.signed_url }} 
           style={styles.image}
-          resizeMode="cover"
-          fadeDuration={0}
+          contentFit="cover"
+          transition={0}
           onError={() => {
             // Image failed to load, but we'll keep the card structure
             console.log('Failed to load image for:', item.name);
@@ -451,8 +455,8 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
         <Image 
           source={{ uri: 'https://cqzutvspbsspgtmcdqyp.supabase.co/storage/v1/object/public/celebrity-images/default-celebrity.png' }} 
           style={styles.image}
-          resizeMode="cover"
-          fadeDuration={0}
+          contentFit="cover"
+          transition={0}
           onError={() => {
             // Fallback to placeholder if default image fails
             console.log('Failed to load default image for:', item.name);
@@ -493,7 +497,7 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
         {/* Header */}
         <SheetHeader
           title={view === 'home' ? 'Celebrity Dreams' : view === 'results' ? 'Results' : 'Past searches'}
@@ -512,7 +516,7 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
             {loading && view === 'home' ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
                 <ActivityIndicator />
-                <Text style={{ marginTop: 8, color: theme.colors.grey[600] }}>Loading celebrities...</Text>
+                <Text style={{ marginTop: 8, color: theme.colors.text.secondary }}>Loading celebrities...</Text>
               </View>
             ) : null}
 
@@ -538,7 +542,7 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
                   />
                 ) : (
                   <View style={{ padding: 24, alignItems: 'center' }}>
-                    <Text style={{ color: theme.colors.grey[600], textAlign: 'center' }}>
+                    <Text style={{ color: theme.colors.text.secondary, textAlign: 'center' }}>
                       No celebrities found.{'\n'}Check the console for debugging info.
                     </Text>
                   </View>
@@ -551,7 +555,7 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
                 {generating ? (
                   <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                     <ActivityIndicator size="large" color={theme.colors.primary[600]} />
-                    <Text style={{ marginTop: 16, color: theme.colors.grey[600], textAlign: 'center' }}>
+                    <Text style={{ marginTop: 16, color: theme.colors.text.secondary, textAlign: 'center' }}>
                       Generating dreams for {selectedCelebrity?.name || query}...
                     </Text>
                   </View>
@@ -565,16 +569,16 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
                           <Image 
                             source={DEFAULT_CUSTOM_CELEBRITY_IMAGE} 
                             style={{ width: 240, height: 240, borderRadius: 30, marginBottom: 12 }}
-                            resizeMode="cover"
-                            fadeDuration={0}
+                            contentFit="cover"
+                            transition={0}
                           />
                         ) : selectedCelebrity.signed_url && selectedCelebrity.signed_url !== 'placeholder' ? (
                           // Preset celebrity with valid image URL
                           <Image 
                             source={{ uri: selectedCelebrity.signed_url }} 
                             style={{ width: 240, height: 240, borderRadius: 30, marginBottom: 12 }}
-                            resizeMode="cover"
-                            fadeDuration={0}
+                            contentFit="cover"
+                            transition={0}
                             onError={() => {
                               // If image fails to load, set to placeholder to show default
                               setSelectedCelebrity(prev => prev ? { ...prev, signed_url: 'placeholder' } : null);
@@ -586,36 +590,36 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
                             width: 240, 
                             height: 240, 
                             borderRadius: 30, 
-                            backgroundColor: theme.colors.grey[200], 
+                            backgroundColor: theme.colors.background.input, 
                             marginBottom: 12,
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <Text style={{ fontSize: 48, color: theme.colors.grey[400] }}>⭐</Text>
+                            <Text style={{ fontSize: 48, color: theme.colors.text.tertiary }}>⭐</Text>
                           </View>
                         ) : (
                           // Fallback to default celebrity image
                           <Image 
                             source={{ uri: 'https://cqzutvspbsspgtmcdqyp.supabase.co/storage/v1/object/public/celebrity-images/default-celebrity.png' }} 
                             style={{ width: 240, height: 240, borderRadius: 30, marginBottom: 12 }}
-                            resizeMode="cover"
-                            fadeDuration={0}
+                            contentFit="cover"
+                            transition={0}
                             onError={() => {
                               // Fallback to star emoji if default image fails
                               setSelectedCelebrity(prev => prev ? { ...prev, signed_url: 'error' } : null);
                             }}
                           />
                         )}
-                        <Text style={{ fontSize: 24, fontWeight: '600', color: theme.colors.grey[900] }}>{selectedCelebrity.name}</Text>
+                        <Text style={{ fontSize: 24, fontWeight: '600', color: theme.colors.text.primary }}>{selectedCelebrity.name}</Text>
                       </View>
                     )}
-                    <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.grey[900], marginBottom: 12 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 12 }}>
                       Suggested Goals
                     </Text>
                     {results.map((r, idx) => (
                       <EmojiListRow key={`r-${idx}`} emoji={r.emoji || '⭐️'} text={r.title} type="select" onSelect={(t) => { onSelectTitle?.(t); onClose(); }} />
                     ))}
-                    <Text style={{ fontSize: 12, color: theme.colors.grey[600], marginTop: 12, textAlign: 'left' }}>
+                    <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: 12, textAlign: 'left' }}>
                       Select one to get started, don't worry we'll store the other goals for you to access later
                     </Text>
                   </>
@@ -642,17 +646,17 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
                         setView('results'); 
                       }}
                     >
-                      <View style={{ backgroundColor: 'white', borderRadius: 12, borderWidth: 1, borderColor: theme.colors.grey[200] }}>
+                      <View style={{ backgroundColor: theme.colors.background.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border.default }}>
                         <View style={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ fontWeight: '600', color: '#000' }}>{group.label}</Text>
-                          <Text style={{ color: theme.colors.grey[600], fontSize: 12 }}>{group.date}</Text>
+                          <Text style={{ fontWeight: '600', color: theme.colors.text.primary }}>{group.label}</Text>
+                          <Text style={{ color: theme.colors.text.secondary, fontSize: 12 }}>{group.date}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
                   ))
                 ) : (
                   <View style={{ padding: 24, alignItems: 'center' }}>
-                    <Text style={{ color: theme.colors.grey[600], textAlign: 'center' }}>
+                    <Text style={{ color: theme.colors.text.secondary, textAlign: 'center' }}>
                       No past searches yet.{'\n'}Generate some celebrity dreams to see them here!
                     </Text>
                   </View>
@@ -675,7 +679,7 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
             ]}>
               <TextInput
                 placeholder="Type a celebrity name..."
-                placeholderTextColor={theme.colors.grey[400]}
+                placeholderTextColor={theme.colors.text.tertiary}
                 value={query}
                 onChangeText={setQuery}
                 style={styles.input}
@@ -697,23 +701,24 @@ export const CelebritySelector: React.FC<CelebritySelectorProps> = ({ visible, o
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   input: {
     height: 40,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200]
+    borderColor: theme.colors.border.default,
+    color: theme.colors.text.primary,
   },
   card: {
     width: '48%',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: theme.colors.grey[200]
+    borderColor: theme.colors.border.default
   },
   image: { width: '100%', aspectRatio: 1 },
   cardContent: {
@@ -723,29 +728,29 @@ const styles = StyleSheet.create({
   },
   name: { 
     fontWeight: '600', 
-    color: '#000',
+    color: theme.colors.text.primary,
     fontSize: 14,
     marginBottom: 4
   },
   description: {
     fontSize: 12,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     lineHeight: 16
   },
   inputContainer: {
     padding: 16,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.grey[200],
+    borderTopColor: theme.colors.border.default,
   },
   placeholderImage: {
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.background.input,
     alignItems: 'center',
     justifyContent: 'center'
   },
   placeholderText: {
     fontSize: 24,
-    color: theme.colors.grey[400]
+    color: theme.colors.text.tertiary
   }
 })
 

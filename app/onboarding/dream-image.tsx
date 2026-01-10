@@ -7,7 +7,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, FlatList, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, FlatList, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -223,9 +224,9 @@ const DreamImageStep: React.FC = () => {
         <Image
           source={{ uri: item.signed_url }}
           style={styles.image as any}
-          resizeMode="cover"
+          contentFit="cover"
           onLoad={() => handleImageLoad(item.signed_url)}
-          fadeDuration={isPreloaded ? 0 : 200}
+          transition={isPreloaded ? 0 : 200}
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>

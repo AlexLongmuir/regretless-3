@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Modal, View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Platform, KeyboardAvoidingView, Alert, ScrollView } from 'react-native'
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, KeyboardAvoidingView, Alert, ScrollView } from 'react-native'
+import { Image } from 'expo-image'
 import * as ImagePicker from 'expo-image-picker'
-import { theme } from '../utils/theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 import { analyzeDreamboard, getGeneratedDreams, type GeneratedDreamSuggestion } from '../frontend-services/backend-bridge'
 import { supabaseClient } from '../lib/supabaseClient'
 import { EmojiListRow } from './EmojiListRow'
@@ -22,6 +24,8 @@ interface DreamboardUploadProps {
 type ViewMode = 'home' | 'results' | 'past'
 
 export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onClose, onGenerated, onSelectTitle }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [imageUri, setImageUri] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [results, setResults] = useState<GeneratedDreamSuggestion[]>([])
@@ -132,7 +136,7 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.colors.pageBackground }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.colors.background.page }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <SheetHeader
           title={view === 'home' ? 'Upload Dreamboard' : view === 'results' ? 'Results' : 'Past searches'}
@@ -151,7 +155,7 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
             <>
               <TouchableOpacity style={styles.upload} onPress={pickImage}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.uploadImage} resizeMode="cover" />
+                  <Image source={{ uri: imageUri }} style={styles.uploadImage} contentFit="cover" transition={200} />
                 ) : (
                   <View style={styles.uploadPlaceholder}>
                     <Text style={styles.uploadPlaceholderText}>Tap to choose an image</Text>
@@ -180,7 +184,7 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
               {analyzing ? (
                 <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                   <ActivityIndicator size="large" color={theme.colors.primary[600]} />
-                  <Text style={{ marginTop: 16, color: theme.colors.grey[600], textAlign: 'center' }}>
+                  <Text style={{ marginTop: 16, color: theme.colors.text.secondary, textAlign: 'center' }}>
                     Analyzing your dreamboard...
                   </Text>
                 </View>
@@ -191,12 +195,13 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
                       <Image 
                         source={{ uri: imageUri }} 
                         style={{ width: 240, height: 240, borderRadius: 30, marginBottom: 12 }}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        transition={200}
                       />
-                      <Text style={{ fontSize: 24, fontWeight: '600', color: theme.colors.grey[900] }}>Your dreamboard</Text>
+                      <Text style={{ fontSize: 24, fontWeight: '600', color: theme.colors.text.primary }}>Your dreamboard</Text>
                     </View>
                   )}
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.grey[900], marginBottom: 12 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.text.primary, marginBottom: 12 }}>
                     Suggested Goals
                   </Text>
                   {results.map((r, idx) => (
@@ -211,7 +216,7 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
                       }} 
                     />
                   ))}
-                  <Text style={{ fontSize: 12, color: theme.colors.grey[600], marginTop: 12, textAlign: 'left' }}>
+                  <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginTop: 12, textAlign: 'left' }}>
                     Select one to get started, don't worry we'll store the other goals for you to access later
                   </Text>
                 </>
@@ -232,17 +237,17 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
                       setView('results'); 
                     }}
                   >
-                    <View style={{ backgroundColor: 'white', borderRadius: 12, borderWidth: 1, borderColor: theme.colors.grey[200] }}>
+                    <View style={{ backgroundColor: theme.colors.background.card, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border.default }}>
                       <View style={{ padding: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ fontWeight: '600', color: '#000' }}>{group.label}</Text>
-                        <Text style={{ color: theme.colors.grey[600], fontSize: 12 }}>{group.date}</Text>
+                        <Text style={{ fontWeight: '600', color: theme.colors.text.primary }}>{group.label}</Text>
+                        <Text style={{ color: theme.colors.text.secondary, fontSize: 12 }}>{group.date}</Text>
                       </View>
                     </View>
                   </TouchableOpacity>
                 ))
               ) : (
                 <View style={{ padding: 24, alignItems: 'center' }}>
-                  <Text style={{ color: theme.colors.grey[600], textAlign: 'center' }}>
+                  <Text style={{ color: theme.colors.text.secondary, textAlign: 'center' }}>
                     No past dreamboard analyses yet.{'\n'}Upload and analyze a dreamboard to see it here!
                   </Text>
                 </View>
@@ -255,14 +260,14 @@ export const DreamboardUpload: React.FC<DreamboardUploadProps> = ({ visible, onC
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   upload: {
     height: 220,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
   },
   uploadImage: {
     width: '100%',
@@ -273,10 +278,10 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.grey[50],
+    backgroundColor: theme.colors.disabled.inactive,
   },
   uploadPlaceholderText: {
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     fontSize: 16,
   },
 })

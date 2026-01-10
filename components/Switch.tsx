@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, View, StyleSheet, ViewStyle, Animated } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface SwitchProps {
   value: boolean;
@@ -17,10 +18,16 @@ export const Switch: React.FC<SwitchProps> = ({
   onValueChange,
   disabled = false,
   size = 'md',
-  activeColor = theme.colors.primary[500],
-  inactiveColor = theme.colors.grey[300],
+  activeColor,
+  inactiveColor,
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
+  const effectiveActiveColor = activeColor || theme.colors.primary[500];
+  const effectiveInactiveColor = inactiveColor || theme.colors.grey[300];
+
   const animatedValue = React.useRef(new Animated.Value(value ? 1 : 0)).current;
 
   React.useEffect(() => {
@@ -46,7 +53,7 @@ export const Switch: React.FC<SwitchProps> = ({
 
   const trackColor = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [inactiveColor, activeColor],
+    outputRange: [effectiveInactiveColor, effectiveActiveColor],
   });
 
   return (
@@ -75,7 +82,7 @@ export const Switch: React.FC<SwitchProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
   },

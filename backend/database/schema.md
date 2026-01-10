@@ -12,6 +12,7 @@ One row per Supabase auth user (FK to auth.users).
 |--------|------|-------------|-------------|
 | user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
 | username | text | User's username | NOT NULL, UNIQUE |
+| theme_mode | text | User's theme preference: 'light', 'dark', or 'system' | DEFAULT 'system', CHECK (theme_mode IN ('light', 'dark', 'system')) |
 | created_at | timestamptz | When profile was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When profile was last modified | NOT NULL, DEFAULT now() |
 
@@ -214,6 +215,43 @@ RevenueCat subscription data for user access control and billing management. Sup
 | created_at | timestamptz | When subscription record was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When subscription record was last modified | NOT NULL, DEFAULT now() |
 
+### achievements
+Achievement definitions that users can unlock by completing various milestones.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, PRIMARY KEY, DEFAULT gen_random_uuid() |
+| title | text | Achievement title | NOT NULL |
+| description | text | Achievement description | NOT NULL |
+| category | text | Achievement category | NOT NULL, CHECK (category IN ('action_count', 'streak', 'dream_count', 'area_count')) |
+| criteria_type | text | Type of criteria | NOT NULL |
+| criteria_value | integer | Target value to unlock | NOT NULL |
+| image_url | text | Unlocked achievement image URL | |
+| locked_image_url | text | Optional locked state image URL | |
+| hidden | boolean | Whether details are hidden until unlocked | NOT NULL, DEFAULT false |
+| position | integer | Display order | NOT NULL, DEFAULT 0 |
+| created_at | timestamptz | When achievement was created | NOT NULL, DEFAULT now() |
+
+RLS: Public SELECT policy to allow read by anyone.
+
+### user_achievements
+User progress and unlock status for achievements.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, PRIMARY KEY, DEFAULT gen_random_uuid() |
+| user_id | uuid | Reference to auth.users | NOT NULL, FOREIGN KEY REFERENCES auth.users(id) ON DELETE CASCADE |
+| achievement_id | uuid | Reference to achievements table | NOT NULL, FOREIGN KEY REFERENCES achievements(id) ON DELETE CASCADE |
+| unlocked_at | timestamptz | When achievement was unlocked | NOT NULL, DEFAULT now() |
+| seen | boolean | Whether user has seen the celebration modal | NOT NULL, DEFAULT false |
+| progress | integer | Current progress value (for partial tracking) | NOT NULL, DEFAULT 0 |
+| metadata | jsonb | Additional metadata | NOT NULL, DEFAULT '{}'::jsonb |
+| created_at | timestamptz | When record was created | NOT NULL, DEFAULT now() |
+
+RLS: Users can SELECT/UPDATE only their own rows. Service role can manage all rows.
+
+Unique constraint: `(user_id, achievement_id)` to prevent duplicates.
+
 **SQL Setup:**
 ```sql
 CREATE TABLE notification_preferences (
@@ -383,7 +421,7 @@ GROUP BY d.user_id, d.id, ao.completed_at::date;
 **Note:** This view may not exist in the current database. The `current_streak` function now queries the tables directly instead of using this view.
 
 ### v_overdue_counts
-Per user/dream overdue tally.
+Per user/dream overdue tally. Excludes archived dreams and occurrences without due dates.
 
 ```sql
 CREATE VIEW v_overdue_counts AS
@@ -395,7 +433,10 @@ FROM dreams d
 JOIN areas a ON a.dream_id = d.id AND a.deleted_at IS NULL
 JOIN actions act ON act.area_id = a.id AND act.deleted_at IS NULL AND act.is_active = true
 JOIN action_occurrences ao ON ao.action_id = act.id 
-WHERE ao.completed_at IS NULL AND ao.due_on < CURRENT_DATE
+WHERE d.archived_at IS NULL  -- Exclude archived dreams
+  AND ao.completed_at IS NULL 
+  AND ao.due_on IS NOT NULL  -- Only count occurrences with due dates
+  AND ao.due_on < CURRENT_DATE
 GROUP BY d.user_id, d.id;
 ```
 
@@ -595,8 +636,11 @@ BEGIN
         FROM action_occurrences 
         WHERE action_id = action_record.id;
         
+        -- Insert the next occurrence, but skip if it already exists
+        -- (e.g., created by scheduler or previous trigger execution)
         INSERT INTO action_occurrences (action_id, occurrence_no, planned_due_on, due_on)
-        VALUES (action_record.id, next_occurrence_no, next_due_date, next_due_date);
+        VALUES (action_record.id, next_occurrence_no, next_due_date, next_due_date)
+        ON CONFLICT (action_id, occurrence_no) DO NOTHING;
       END IF;
     END IF;
   END IF;
@@ -662,6 +706,28 @@ BEGIN
      AND a.deleted_at IS NULL;
 END
 $$;
+
+### check_new_achievements()
+Check and unlock new achievements for the current user based on their stats.
+
+Returns a table of newly unlocked achievements with their details.
+
+```sql
+CREATE OR REPLACE FUNCTION check_new_achievements()
+RETURNS TABLE (
+  achievement_id uuid,
+  title text,
+  description text,
+  image_url text
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+-- Function implementation calculates user stats (total actions, max streak, total dreams)
+-- and unlocks eligible achievements that haven't been unlocked yet
+-- See achievements.sql for full implementation
+$$;
+```
 
 ### create_occurrence_series(p_action_id)
 Create a series of occurrences for finite-slice actions.
@@ -730,12 +796,15 @@ The following permissions are configured for the `authenticated` role:
 - `ai_events`
 - `notification_preferences`
 - `user_subscriptions`
+- `achievements` (SELECT only - public read)
+- `user_achievements` (SELECT, UPDATE)
 
 **Functions (EXECUTE):**
 - `defer_occurrence(uuid)`
 - `current_streak(uuid, uuid)`
 - `soft_delete_area(uuid)`
 - `create_occurrence_series(uuid)`
+- `check_new_achievements()` (returns newly unlocked achievements)
 
 **Schema Access:**
 - `USAGE` on `public` schema
@@ -765,6 +834,8 @@ ALTER TABLE action_artifacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 
 -- Force RLS (prevents bypassing policies)
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
@@ -776,6 +847,8 @@ ALTER TABLE action_artifacts FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;
 ALTER TABLE user_subscriptions FORCE ROW LEVEL SECURITY;
+ALTER TABLE achievements FORCE ROW LEVEL SECURITY;
+ALTER TABLE user_achievements FORCE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can access own profile" ON profiles
@@ -851,6 +924,20 @@ CREATE POLICY "Insert own user_subscriptions" ON user_subscriptions
 
 CREATE POLICY "Update own user_subscriptions" ON user_subscriptions
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Achievements policies
+CREATE POLICY "Everyone can read achievements" ON achievements
+  FOR SELECT USING (true);
+
+-- User achievements policies
+CREATE POLICY "Users can read own achievements" ON user_achievements
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own achievements" ON user_achievements
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role can manage user achievements" ON user_achievements
+  FOR ALL USING (true);
 ```
 
 ## Storage Policies

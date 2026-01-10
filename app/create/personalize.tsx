@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, TextInput, FlatList, StyleSheet } from 'react-native'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput, FlatList, StyleSheet } from 'react-native'
+import { Image } from 'expo-image'
 import { useNavigation } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
@@ -8,10 +9,13 @@ import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { upsertDream, getDefaultImages, uploadDreamImage, type DreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function PersonalizeStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { dreamId, title, start_date, end_date, image_url, setField, preloadedDefaultImages } = useCreateDream()
   const [defaultImages, setDefaultImages] = useState<DreamImage[]>([])
@@ -173,9 +177,9 @@ export default function PersonalizeStep() {
           ]}
         >
           {isUploading ? (
-            <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+            <Ionicons name="hourglass-outline" size={24} color={theme.colors.text.tertiary} />
           ) : (
-            <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+            <Ionicons name="add" size={24} color={theme.colors.text.primary} />
           )}
           <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
             {isUploading ? 'Uploading...' : 'Add'}
@@ -195,9 +199,9 @@ export default function PersonalizeStep() {
         <Image
           source={{ uri: item.signed_url }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
           onLoad={() => handleImageLoad(item.signed_url)}
-          fadeDuration={isPreloaded ? 0 : 200}
+          transition={isPreloaded ? 0 : 200}
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>
@@ -222,7 +226,7 @@ export default function PersonalizeStep() {
         
         <Text style={{ 
           fontSize: 12, 
-          color: theme.colors.text.muted, 
+          color: theme.colors.text.tertiary, 
           marginBottom: 16,
           fontStyle: 'italic'
         }}>
@@ -259,10 +263,10 @@ export default function PersonalizeStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     flex: 1,
@@ -277,7 +281,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: theme.spacing.sm,
   },
@@ -286,7 +290,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: 18,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'left',
     marginBottom: theme.spacing.xl,
   },
@@ -297,7 +301,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
   },
   gridContainer: {
     paddingBottom: 20,
@@ -311,15 +315,15 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     position: 'relative',
   },
   uploadButton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: theme.colors.grey[200],
+    borderColor: theme.colors.border.default,
     borderStyle: 'dashed',
   },
   uploadButtonDisabled: {
@@ -327,12 +331,12 @@ const styles = StyleSheet.create({
   },
   uploadText: {
     fontSize: 12,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginTop: 4,
     fontWeight: '500',
   },
   uploadTextDisabled: {
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
   },
   image: {
     width: '100%',
@@ -340,7 +344,7 @@ const styles = StyleSheet.create({
   },
   selectedImageItem: {
     borderWidth: 3,
-    borderColor: theme.colors.primary[600] || '#000000',
+    borderColor: theme.colors.primary[600],
   },
   selectedOverlay: {
     position: 'absolute',
@@ -353,7 +357,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

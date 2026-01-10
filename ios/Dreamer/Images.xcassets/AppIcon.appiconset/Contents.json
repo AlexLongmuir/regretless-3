@@ -4,7 +4,25 @@
       "filename": "App-Icon-1024x1024@1x.png",
       "idiom": "universal",
       "platform": "ios",
-      "size": "1024x1024"
+      "size": "1024x1024",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "light"
+        }
+      ]
+    },
+    {
+      "filename": "App-Icon-Dark-1024x1024@1x.png",
+      "idiom": "universal",
+      "platform": "ios",
+      "size": "1024x1024",
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
     }
   ],
   "info": {

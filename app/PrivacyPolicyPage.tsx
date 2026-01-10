@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { IconButton } from '../components/IconButton';
 
 const PrivacyPolicyPage = ({ navigation }: { navigation?: any }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   return (
     <SafeAreaView style={styles.container}>
       {/* Header with Back Button */}
@@ -136,10 +140,10 @@ const PrivacyPolicyPage = ({ navigation }: { navigation?: any }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     paddingHorizontal: theme.spacing.lg,
@@ -154,7 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   backButton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: 12,
   },
   title: {
@@ -162,7 +166,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.largeTitle,
     fontWeight: theme.typography.fontWeight.bold as any,
     lineHeight: theme.typography.lineHeight.largeTitle,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
     textAlign: 'left',
   },
@@ -171,14 +175,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.caption1,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.caption1,
-    color: theme.colors.grey[500],
+    color: theme.colors.text.tertiary,
   },
   sectionTitle: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.headline,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.headline,
-    color: theme.colors.grey[800],
+    color: theme.colors.text.primary,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
   },
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
   },
@@ -196,7 +200,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.sm,
   },
   bulletPoint: {
@@ -204,7 +208,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginLeft: theme.spacing.md,
     marginBottom: theme.spacing.xs,
   },

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
+import { Theme } from '../../utils/theme';
 
 interface DayStreakCardProps {
   streakCount: number;
@@ -19,6 +20,9 @@ const DayStreakCard: React.FC<DayStreakCardProps> = ({
   streakCount, 
   weeklyProgress 
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const getDayStyle = (status: 'active' | 'current' | 'missed' | 'future') => {
     switch (status) {
       case 'active':
@@ -35,6 +39,21 @@ const DayStreakCard: React.FC<DayStreakCardProps> = ({
   };
 
   const getDayLabel = (day: string) => day.charAt(0).toUpperCase();
+  
+  const getDayTextStyle = (status: 'active' | 'current' | 'missed' | 'future') => {
+    switch (status) {
+      case 'active':
+        return styles.activeDayText;
+      case 'current':
+        return styles.currentDayText;
+      case 'missed':
+        return styles.missedDayText;
+      case 'future':
+        return styles.futureDayText;
+      default:
+        return styles.futureDayText;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -48,34 +67,34 @@ const DayStreakCard: React.FC<DayStreakCardProps> = ({
       
       <View style={styles.weeklyProgress}>
         <View style={getDayStyle(weeklyProgress.monday)}>
-          <Text style={styles.dayText}>{getDayLabel('monday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.monday)}>{getDayLabel('monday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.tuesday)}>
-          <Text style={styles.dayText}>{getDayLabel('tuesday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.tuesday)}>{getDayLabel('tuesday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.wednesday)}>
-          <Text style={styles.dayText}>{getDayLabel('wednesday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.wednesday)}>{getDayLabel('wednesday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.thursday)}>
-          <Text style={styles.dayText}>{getDayLabel('thursday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.thursday)}>{getDayLabel('thursday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.friday)}>
-          <Text style={styles.dayText}>{getDayLabel('friday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.friday)}>{getDayLabel('friday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.saturday)}>
-          <Text style={styles.dayText}>{getDayLabel('saturday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.saturday)}>{getDayLabel('saturday')}</Text>
         </View>
         <View style={getDayStyle(weeklyProgress.sunday)}>
-          <Text style={styles.dayText}>{getDayLabel('sunday')}</Text>
+          <Text style={getDayTextStyle(weeklyProgress.sunday)}>{getDayLabel('sunday')}</Text>
         </View>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.md,
@@ -94,12 +113,12 @@ const styles = StyleSheet.create({
   streakNumber: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
   },
   streakLabel: {
     fontSize: 16,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     fontWeight: '500',
   },
   weeklyProgress: {
@@ -120,7 +139,7 @@ const styles = StyleSheet.create({
   },
   currentDay: {
     borderWidth: 2,
-    borderColor: theme.colors.grey[400],
+    borderColor: theme.colors.border.default,
     borderStyle: 'dashed',
     backgroundColor: 'transparent',
   },
@@ -128,12 +147,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   futureDay: {
-    backgroundColor: theme.colors.grey[200],
+    backgroundColor: theme.colors.background.input || '#E0E0E0', // Use input background (dark in dark mode, light in light mode)
   },
   dayText: {
     fontSize: 12,
     fontWeight: '600',
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
+  },
+  activeDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text.inverse, // White text on warning background
+  },
+  currentDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  missedDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text.tertiary,
+  },
+  futureDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
   },
 });
 

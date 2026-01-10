@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, TouchableWithoutFeedback, Dimensions } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 interface OptionItem {
@@ -20,6 +21,9 @@ interface OptionsPopoverProps {
 }
 
 export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose, options, triggerPosition }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const getPopoverPosition = () => {
     if (!triggerPosition) {
       return { top: '50%' as const, left: '50%' as const, transform: [{ translateX: -100 }, { translateY: -50 }] };
@@ -93,7 +97,7 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
                     name={option.icon} 
                     size={20} 
                     color={option.destructive ? theme.colors.error[500] : 
-                           option.selected ? theme.colors.primary[400] : theme.colors.surface[50]} 
+                           option.selected ? theme.colors.primary[400] : '#FFFFFF'} 
                   />
                   <Text style={[
                     styles.optionText,
@@ -120,18 +124,18 @@ export const OptionsPopover: React.FC<OptionsPopoverProps> = ({ visible, onClose
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: theme.colors.background.overlay,
   },
   container: {
-    backgroundColor: theme.colors.grey[600],
+    backgroundColor: theme.colors.grey[800],
     borderRadius: theme.radius.lg,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.xs,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -152,7 +156,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.callout,
     fontWeight: theme.typography.fontWeight.medium as any,
-    color: theme.colors.surface[50],
+    color: '#FFFFFF', // Always white for dark popover background
   },
   destructiveText: {
     color: theme.colors.error[500],

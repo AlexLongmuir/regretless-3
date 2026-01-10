@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -99,7 +100,8 @@ const FinalStep: React.FC = () => {
               <Image 
                 source={{ uri: state.dreamImageUrl }} 
                 style={styles.dreamImage}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
               />
             </View>
           )}

@@ -20,9 +20,10 @@
  * - Terms of service links
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform, Animated, Dimensions, Easing, Modal, TouchableOpacity, KeyboardAvoidingView, Keyboard } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -37,6 +38,9 @@ const transcendImage = require('../assets/images/transcend.png');
 const lifecoachImage = require('../assets/images/lifecoach.png');
 
 export const LoginPage: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   // Get auth functions from context
   const { 
     signIn,
@@ -336,7 +340,7 @@ export const LoginPage: React.FC = () => {
                 {isSignUpMode ? 'Create Account' : 'Sign In'}
               </Text>
               <TouchableOpacity onPress={handleCloseEmailModal} style={styles.closeButton}>
-                <Icon name="close" size={24} color={theme.colors.grey[600]} />
+                <Icon name="close" size={24} color={theme.colors.icon.default} />
               </TouchableOpacity>
             </View>
 
@@ -395,10 +399,10 @@ export const LoginPage: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.page,
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.xl * 2,
@@ -437,7 +441,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.grey[700],
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
@@ -446,7 +450,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.regular as any,
     lineHeight: theme.typography.lineHeight.subheadline,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
   },
@@ -462,11 +466,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.background.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderTopLeftRadius: theme.radius.xl,
     borderTopRightRadius: theme.radius.xl,
     paddingHorizontal: theme.spacing.lg,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   View, 
   ScrollView, 
@@ -8,7 +8,8 @@ import {
   ViewStyle, 
   SafeAreaView
 } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface ResponsiveContainerProps {
   children: React.ReactNode;
@@ -25,6 +26,8 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
   contentContainerStyle,
   footer,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const ContentWrapper = scrollable ? ScrollView : View;
   const wrapperProps = scrollable 
     ? { 
@@ -58,10 +61,10 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -86,7 +89,7 @@ const styles = StyleSheet.create({
   footerContainer: {
     width: '100%',
     alignItems: 'center',
-    backgroundColor: theme.colors.pageBackground, // Ensure footer background matches page
+    backgroundColor: theme.colors.background.page, // Ensure footer background matches page
   },
   constrainedFooter: {
     width: '100%',

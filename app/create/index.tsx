@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, Image, StyleSheet } from 'react-native'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native'
+import { Image } from 'expo-image'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useToast } from '../../components/toast/ToastProvider'
@@ -12,7 +13,8 @@ import { CelebritySelector, preloadCelebrities, preloadCelebrityDreams } from '.
 import { DreamboardUpload } from '../../components/DreamboardUpload'
 import { upsertDream, getDefaultImages } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
-import { theme } from '../../utils/theme'
+import { useTheme } from '../../contexts/ThemeContext'
+import { Theme } from '../../utils/theme'
 import { trackEvent } from '../../lib/mixpanel'
 
 const dreamPresets = [
@@ -30,6 +32,8 @@ const dreamPresets = [
 ];
 
 export default function TitleStep() {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const { title, dreamId, start_date, end_date, image_url, setField, preloadedDefaultImages, setPreloadedDefaultImages } = useCreateDream()
   const navigation = useNavigation<any>()
   const toast = useToast()
@@ -241,10 +245,10 @@ export default function TitleStep() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     flex: 1,
@@ -259,7 +263,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.title2,
     fontWeight: theme.typography.fontWeight.semibold as any,
     lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'left',
     marginBottom: theme.spacing['2xl'],
   },
@@ -271,7 +275,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
   },
   optionsContainer: {
@@ -283,7 +287,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.pageBackground,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

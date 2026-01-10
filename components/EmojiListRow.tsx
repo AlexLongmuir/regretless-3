@@ -6,9 +6,10 @@
  * - 'navigate': Navigates to another page
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface EmojiListRowProps {
   emoji: string;
@@ -29,6 +30,9 @@ export const EmojiListRow: React.FC<EmojiListRowProps> = ({
   isSelected = false,
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   const handlePress = () => {
     if (type === 'select' && onSelect) {
       onSelect(text);
@@ -60,9 +64,9 @@ export const EmojiListRow: React.FC<EmojiListRowProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.background.card,
     height: 44,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -71,7 +75,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   selectedContainer: {
-    backgroundColor: theme.colors.grey[100],
+    backgroundColor: theme.colors.disabled.inactive,
     borderWidth: 1,
     borderColor: theme.colors.black,
   },
@@ -80,7 +84,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
-    color: '#000',
+    color: theme.colors.text.primary,
     flex: 1,
     fontFamily: theme.typography.fontFamily.system,
     fontWeight: theme.typography.fontWeight.regular as any,

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 interface StickyActionSuggestionsProps {
   onApprove: () => void;
@@ -15,6 +16,9 @@ export const StickyActionSuggestions: React.FC<StickyActionSuggestionsProps> = (
   visible,
   animatedValue,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  
   if (!visible) return null;
 
   const animatedStyle = animatedValue ? {
@@ -59,16 +63,16 @@ export const StickyActionSuggestions: React.FC<StickyActionSuggestionsProps> = (
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0, // Always at the very bottom of screen
     left: 0,
     right: 0,
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderTopWidth: 0.5,
-    borderTopColor: theme.colors.grey[200],
-    shadowColor: theme.colors.grey[900],
+    borderTopColor: theme.colors.border.default,
+    shadowColor: theme.colors.black,
     shadowOffset: {
       width: 0,
       height: -2,
@@ -87,13 +91,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.fontSize.title3,
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.grey[900],
+    color: theme.colors.text.primary,
     textAlign: 'center',
     marginBottom: theme.spacing.xs,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.body,
-    color: theme.colors.grey[600],
+    color: theme.colors.text.secondary,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
   },
@@ -114,18 +118,18 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary[500],
   },
   improveButton: {
-    backgroundColor: theme.colors.surface[50],
+    backgroundColor: theme.colors.background.card,
     borderWidth: 1,
-    borderColor: theme.colors.grey[300],
+    borderColor: theme.colors.border.default,
   },
   buttonText: {
     fontSize: theme.typography.fontSize.body,
     fontWeight: theme.typography.fontWeight.medium as any,
   },
   approveButtonText: {
-    color: theme.colors.surface[50],
+    color: theme.colors.text.inverse,
   },
   improveButtonText: {
-    color: theme.colors.grey[700],
+    color: theme.colors.text.secondary,
   },
 });

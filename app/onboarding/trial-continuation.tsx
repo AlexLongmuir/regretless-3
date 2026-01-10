@@ -10,6 +10,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
 import { theme } from '../../utils/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '../../components/Button';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,7 @@ try {
 
 const TrialContinuationStep: React.FC = () => {
   const navigation = useNavigation();
+  const { isDark, theme: dynamicTheme } = useTheme();
   const { hasProAccess, restorePurchases } = useEntitlementsContext();
   const { user } = useAuthContext();
   const [selectedPlan, setSelectedPlan] = useState('$rc_annual');
@@ -507,7 +509,18 @@ const TrialContinuationStep: React.FC = () => {
 
 
   // Create Restore button matching IconButton style
-  const restoreButton = (
+  const restoreButton = isDark ? (
+    <TouchableOpacity
+      onPress={handleRestore}
+      style={styles.restoreButtonWrapper}
+    >
+      <View 
+        style={[styles.restoreButton, { backgroundColor: dynamicTheme.colors.background.card }]}
+      >
+        <Text style={styles.restoreText}>Restore</Text>
+      </View>
+    </TouchableOpacity>
+  ) : (
     <TouchableOpacity
       onPress={handleRestore}
       style={styles.restoreButtonWrapper}

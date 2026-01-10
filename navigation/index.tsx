@@ -51,6 +51,8 @@ import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
 import SubscriptionLockoutPage from '../app/SubscriptionLockoutPage';
 import ScreenshotMenuPage from '../app/ScreenshotMenuPage';
 import NotificationSettingsPage from '../app/NotificationSettingsPage';
+import DisplaySettingsPage from '../app/DisplaySettingsPage';
+import { DailyWelcomeContainer } from '../components/DailyWelcome/DailyWelcomeContainer';
 
 // Wrapper component removed - OnboardingProvider is now at App root
 // const OnboardingNavigatorWithProvider = () => (
@@ -63,6 +65,7 @@ import NotificationSettingsPage from '../app/NotificationSettingsPage';
 import { StickyActionSuggestions } from '../components/StickyActionSuggestions';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useEntitlementsContext } from '../contexts/EntitlementsContext';
+import { useTheme } from '../contexts/ThemeContext';
 // import { OnboardingProvider } from '../contexts/OnboardingContext'; // Moved to App.tsx
 import { theme } from '../utils/theme';
 import { trackEvent } from '../lib/mixpanel';
@@ -148,6 +151,7 @@ const TodayStackNavigator = () => {
  */
 const TabNavigator = ({ navigation, route }: any) => {
   const [showActionSuggestions, setShowActionSuggestions] = useState(false);
+  const { theme: currentTheme, isDark } = useTheme();
 
   // Listen for navigation events to show action suggestions
   useEffect(() => {
@@ -180,12 +184,13 @@ const TabNavigator = ({ navigation, route }: any) => {
     <View style={styles.container}>
       <BottomTab.Navigator
         screenOptions={{
-          // Native tabs automatically use liquid glass on iOS 26+
-          // No need for custom tabBarBackground or tabBarStyle
+          tabBarActiveTintColor: isDark ? currentTheme.colors.primary[300] : currentTheme.colors.primary[600],
+          tabBarInactiveTintColor: currentTheme.colors.text.secondary,
         }}
       >
         <BottomTab.Screen
           name="Dreams"
+          key={`dreams-${isDark ? 'dark' : 'light'}`} // Force re-render when theme changes
           options={{
             title: 'Dreams',
             // Use SF Symbols on iOS for native look with liquid glass
@@ -218,6 +223,7 @@ const TabNavigator = ({ navigation, route }: any) => {
         </BottomTab.Screen>
         <BottomTab.Screen
           name="Today"
+          key={`today-${isDark ? 'dark' : 'light'}`} // Force re-render when theme changes
           options={{
             title: 'Today',
             tabBarIcon: Platform.select({
@@ -249,6 +255,7 @@ const TabNavigator = ({ navigation, route }: any) => {
         </BottomTab.Screen>
         <BottomTab.Screen
           name="Progress"
+          key={`progress-${isDark ? 'dark' : 'light'}`} // Force re-render when theme changes
           options={{
             title: 'Progress',
             tabBarIcon: Platform.select({
@@ -266,6 +273,7 @@ const TabNavigator = ({ navigation, route }: any) => {
         </BottomTab.Screen>
         <BottomTab.Screen
           name="Account"
+          key={`account-${isDark ? 'dark' : 'light'}`} // Force re-render when theme changes
           options={{
             title: 'Account',
             tabBarIcon: Platform.select({
@@ -374,11 +382,17 @@ const MainNavigator = ({
           options={{ presentation: 'card' }}
         />
         <MainStack.Screen 
+          name="DisplaySettings" 
+          component={DisplaySettingsPage}
+          options={{ presentation: 'card' }}
+        />
+        <MainStack.Screen 
           name="CreateFlow" 
           component={CreateNavigator}
           options={{ presentation: 'fullScreenModal' }}
         />
       </MainStack.Navigator>
+      <DailyWelcomeContainer />
     </View>
   );
 };

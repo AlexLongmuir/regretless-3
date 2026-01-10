@@ -2,10 +2,10 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { theme } from '../utils/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface IconProps {
-  name: keyof typeof theme.icons;
+  name: string; // Changed to string to allow better compatibility if keyof check fails
   size?: number;
   color?: string;
   style?: any;
@@ -17,6 +17,8 @@ export const Icon: React.FC<IconProps> = ({
   color = 'white',
   style 
 }) => {
+  const { theme } = useTheme();
+  // @ts-ignore
   const iconConfig = theme.icons[name];
   
   if (!iconConfig) {

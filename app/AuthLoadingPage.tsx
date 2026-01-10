@@ -16,49 +16,53 @@
  * your app logo, or other branding elements.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { theme } from '../utils/theme';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { useTheme } from '../contexts/ThemeContext';
+import { Theme } from '../utils/theme';
 
 export const AuthLoadingPage: React.FC = () => {
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Minimal app branding */}
-        <Text style={styles.appName}>Dreamer</Text>
-        
-        {/* Subtle loading indicator */}
-        <ActivityIndicator 
-          size="small" 
-          color={theme.colors.primary[600]} 
-          style={styles.spinner}
+    <View style={styles.splashContainer}>
+      <View style={styles.titleContainer}>
+        <Image 
+          source={require('../assets/star.png')} 
+          style={styles.splashIcon}
+          contentFit="contain"
         />
+        <Text style={styles.splashText}>Dreamer</Text>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
+const createStyles = (theme: Theme, isDark: boolean) => StyleSheet.create({
+  splashContainer: {
     flex: 1,
-    backgroundColor: theme.colors.surface[50],
+    // Match the app's page background color to prevent flash
+    // In dark mode: dark grey (#302F2F)
+    // In light mode: page background (grey[200] = #E5E7EB) to match app screens
+    backgroundColor: isDark ? '#302F2F' : theme.colors.background.page,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  titleContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  appName: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title1,
-    fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: theme.typography.lineHeight.title1,
-    color: theme.colors.primary[600],
-    marginBottom: theme.spacing.md,
-    letterSpacing: 1,
+  splashIcon: {
+    width: 40,
+    height: 40,
+    marginRight: theme.spacing.sm,
   },
-  spinner: {
-    marginTop: theme.spacing.sm,
+  splashText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: isDark ? '#FFFFFF' : theme.colors.text.primary,
   },
 });
 
