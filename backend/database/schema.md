@@ -638,8 +638,27 @@ BEGIN
         
         -- Insert the next occurrence, but skip if it already exists
         -- (e.g., created by scheduler or previous trigger execution)
-        INSERT INTO action_occurrences (action_id, occurrence_no, planned_due_on, due_on)
-        VALUES (action_record.id, next_occurrence_no, next_due_date, next_due_date)
+        -- Use dream_id, area_id, and user_id from the current occurrence (NEW)
+        INSERT INTO action_occurrences (
+          action_id, 
+          dream_id, 
+          area_id, 
+          user_id,
+          occurrence_no, 
+          planned_due_on, 
+          due_on,
+          defer_count
+        )
+        VALUES (
+          action_record.id, 
+          NEW.dream_id, 
+          NEW.area_id, 
+          NEW.user_id,
+          next_occurrence_no, 
+          next_due_date, 
+          next_due_date,
+          0
+        )
         ON CONFLICT (action_id, occurrence_no) DO NOTHING;
       END IF;
     END IF;

@@ -281,44 +281,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.disabled.inactive,
   },
-  columnSelector: {
-    backgroundColor: theme.colors.background.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border.default,
-  },
-  selectorTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.text.primary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  columnOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  columnOption: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.disabled.inactive,
-    minWidth: 40,
-    alignItems: 'center',
-  },
-  selectedColumnOption: {
-    backgroundColor: theme.colors.primary[600],
-  },
-  columnOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: theme.colors.text.secondary,
-  },
-  selectedColumnOptionText: {
-    color: theme.colors.text.inverse,
-  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

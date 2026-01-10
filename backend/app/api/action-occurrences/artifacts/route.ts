@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Get occurrence data before update to check for existing occurrences
     const { data: occurrenceBeforeUpdate } = await supabase
       .from('action_occurrences')
-      .select('action_id, occurrence_no, planned_due_on, actions!inner(repeat_every_days)')
+      .select('action_id, occurrence_no, planned_due_on, dream_id, area_id, user_id, actions!inner(repeat_every_days)')
       .eq('id', occurrenceId)
       .single();
     
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       repeatEveryDays = firstAction?.repeat_every_days;
     }
     
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:56',message:'Before update - occurrence data',data:{occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,currentOccurrenceNo:occurrenceBeforeUpdate?.occurrence_no,repeatEveryDays,existingOccurrences:existingOccurrences?.map(o=>({no:o.occurrence_no,date:o.planned_due_on})),maxOccurrenceNo:existingOccurrences?.length?Math.max(...existingOccurrences.map(o=>o.occurrence_no)):0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:56',message:'Before update - occurrence data',data:{occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,currentOccurrenceNo:occurrenceBeforeUpdate?.occurrence_no,dreamId:occurrenceBeforeUpdate?.dream_id,areaId:occurrenceBeforeUpdate?.area_id,userId:occurrenceBeforeUpdate?.user_id,repeatEveryDays,existingOccurrences:existingOccurrences?.map(o=>({no:o.occurrence_no,date:o.planned_due_on})),maxOccurrenceNo:existingOccurrences?.length?Math.max(...existingOccurrences.map(o=>o.occurrence_no)):0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
 
     // Update the occurrence with the note and completed_at

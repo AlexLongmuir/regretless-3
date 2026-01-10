@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import {
@@ -22,6 +22,7 @@ import type { Achievement, UserAchievement } from '../backend/database/types';
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme, isDark]);
+  const nav = useNavigation();
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
@@ -155,23 +156,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
 
         {/* Removed DayStreakCard - using StreakSheet in header instead */}
         
-        <ThisWeekCard
-          actionsPlanned={thisWeekStats.actionsPlanned}
-          actionsDone={thisWeekStats.actionsDone}
-          actionsOverdue={thisWeekStats.actionsOverdue}
-        />
-
-        <ProgressPhotosSection
-          photos={progressPhotos}
-          onPhotoPress={handlePhotoPress}
-          onExpandPress={() => {
-            setIsPhotosExpanded(!isPhotosExpanded);
-            trackEvent('progress_photo_expanded');
-          }}
-          isExpanded={isPhotosExpanded}
-          columns={6}
-        />
-
+        {/* Dream chips at the top */}
         {dreams.map((dream) => {
           // Calculate day progress
           const startDate = new Date(dream.start_date);
@@ -191,25 +176,27 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
             currentDay = Math.max(1, currentDay);
           }
 
-          // Debug logging
-          console.log(`Dream ${dream.title}:`, {
-            completed_total: dream.completed_total,
-            total_actions: dream.total_actions,
-            completed_today: dream.completed_today
-          });
-
           return (
             <TouchableOpacity
               key={dream.id}
               onPress={() => {
                 trackEvent('progress_goal_card_pressed', { dream_id: dream.id, title: dream.title });
-                navigation.navigate('Dream', {
-                  dreamId: dream.id,
-                  title: dream.title,
-                  startDate: dream.start_date,
-                  endDate: dream.end_date,
-                  description: dream.description,
-                });
+                // Navigate to Dreams tab, then to Dream screen within that stack
+                // Use the navigation prop if available, otherwise use useNavigation hook
+                const navToUse = navigation || nav;
+                if (navToUse && navToUse.navigate) {
+                  // Try direct navigation first (for tab-to-tab)
+                  navToUse.navigate('Dreams', {
+                    screen: 'Dream',
+                    params: {
+                      dreamId: dream.id,
+                      title: dream.title,
+                      startDate: dream.start_date,
+                      endDate: dream.end_date,
+                      description: dream.description,
+                    },
+                  });
+                }
               }}
             >
               <GoalProgressCard
@@ -226,6 +213,23 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
             </TouchableOpacity>
           );
         })}
+
+        <ThisWeekCard
+          actionsPlanned={thisWeekStats.actionsPlanned}
+          actionsDone={thisWeekStats.actionsDone}
+          actionsOverdue={thisWeekStats.actionsOverdue}
+        />
+
+        <ProgressPhotosSection
+          photos={progressPhotos}
+          onPhotoPress={handlePhotoPress}
+          onExpandPress={() => {
+            setIsPhotosExpanded(!isPhotosExpanded);
+            trackEvent('progress_photo_expanded');
+          }}
+          isExpanded={isPhotosExpanded}
+          columns={3}
+        />
 
         <HistorySection
           actionsComplete={currentHistoryStats.actionsComplete}
