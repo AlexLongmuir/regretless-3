@@ -72,6 +72,7 @@ type State = {
   // Store today data for different dates (simplified - only current day)
   todayByDate: Record<string, TodayPayload>;
   loadingTodayByDate: Record<string, boolean>;
+  unlockedAchievements: AchievementUnlockResult[]; // Queue of newly unlocked achievements to display
 };
 
 // Context interface - defines what's available to consuming components
@@ -108,6 +109,10 @@ type Ctx = {
   clearDreamsWithStatsCache: () => void;
   checkDreamCompletion: (dreamId: string) => Promise<boolean>;
   
+  // Achievement checking
+  checkAchievements: () => Promise<void>;
+  clearUnlockedAchievements: () => void;
+  
   // Screen focus tracking for automatic refresh
   onScreenFocus: (screenName: 'today' | 'dreams' | 'dream-detail', dreamId?: string) => void;
 };
@@ -128,7 +133,7 @@ const DataContext = createContext<Ctx | null>(null);
  */
 export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   // Initialize state with empty objects for dynamic keys
-  const [state, setState] = useState<State>({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {} });
+  const [state, setState] = useState<State>({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {}, unlockedAchievements: [] });
   const [isScreenshotMode, setIsScreenshotMode] = useState(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const { isAuthenticated, loading: authLoading } = useAuthContext();
@@ -148,7 +153,7 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   // Clear all data when user signs out
   const clearAllData = useCallback(() => {
     console.log('Clearing all data due to sign out');
-    setState({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {} });
+    setState({ dreamDetail: {}, todayByDate: {}, loadingTodayByDate: {}, unlockedAchievements: [] });
     lastFetchedAt.current = 0;
     isRefreshing.current = false;
     
@@ -419,6 +424,71 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   }, [fetchDreamDetail, state.dreamDetail, isScreenshotMode]);
 
   /**
+   * ACHIEVEMENT CHECKING
+   * 
+   * Check for newly unlocked achievements and queue them for display
+   */
+  const checkAchievements = useCallback(async () => {
+    if (isScreenshotMode) return;
+    
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:427',message:'checkAchievements called',data:{isScreenshotMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:432',message:'No session token',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return;
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:436',message:'Calling checkNewAchievementsAPI',data:{hasToken:!!session.access_token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      
+      const response = await checkNewAchievementsAPI(session.access_token);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:440',message:'checkNewAchievementsAPI response',data:{success:response.success,achievementsCount:response.data.new_achievements.length,message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      
+      if (response.success && response.data.new_achievements.length > 0) {
+        console.log('🏆 New achievements unlocked:', response.data.new_achievements.length);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:444',message:'Setting unlocked achievements',data:{count:response.data.new_achievements.length,achievements:response.data.new_achievements.map((a:any)=>({id:a.achievement_id,title:a.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        setState(s => ({
+          ...s,
+          unlockedAchievements: [
+            ...s.unlockedAchievements,
+            ...response.data.new_achievements
+          ]
+        }));
+      } else if (!response.success) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:454',message:'checkNewAchievementsAPI failed',data:{message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
+        console.error('Achievement check failed:', response.message);
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:458',message:'No new achievements found',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        // #endregion
+      }
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:463',message:'Exception in checkAchievements',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [isScreenshotMode]);
+
+  const clearUnlockedAchievements = useCallback(() => {
+    setState(s => ({ ...s, unlockedAchievements: [] }));
+  }, []);
+
+  /**
    * DREAM COMPLETION DETECTION
    * 
    * Check if a dream is complete (all areas approved and all actions completed)
@@ -542,8 +612,11 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       }
       
       refresh();
+      
+      // Check for achievements after completing an occurrence
+      await checkAchievements();
     }
-  }, [refresh, checkDreamCompletion]);
+  }, [refresh, checkDreamCompletion, checkAchievements]);
 
   // Defer an action occurrence to tomorrow with optimistic update
   const deferOccurrence: Ctx['deferOccurrence'] = useCallback(async (occurrenceId: string, newDueDate?: string) => {
@@ -1008,9 +1081,11 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       lastSyncedLabel,
       clearDreamsWithStatsCache,
       checkDreamCompletion,
+      checkAchievements,
+      clearUnlockedAchievements,
       onScreenFocus,
     };
-  }, [state, isScreenshotMode]); // Depend on isScreenshotMode
+  }, [state, isScreenshotMode, checkAchievements, clearUnlockedAchievements]); // Depend on isScreenshotMode
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

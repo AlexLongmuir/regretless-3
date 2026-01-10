@@ -7,6 +7,7 @@ import {
   ThisWeekCard,
   ProgressPhotosSection,
   GoalProgressCard,
+  HistorySection,
   AchievementsButton,
   AchievementsSheet,
   IconButton
@@ -21,6 +22,8 @@ import type { Achievement, UserAchievement } from '../backend/database/types';
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme, isDark]);
+  const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
   const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
   const [showStreakSheet, setShowStreakSheet] = useState(false);
@@ -88,6 +91,15 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     actionsDone: 0,
     actionsOverdue: 0,
   };
+  const historyStats = progress?.historyStats || {
+    week: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+    month: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+    year: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+    allTime: { actionsComplete: 0, activeDays: 0, actionsOverdue: 0 },
+  };
+
+  // Get stats for the selected time period
+  const currentHistoryStats = historyStats[selectedTimePeriod.toLowerCase() as keyof typeof historyStats] || historyStats.week;
   const progressPhotos = progress?.progressPhotos || [];
 
   // Calculate overall streak from progress data (across all dreams)
@@ -105,6 +117,12 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   const handlePhotoPress = (photo: any) => {
     // Handle photo press - could open full screen view
     console.log('Photo pressed:', photo.id);
+  };
+
+
+  const handleTimePeriodChange = (period: 'Week' | 'Month' | 'Year' | 'All Time') => {
+    trackEvent('progress_time_period_changed', { period });
+    setSelectedTimePeriod(period);
   };
 
   return (
@@ -146,6 +164,12 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
         <ProgressPhotosSection
           photos={progressPhotos}
           onPhotoPress={handlePhotoPress}
+          onExpandPress={() => {
+            setIsPhotosExpanded(!isPhotosExpanded);
+            trackEvent('progress_photo_expanded');
+          }}
+          isExpanded={isPhotosExpanded}
+          columns={6}
         />
 
         {dreams.map((dream) => {
@@ -202,6 +226,14 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
             </TouchableOpacity>
           );
         })}
+
+        <HistorySection
+          actionsComplete={currentHistoryStats.actionsComplete}
+          activeDays={currentHistoryStats.activeDays}
+          actionsOverdue={currentHistoryStats.actionsOverdue}
+          onTimePeriodChange={handleTimePeriodChange}
+          selectedPeriod={selectedTimePeriod}
+        />
       </ScrollView>
 
       <AchievementsSheet

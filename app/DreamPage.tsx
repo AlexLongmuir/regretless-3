@@ -517,7 +517,6 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     allProgressPhotos: state.progress?.progressPhotos?.map(p => ({ id: p.id, dream_id: p.dream_id })) || []
   });
 
-
   const handleTimePickerChange = (_event: any, selectedDate?: Date) => {
     if (selectedDate) {
       setTimePickerDate(selectedDate);
@@ -1054,6 +1053,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                 // Handle photo press - could open full screen view
                 console.log('Photo pressed:', photo);
               }}
+              columns={3}
             />
           )}
         </ScrollView>
@@ -1760,31 +1760,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     aspectRatio: 1,
     backgroundColor: theme.colors.disabled.inactive,
     borderRadius: theme.radius.md,
-  },
-  historySkeleton: {
-    marginBottom: theme.spacing.lg,
-  },
-  historyTitle: {
-    fontSize: theme.typography.fontSize.title3,
-    fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-  },
-  historySkeletonContent: {
-    backgroundColor: theme.colors.disabled.inactive,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-  },
-  historySkeletonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: theme.spacing.sm,
-  },
-  historySkeletonStat: {
-    flex: 1,
-    height: 60,
-    backgroundColor: theme.colors.border.default,
-    borderRadius: theme.radius.sm,
   },
 });
 

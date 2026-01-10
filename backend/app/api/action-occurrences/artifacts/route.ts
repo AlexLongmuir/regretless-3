@@ -60,13 +60,22 @@ export async function POST(request: NextRequest) {
       .single();
     
     // Check existing occurrences for this action
+    const actionIdForQuery = occurrenceBeforeUpdate?.action_id || occurrence?.action_id || '';
     const { data: existingOccurrences } = await supabase
       .from('action_occurrences')
       .select('occurrence_no, planned_due_on')
-      .eq('action_id', occurrenceBeforeUpdate?.action_id || '')
+      .eq('action_id', actionIdForQuery)
       .order('occurrence_no', { ascending: true });
     
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:56',message:'Before update - occurrence data',data:{occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,currentOccurrenceNo:occurrenceBeforeUpdate?.occurrence_no,repeatEveryDays:occurrenceBeforeUpdate?.actions?.repeat_every_days,existingOccurrences:existingOccurrences?.map(o=>({no:o.occurrence_no,date:o.planned_due_on})),maxOccurrenceNo:existingOccurrences?.length?Math.max(...existingOccurrences.map(o=>o.occurrence_no)):0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // Extract repeat_every_days safely (actions is an array from Supabase relationship)
+    let repeatEveryDays: number | null | undefined;
+    const actions = occurrenceBeforeUpdate?.actions;
+    if (actions && Array.isArray(actions) && actions.length > 0) {
+      const firstAction = actions[0] as { repeat_every_days?: number | null };
+      repeatEveryDays = firstAction?.repeat_every_days;
+    }
+    
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'route.ts:56',message:'Before update - occurrence data',data:{occurrenceId,actionId:occurrenceBeforeUpdate?.action_id,currentOccurrenceNo:occurrenceBeforeUpdate?.occurrence_no,repeatEveryDays,existingOccurrences:existingOccurrences?.map(o=>({no:o.occurrence_no,date:o.planned_due_on})),maxOccurrenceNo:existingOccurrences?.length?Math.max(...existingOccurrences.map(o=>o.occurrence_no)):0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
 
     // Update the occurrence with the note and completed_at

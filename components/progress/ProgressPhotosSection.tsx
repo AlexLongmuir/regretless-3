@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../utils/theme';
+import { Icon } from '../Icon';
 import { FullScreenPhotoViewer } from './FullScreenPhotoViewer';
 
 interface ProgressPhoto {
@@ -14,6 +15,9 @@ interface ProgressPhoto {
 interface ProgressPhotosSectionProps {
   photos: ProgressPhoto[];
   onPhotoPress?: (photo: ProgressPhoto) => void;
+  onExpandPress?: () => void;
+  isExpanded?: boolean;
+  columns?: number;
 }
 
 // Skeleton loading component for individual photos
@@ -69,10 +73,14 @@ const PhotoSkeleton: React.FC = () => {
 const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
   photos,
   onPhotoPress,
+  onExpandPress,
+  isExpanded = false,
+  columns = 3,
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const columns = 3; // Always use 3 columns
+  const [sectionExpanded, setSectionExpanded] = useState(true);
+  const selectedColumns = 3; // Always use 3 columns
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<string, boolean>>({});
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -137,6 +145,8 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     );
   }, [loadingStates, errorStates, handlePhotoPress, handleImageLoadStart, handleImageLoadEnd, handleImageError]);
 
+  const displayPhotos = sectionExpanded ? photos : photos.slice(0, 18);
+
   // Create a grid layout by organizing photos into rows
   const createGridRows = (photos: ProgressPhoto[], columns: number) => {
     const rows: ProgressPhoto[][] = [];
@@ -146,38 +156,55 @@ const ProgressPhotosSection: React.FC<ProgressPhotosSectionProps> = ({
     return rows;
   };
 
-  const gridRows = createGridRows(photos, columns);
+  const gridRows = createGridRows(displayPhotos, selectedColumns);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Progress Photos</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => setSectionExpanded(!sectionExpanded)}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name={sectionExpanded ? "expand_less" : "expand_more"}
+              size={20}
+              color={theme.colors.text.tertiary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
       
-      {photos.length > 0 ? (
-        <View style={styles.gridContainer}>
-          {gridRows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.gridRow}>
-              {row.map((photo) => (
-                <View key={photo.id} style={styles.gridItem}>
-                  {renderPhoto({ item: photo })}
-                </View>
-              ))}
-              {/* Fill remaining space in the row if it's not full */}
-              {row.length < columns && (
-                Array.from({ length: columns - row.length }).map((_, emptyIndex) => (
-                  <View key={`empty-${rowIndex}-${emptyIndex}`} style={styles.gridItem} />
-                ))
-              )}
-            </View>
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No progress photos yet</Text>
-          <Text style={styles.emptyStateSubtext}>Complete actions and add photos to see your progress here</Text>
-        </View>
-      )}
+                  {sectionExpanded && (
+                    <>
+                      {displayPhotos.length > 0 ? (
+                        <View style={styles.gridContainer}>
+                          {gridRows.map((row, rowIndex) => (
+                            <View key={rowIndex} style={styles.gridRow}>
+                              {row.map((photo) => (
+                                <View key={photo.id} style={styles.gridItem}>
+                                  {renderPhoto({ item: photo })}
+                                </View>
+                              ))}
+                              {/* Fill remaining space in the row if it's not full */}
+                              {row.length < selectedColumns && (
+                                Array.from({ length: selectedColumns - row.length }).map((_, emptyIndex) => (
+                                  <View key={`empty-${rowIndex}-${emptyIndex}`} style={styles.gridItem} />
+                                ))
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={styles.emptyState}>
+                          <Text style={styles.emptyStateText}>No progress photos yet</Text>
+                          <Text style={styles.emptyStateSubtext}>Complete actions and add photos to see your progress here</Text>
+                        </View>
+                      )}
+                    </>
+                  )}
 
       <FullScreenPhotoViewer
         visible={viewerVisible}
@@ -194,12 +221,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text.primary,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expandButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gridContainer: {
     paddingVertical: theme.spacing.sm,
@@ -242,6 +280,44 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.disabled.inactive,
+  },
+  columnSelector: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  selectorTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  columnOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  columnOption: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.disabled.inactive,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  selectedColumnOption: {
+    backgroundColor: theme.colors.primary[600],
+  },
+  columnOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+  },
+  selectedColumnOptionText: {
+    color: theme.colors.text.inverse,
   },
   emptyState: {
     alignItems: 'center',
