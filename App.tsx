@@ -151,8 +151,15 @@ export default function App() {
   }, []);
 
   // Calculate isDark based on saved theme preference (same logic as ThemeContext)
-  const isDark = themeMode === 'dark' || (themeMode === 'system' && systemScheme === 'dark');
-  const splashStyles = createSplashStyles(isDark);
+  // Only use the loaded theme mode after it's loaded - default to light mode until theme loads
+  // This prevents showing dark mode when user prefers light mode
+  // Handle null systemScheme by defaulting to light mode
+  const isDark = themeLoaded 
+    ? (themeMode === 'dark' || (themeMode === 'system' && systemScheme === 'dark'))
+    : false; // Default to light mode until theme preference is loaded
+  // Ensure we never use dark mode if systemScheme is null (handle edge case)
+  const safeIsDark = isDark && systemScheme !== null;
+  const splashStyles = createSplashStyles(safeIsDark);
   
   // Show loading screen while services are initializing OR theme is not loaded yet
   // This prevents flash by ensuring theme is ready before showing the app

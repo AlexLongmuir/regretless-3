@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate allowed fields
-    const allowedFields = ['note', 'due_on'];
+    const allowedFields = ['note', 'due_on', 'completed_at'];
     const updateFields = Object.keys(updates);
     const invalidFields = updateFields.filter(field => !allowedFields.includes(field));
     

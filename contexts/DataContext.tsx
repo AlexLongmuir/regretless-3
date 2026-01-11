@@ -25,6 +25,7 @@ import {
   archiveDream as archiveDreamAPI, 
   unarchiveDream as unarchiveDreamAPI, 
   deferOccurrence as deferOccurrenceAPI, 
+  unmarkOccurrence as unmarkOccurrenceAPI,
   updateArea as updateAreaAPI, 
   deleteArea as deleteAreaAPI,
   getAchievements as getAchievementsAPI,
@@ -94,6 +95,7 @@ type Ctx = {
   
   // Optimistic writes with background revalidation
   completeOccurrence: (occurrenceId: string) => Promise<void>;
+  unmarkOccurrence: (occurrenceId: string) => Promise<void>;
   deferOccurrence: (occurrenceId: string, newDueDate?: string) => Promise<void>;
   deleteDream: (dreamId: string) => Promise<void>;
   archiveDream: (dreamId: string) => Promise<void>;
@@ -459,13 +461,19 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:444',message:'Setting unlocked achievements',data:{count:response.data.new_achievements.length,achievements:response.data.new_achievements.map((a:any)=>({id:a.achievement_id,title:a.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
         // #endregion
-        setState(s => ({
-          ...s,
-          unlockedAchievements: [
-            ...s.unlockedAchievements,
-            ...response.data.new_achievements
-          ]
-        }));
+        setState(s => {
+          const updated = {
+            ...s,
+            unlockedAchievements: [
+              ...s.unlockedAchievements,
+              ...response.data.new_achievements
+            ]
+          };
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:469',message:'State updated with achievements',data:{previousCount:s.unlockedAchievements.length,newCount:updated.unlockedAchievements.length,totalUnlocked:updated.unlockedAchievements.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
+          // #endregion
+          return updated;
+        });
       } else if (!response.success) {
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:454',message:'checkNewAchievementsAPI failed',data:{message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
@@ -611,12 +619,56 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         // Don't fail the whole operation if completion check fails
       }
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:614',message:'completeOccurrence success, calling checkAchievements',data:{occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+      // #endregion
+      
       refresh();
       
       // Check for achievements after completing an occurrence
       await checkAchievements();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:620',message:'checkAchievements completed after completeOccurrence',data:{unlockedCount:state.unlockedAchievements.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+      // #endregion
     }
   }, [refresh, checkDreamCompletion, checkAchievements]);
+
+  // Unmark a completed action occurrence with optimistic update
+  const unmarkOccurrence: Ctx['unmarkOccurrence'] = useCallback(async (occurrenceId: string) => {
+    // Optimistic: restore to pending state in dreamDetail and potentially add back to Today
+    setState(s => {
+      const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
+      if (next.dreamDetail) {
+        for (const k of Object.keys(next.dreamDetail)) {
+          const dd = next.dreamDetail[k]!;
+          next.dreamDetail[k] = { 
+            ...dd, 
+            occurrences: dd.occurrences.map(o => 
+              o.id === occurrenceId 
+                ? { ...o, completed_at: null } 
+                : o
+            ) 
+          };
+        }
+      }
+      return next;
+    });
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await unmarkOccurrenceAPI(occurrenceId, session.access_token);
+      // Refresh to get updated occurrence data and potentially add back to Today if due today
+      await refresh(true);
+    } catch (error) {
+      console.error('Error unmarking occurrence:', error);
+      await refresh(true);
+    }
+  }, [refresh]);
 
   // Defer an action occurrence to tomorrow with optimistic update
   const deferOccurrence: Ctx['deferOccurrence'] = useCallback(async (occurrenceId: string, newDueDate?: string) => {
@@ -1069,6 +1121,7 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       getProgress,
       getDreamDetail,
       completeOccurrence,
+      unmarkOccurrence,
       deferOccurrence,
       deleteDream,
       archiveDream,

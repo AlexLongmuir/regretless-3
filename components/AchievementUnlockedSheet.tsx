@@ -139,7 +139,7 @@ export const AchievementUnlockedSheet: React.FC<AchievementUnlockedSheetProps> =
               bounces={false}
               scrollEnabled={achievements.length > 1}
             >
-              {achievements.map((achievement) => (
+              {achievements.map((achievement, index) => (
                 <View key={achievement.achievement_id} style={styles.carouselPage}>
                   {/* Achievement Image - Full width at top, extends to header like detail view */}
                   <View style={[styles.achievementImageBackground, { height: imageHeight, width: imageWidth }]}>
@@ -156,24 +156,26 @@ export const AchievementUnlockedSheet: React.FC<AchievementUnlockedSheetProps> =
                       </View>
                     )}
                     
-                    {/* Trophy Animation & Congratulations Text - Overlaid on image */}
-                    <View style={styles.overlayContent}>
-                      <View style={styles.trophyContainer}>
-                        {LottieView ? (
-                          <LottieView
-                            ref={lottieRef}
-                            source={require('../assets/Trophy.json')}
-                            autoPlay
-                            loop={false}
-                            speed={0.35}
-                            style={styles.trophyAnimation}
-                          />
-                        ) : (
-                          <Text style={styles.trophyEmoji}>🏆</Text>
-                        )}
+                    {/* Trophy Animation & Congratulations Text - Overlaid on image (only on first achievement) */}
+                    {index === 0 && (
+                      <View style={styles.overlayContent}>
+                        <View style={styles.trophyContainer}>
+                          {LottieView ? (
+                            <LottieView
+                              ref={lottieRef}
+                              source={require('../assets/Trophy.json')}
+                              autoPlay
+                              loop={false}
+                              speed={0.35}
+                              style={styles.trophyAnimation}
+                            />
+                          ) : (
+                            <Text style={styles.trophyEmoji}>🏆</Text>
+                          )}
+                        </View>
+                        <Text style={styles.congratsText}>Achievement Unlocked!</Text>
                       </View>
-                      <Text style={styles.congratsText}>Achievement Unlocked!</Text>
-                    </View>
+                    )}
                   </View>
 
                   {/* Achievement Title - Below image, matching detail view */}

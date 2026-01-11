@@ -81,10 +81,10 @@ INSERT INTO public.achievements (title, description, category, criteria_type, cr
 
 CREATE OR REPLACE FUNCTION check_new_achievements()
 RETURNS TABLE (
-  achievement_id uuid,
-  title text,
-  description text,
-  image_url text
+  unlocked_id uuid,
+  unlocked_title text,
+  unlocked_description text,
+  unlocked_image_url text
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -94,6 +94,10 @@ DECLARE
   v_total_actions integer;
   v_max_streak integer;
   v_total_dreams integer;
+  v_ach_id uuid;
+  v_ach_title text;
+  v_ach_desc text;
+  v_ach_img text;
   v_new_achievement record;
 BEGIN
   -- 1. Calculate Stats
@@ -107,8 +111,7 @@ BEGIN
   WHERE d.user_id = v_user_id
     AND ao.completed_at IS NOT NULL;
 
-  -- Max Streak (This is expensive, for MVP we might just check current streaks of active dreams)
-  -- We'll use the existing current_streak function logic over all dreams and take the max
+  -- Max Streak (Action-based: number of consecutive completed actions)
   SELECT COALESCE(MAX(current_streak(v_user_id, d.id)), 0) INTO v_max_streak
   FROM dreams d
   WHERE d.user_id = v_user_id AND d.archived_at IS NULL;
@@ -120,7 +123,14 @@ BEGIN
 
   -- 2. Find eligible achievements not yet unlocked
   FOR v_new_achievement IN
-    SELECT a.*
+    SELECT 
+      a.id,
+      a.title,
+      a.description,
+      a.image_url,
+      a.category,
+      a.criteria_type,
+      a.criteria_value
     FROM achievements a
     LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = v_user_id
     WHERE ua.id IS NULL -- Not yet unlocked
@@ -130,16 +140,22 @@ BEGIN
         (a.category = 'dream_count' AND v_total_dreams >= a.criteria_value)
       )
   LOOP
-    -- Insert into user_achievements
+    -- Store values in temporary variables to avoid conflict with OUT parameters
+    v_ach_id := v_new_achievement.id;
+    v_ach_title := v_new_achievement.title;
+    v_ach_desc := v_new_achievement.description;
+    v_ach_img := v_new_achievement.image_url;
+    
+    -- Insert into user_achievements (using the variable, not the OUT parameter)
     INSERT INTO user_achievements (user_id, achievement_id, unlocked_at, seen)
-    VALUES (v_user_id, v_new_achievement.id, now(), false)
+    VALUES (v_user_id, v_ach_id, now(), false)
     ON CONFLICT (user_id, achievement_id) DO NOTHING;
     
-    -- Return details for the frontend
-    achievement_id := v_new_achievement.id;
-    title := v_new_achievement.title;
-    description := v_new_achievement.description;
-    image_url := v_new_achievement.image_url;
+    -- Return details for the frontend (using distinct output columns)
+    unlocked_id := v_ach_id;
+    unlocked_title := v_ach_title;
+    unlocked_description := v_ach_desc;
+    unlocked_image_url := v_ach_img;
     RETURN NEXT;
   END LOOP;
 

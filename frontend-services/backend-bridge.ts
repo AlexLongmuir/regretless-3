@@ -383,8 +383,11 @@ export const deleteAccount = (token?: string): Promise<{ success: boolean; messa
 export const deleteActionOccurrence = (occurrenceId: string, token?: string): Promise<{ success: boolean; message: string }> => 
   del('/api/action-occurrences/delete', token, { occurrenceId })
 
-export const updateActionOccurrence = (occurrenceId: string, updates: { note?: string; due_on?: string }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
+export const updateActionOccurrence = (occurrenceId: string, updates: { note?: string; due_on?: string; completed_at?: string | null }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
   put('/api/action-occurrences/update', { occurrenceId, updates }, token)
+
+export const unmarkOccurrence = (occurrenceId: string, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
+  updateActionOccurrence(occurrenceId, { completed_at: null }, token)
 
 export const updateAction = (actionId: string, updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: { title: string; description: string }[] }, token?: string): Promise<{ success: boolean; data: any; message: string }> => 
   put('/api/actions/update', { actionId, updates }, token)
@@ -833,7 +836,6 @@ export const getAchievements = async (token: string): Promise<{ success: boolean
     const { data: achievements, error: achievementsError } = await supabaseClient
       .from('achievements')
       .select('*')
-      .order('position', { ascending: true })
 
     if (achievementsError) throw achievementsError
 
@@ -850,7 +852,16 @@ export const getAchievements = async (token: string): Promise<{ success: boolean
       user_progress: userAchievements?.find(ua => ua.achievement_id === ach.id) || null
     }))
 
-    return { success: true, data: { achievements: merged }, message: 'Success' }
+    // Sort by category first, then by criteria_value (numerical order)
+    // Category order: action_count, dream_count, streak
+    const categoryOrder = { 'action_count': 0, 'dream_count': 1, 'streak': 2, 'area_count': 3 }
+    const sorted = merged.sort((a, b) => {
+      const categoryDiff = (categoryOrder[a.category as keyof typeof categoryOrder] || 999) - (categoryOrder[b.category as keyof typeof categoryOrder] || 999)
+      if (categoryDiff !== 0) return categoryDiff
+      return a.criteria_value - b.criteria_value
+    })
+
+    return { success: true, data: { achievements: sorted }, message: 'Success' }
   } catch (error: any) {
     return { success: false, data: { achievements: [] }, message: error.message }
   }
@@ -883,7 +894,16 @@ export const checkNewAchievements = async (token: string): Promise<{ success: bo
     // #endregion
     
     if (error) throw error
-    return { success: true, data: { new_achievements: data || [] }, message: 'Success' }
+    
+    // Map response to match expected interface (handling mapped column names)
+    const mappedData = data?.map((item: any) => ({
+      achievement_id: item.unlocked_id || item.achievement_id,
+      title: item.unlocked_title || item.title,
+      description: item.unlocked_description || item.description,
+      image_url: item.unlocked_image_url || item.image_url || ''
+    })) || []
+    
+    return { success: true, data: { new_achievements: mappedData }, message: 'Success' }
   } catch (error: any) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:882',message:'RPC call error',data:{errorCode:error?.code,errorMessage:error?.message,errorDetails:error?.details,errorHint:error?.hint},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});

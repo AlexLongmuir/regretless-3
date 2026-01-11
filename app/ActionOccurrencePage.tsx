@@ -803,7 +803,7 @@ function SaveActionSheet({
               title={
                 isSubmitting 
                   ? "Submitting..." 
-                  : (isCompleted ? "Save" : "Mark as Done")
+                  : (isCompleted ? "Mark Incomplete" : "Mark as Done")
               }
               variant="black"
               onPress={handleSubmit}
@@ -924,13 +924,13 @@ const ActionOccurrencePage = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { deferOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
+  const { deferOccurrence, unmarkOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
   const { show: showToast } = useToast();
   
   // Calculate emoji dimensions
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
-  const emojiHeight = screenHeight * 0.45;
+  const emojiHeight = screenHeight * 0.225;
   // Calculate emoji width to extend to screen edges (accounting for content padding)
   const emojiWidth = screenWidth + (theme.spacing.md * 2);
   const params = route.params as {
@@ -1147,7 +1147,6 @@ const ActionOccurrencePage = () => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      showToast('Error', 'Failed to pick image. Please try again.');
     }
   };
 
@@ -1158,7 +1157,6 @@ const ActionOccurrencePage = () => {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
-        showToast('Error', 'Please log in to upload photos.');
         return;
       }
 
@@ -1174,12 +1172,10 @@ const ActionOccurrencePage = () => {
       
       if (uploadResponse.success) {
         setArtifacts(prev => [...prev, uploadResponse.data]);
-        showToast('Success', 'Photo uploaded successfully!');
         trackEvent('action_photo_uploaded', { action_id: params.occurrenceId });
       }
     } catch (error) {
       console.error('Error uploading image:', error);
-      showToast('Error', 'Failed to upload photo. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -1198,16 +1194,13 @@ const ActionOccurrencePage = () => {
             try {
               const { data: { session } } = await supabaseClient.auth.getSession();
               if (!session?.access_token) {
-                showToast('Error', 'Please log in to delete photos.');
                 return;
               }
 
               await deleteArtifact(artifactId, session.access_token);
               setArtifacts(prev => prev.filter(artifact => artifact.id !== artifactId));
-              showToast('Success', 'Photo deleted successfully!');
             } catch (error) {
               console.error('Error deleting image:', error);
-              showToast('Error', 'Failed to delete photo. Please try again.');
             }
           }
         }
@@ -1222,7 +1215,6 @@ const ActionOccurrencePage = () => {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
-        showToast('Error', 'Please log in to complete actions.');
         return;
       }
 
@@ -1230,7 +1222,6 @@ const ActionOccurrencePage = () => {
       await completeOccurrence(params.occurrenceId, note.trim() || undefined, session.access_token);
       
       setIsCompleted(true);
-      showToast('Success', 'Action completed successfully!');
       
       // Track action completed event
       trackEvent('action_completed', {
@@ -1264,7 +1255,31 @@ const ActionOccurrencePage = () => {
       } catch {
         // If parsing fails, use the original message
       }
-      showToast('Error', displayMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUnmark = async () => {
+    if (!params?.occurrenceId) return;
+
+    setIsSubmitting(true);
+    try {
+      await unmarkOccurrence(params.occurrenceId);
+      
+      setIsCompleted(false);
+      
+      // Track action unmarked event
+      trackEvent('action_unmarked', {
+        action_id: params.occurrenceId,
+        action_title: actionData?.title || params?.actionTitle,
+      });
+      
+      showToast('Success', 'Action marked as incomplete');
+    } catch (error: any) {
+      console.error('Error unmarking action:', error);
+      const errorMessage = error?.message || error?.error || 'Failed to unmark action. Please try again.';
+      showToast('Error', errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -1614,11 +1629,9 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       await updateActionInContext(actionData.id, updates);
       
       setShowEditModal(false);
-      showToast('Action Updated', 'Changes saved successfully.');
       trackEvent('action_edited', { action_id: actionData.id });
     } catch (error) {
       console.error('Error updating action:', error);
-      showToast('Error', 'Failed to update action. Please try again.');
     }
   };
 
@@ -2012,17 +2025,32 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       {/* Mark as Complete Button */}
       {!isPreviewMode && (
         <View style={styles.markCompleteSection}>
-          <Button
-            title={
-              isSubmitting 
-                ? "Submitting..." 
-                : (isCompleted ? "Re-submit" : "Mark as Complete")
-            }
-            variant="black"
-            onPress={() => setShowSaveSheet(true)}
-            disabled={isSubmitting}
-            style={{ borderRadius: theme.radius.xl }}
-          />
+          {isCompleted ? (
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Button
+                title={isSubmitting ? "Submitting..." : "Mark Incomplete"}
+                variant="secondary"
+                onPress={handleUnmark}
+                disabled={isSubmitting}
+                style={{ flex: 1, borderRadius: theme.radius.xl }}
+              />
+              <Button
+                title={isSubmitting ? "Submitting..." : "Re-submit"}
+                variant="black"
+                onPress={() => setShowSaveSheet(true)}
+                disabled={isSubmitting}
+                style={{ flex: 1, borderRadius: theme.radius.xl }}
+              />
+            </View>
+          ) : (
+            <Button
+              title={isSubmitting ? "Submitting..." : "Mark as Complete"}
+              variant="black"
+              onPress={() => setShowSaveSheet(true)}
+              disabled={isSubmitting}
+              style={{ borderRadius: theme.radius.xl }}
+            />
+          )}
         </View>
       )}
 
@@ -2050,7 +2078,11 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         visible={showSaveSheet}
         onClose={() => setShowSaveSheet(false)}
         onSubmit={async () => {
-          await handleComplete();
+          if (isCompleted) {
+            await handleUnmark();
+          } else {
+            await handleComplete();
+          }
           setShowSaveSheet(false);
         }}
         actionTitle={actionData?.title || params?.actionTitle}
@@ -2124,7 +2156,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   emojiText: {
-    fontSize: 200,
+    fontSize: 100,
     textAlign: 'center',
   },
   heroSection: {
