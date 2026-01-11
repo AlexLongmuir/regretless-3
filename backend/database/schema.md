@@ -69,6 +69,7 @@ Planned work inside an area (templates for recurring work).
 | est_minutes | integer | Estimated time to complete | |
 | difficulty | difficulty | Difficulty level | NOT NULL, CHECK (difficulty IN ('easy', 'medium', 'hard')) |
 | repeat_every_days | integer | How often to repeat (1/2/3) | CHECK (repeat_every_days IN (1, 2, 3)) |
+| repeat_until_date | date | Optional end date for repeating actions | |
 | slice_count_target | integer | Target number of slices for finite actions | |
 | acceptance_criteria | jsonb | ≤3 bullets of criteria | CHECK (jsonb_array_length(acceptance_criteria) <= 3) |
 | acceptance_intro | text | Introductory sentence setting intention | |
@@ -599,6 +600,8 @@ ALTER TABLE action_occurrences ADD CONSTRAINT uq_action_occurrence UNIQUE (actio
 ### handle_occurrence_complete
 Auto-create next repeating occurrence when one is completed.
 
+**Note:** As of migration `add_repeat_until_date_and_update_trigger.sql`, this trigger NO LONGER auto-creates occurrences. Occurrences are pre-scheduled. The function remains for potential future hooks (e.g. stats updates).
+
 ```sql
 CREATE OR REPLACE FUNCTION handle_occurrence_complete()
 RETURNS trigger
@@ -607,9 +610,6 @@ SECURITY DEFINER
 AS $$
 DECLARE
   action_record actions%ROWTYPE;
-  next_due_date date;
-  dream_end_date date;
-  next_occurrence_no integer;
 BEGIN
   -- Only process if this is a new completion
   IF NEW.completed_at IS NOT NULL AND (OLD.completed_at IS NULL OR OLD.completed_at IS DISTINCT FROM NEW.completed_at) THEN
@@ -618,55 +618,13 @@ BEGIN
     FROM actions 
     WHERE id = NEW.action_id AND is_active = true AND deleted_at IS NULL;
     
-    -- Only create next occurrence if action has repeat_every_days set
-    IF action_record.repeat_every_days IS NOT NULL THEN
-      -- Get dream end_date if it exists
-      SELECT d.end_date INTO dream_end_date
-      FROM dreams d
-      JOIN areas a ON a.dream_id = d.id
-      WHERE a.id = action_record.area_id;
-      
-      -- Calculate next due date
-      next_due_date := NEW.planned_due_on + (action_record.repeat_every_days || ' days')::interval;
-      
-      -- Only create if we haven't hit the dream end_date
-      IF dream_end_date IS NULL OR next_due_date <= dream_end_date THEN
-        -- Get the next occurrence number for this action
-        SELECT COALESCE(MAX(occurrence_no), 0) + 1 INTO next_occurrence_no
-        FROM action_occurrences 
-        WHERE action_id = action_record.id;
-        
-        -- Insert the next occurrence, but skip if it already exists
-        -- (e.g., created by scheduler or previous trigger execution)
-        -- Use dream_id, area_id, and user_id from the current occurrence (NEW)
-        INSERT INTO action_occurrences (
-          action_id, 
-          dream_id, 
-          area_id, 
-          user_id,
-          occurrence_no, 
-          planned_due_on, 
-          due_on,
-          defer_count
-        )
-        VALUES (
-          action_record.id, 
-          NEW.dream_id, 
-          NEW.area_id, 
-          NEW.user_id,
-          next_occurrence_no, 
-          next_due_date, 
-          next_due_date,
-          0
-        )
-        ON CONFLICT (action_id, occurrence_no) DO NOTHING;
-      END IF;
-    END IF;
+    -- Auto-creation logic removed. Occurrences are pre-scheduled.
   END IF;
   
   RETURN NEW;
 END;
 $$;
+
 
 CREATE TRIGGER trigger_handle_occurrence_complete
   AFTER UPDATE ON action_occurrences

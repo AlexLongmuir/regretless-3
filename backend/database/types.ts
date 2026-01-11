@@ -128,6 +128,7 @@ export interface Action {
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
+  repeat_until_date?: string;
   slice_count_target?: number;
   acceptance_criteria?: AcceptanceCriterion[];
   acceptance_intro?: string;
@@ -458,6 +459,7 @@ export interface CreateActionForm {
   est_minutes?: number;
   difficulty: 'easy' | 'medium' | 'hard';
   repeat_every_days?: 1 | 2 | 3;
+  repeat_until_date?: string;
   acceptance_criteria?: AcceptanceCriterion[];
   acceptance_intro?: string;
   acceptance_outro?: string;

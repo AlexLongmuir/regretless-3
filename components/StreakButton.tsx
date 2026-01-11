@@ -40,16 +40,14 @@ export const StreakButton: React.FC<StreakButtonProps> = ({
 
   const buttonContent = (
     <View style={styles.buttonContent}>
-      {streak > 0 && (
-        <Text style={[styles.streakBadge, { color: disabled ? theme.colors.disabled.text : theme.colors.text.primary }]}>
-          {streak}
-        </Text>
-      )}
       <Icon 
         name="fire" 
-        size={16} // Reduced to match trophy icon size in AchievementsButton
+        size={14} // Match text height (fontSize 14)
         color={disabled ? theme.colors.disabled.inactive : iconColor}
       />
+      <Text style={[styles.streakBadge, { color: disabled ? theme.colors.disabled.text : theme.colors.text.primary }]}>
+        {streak}
+      </Text>
     </View>
   );
 
@@ -62,14 +60,14 @@ export const StreakButton: React.FC<StreakButtonProps> = ({
         activeOpacity={activeOpacity}
         style={[
           styles.glassButtonWrapper,
-          { height: buttonHeight, borderRadius, minWidth: buttonHeight + (streak > 0 ? 20 : 0) },
+          { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
           style,
         ]}
       >
         <View
           style={[
             styles.glassButton,
-            { height: buttonHeight, borderRadius, minWidth: buttonHeight + (streak > 0 ? 20 : 0) },
+            { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
             disabled && styles.disabled,
             { backgroundColor: theme.colors.background.card },
           ]}
@@ -86,21 +84,21 @@ export const StreakButton: React.FC<StreakButtonProps> = ({
       onPress={onPress}
       disabled={disabled}
       activeOpacity={activeOpacity}
-      style={[
-        styles.glassButtonWrapper,
-        { height: buttonHeight, borderRadius, minWidth: buttonHeight + (streak > 0 ? 20 : 0) },
-        style,
-      ]}
-    >
-      <BlurView 
-        intensity={100} 
-        tint={blurTint}
         style={[
-          styles.glassButton,
-          { height: buttonHeight, borderRadius, minWidth: buttonHeight + (streak > 0 ? 20 : 0) },
-          disabled && styles.disabled,
+          styles.glassButtonWrapper,
+          { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
+          style,
         ]}
       >
+        <BlurView 
+          intensity={100} 
+          tint={blurTint}
+          style={[
+            styles.glassButton,
+            { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
+            disabled && styles.disabled,
+          ]}
+        >
         {buttonContent}
       </BlurView>
     </TouchableOpacity>
@@ -136,7 +134,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   streakBadge: {
     fontSize: 14,
     fontWeight: '600',
-    marginRight: 4, // Changed from marginLeft: 2 to marginRight: 4 to add space between count and icon
+    lineHeight: 14, // Match icon height exactly
   },
   disabled: {
     opacity: 0.6,

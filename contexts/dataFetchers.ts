@@ -138,12 +138,36 @@ export const fetchDreamsWithStats = async (): Promise<DreamsWithStatsPayload | u
           .eq('dream_id', dream.id)
           .eq('completed_at::date', todayStr);
 
-        // Get total completed count for this dream
-        const { data: completedData } = await supabaseClient
-          .from('action_occurrences')
-          .select('id')
-          .eq('dream_id', dream.id)
-          .not('completed_at', 'is', null);
+        // Get total completed actions count (actions where ALL occurrences are completed)
+        // First, get all action IDs for this dream
+        const actionIds = actionsData?.map(a => a.id) || [];
+        
+        let completedActionsCount = 0;
+        
+        if (actionIds.length > 0) {
+          // For each action, check if all its occurrences are completed
+          // An action is considered complete only if ALL its occurrences have completed_at set
+          const completedActions = await Promise.all(
+            actionIds.map(async (actionId) => {
+              // Get all occurrences for this action
+              const { data: allOccurrences } = await supabaseClient
+                .from('action_occurrences')
+                .select('id, completed_at')
+                .eq('action_id', actionId);
+              
+              // If no occurrences exist, the action is not complete
+              if (!allOccurrences || allOccurrences.length === 0) {
+                return false;
+              }
+              
+              // Check if all occurrences are completed
+              const allCompleted = allOccurrences.every(occ => occ.completed_at !== null);
+              return allCompleted;
+            })
+          );
+          
+          completedActionsCount = completedActions.filter(Boolean).length;
+        }
 
         return {
           ...dream,
@@ -152,7 +176,7 @@ export const fetchDreamsWithStats = async (): Promise<DreamsWithStatsPayload | u
           total_areas: areasData?.length || 0,
           total_actions: actionsData?.length || 0,
           completed_today: todayData?.length || 0,
-          completed_total: completedData?.length || 0,
+          completed_total: completedActionsCount,
         };
       })
     );

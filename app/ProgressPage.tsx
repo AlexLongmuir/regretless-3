@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { ScrollView, View, Text, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import {
@@ -22,7 +22,6 @@ import type { Achievement, UserAchievement } from '../backend/database/types';
 const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme, isDark]);
-  const nav = useNavigation();
   const [isPhotosExpanded, setIsPhotosExpanded] = useState(false);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<'Week' | 'Month' | 'Year' | 'All Time'>('Week');
   const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
@@ -177,28 +176,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           }
 
           return (
-            <TouchableOpacity
-              key={dream.id}
-              onPress={() => {
-                trackEvent('progress_goal_card_pressed', { dream_id: dream.id, title: dream.title });
-                // Navigate to Dreams tab, then to Dream screen within that stack
-                // Use the navigation prop if available, otherwise use useNavigation hook
-                const navToUse = navigation || nav;
-                if (navToUse && navToUse.navigate) {
-                  // Try direct navigation first (for tab-to-tab)
-                  navToUse.navigate('Dreams', {
-                    screen: 'Dream',
-                    params: {
-                      dreamId: dream.id,
-                      title: dream.title,
-                      startDate: dream.start_date,
-                      endDate: dream.end_date,
-                      description: dream.description,
-                    },
-                  });
-                }
-              }}
-            >
+            <View key={dream.id}>
               <GoalProgressCard
                 dreamId={dream.id}
                 title={dream.title}
@@ -210,7 +188,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
                 totalActions={dream.total_actions || 0}
                 imageUri={dream.image_url}
               />
-            </TouchableOpacity>
+            </View>
           );
         })}
 

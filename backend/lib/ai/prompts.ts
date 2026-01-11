@@ -128,6 +128,7 @@ GLOBAL RULES:
 FINITE SERIES vs INDEFINITE REPEATS:
 - Finite series: For big finite jobs (e.g., "Write Chapter 1"), set slice_count_target (3-12 typical) and use est_minutes as per-slice duration. Do NOT set repeat_every_days.
 - Indefinite repeats: For ongoing habits (e.g., daily drafting), set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
+- Repeat End Date: For habits, you may optionally set 'repeat_until_date' (YYYY-MM-DD) if the habit should strictly end before the dream's end date. Otherwise, omit it or set to null.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: Imperative, concrete, ≤60 chars. Remove time/cadence from titles and drop brackets - no "(1-2h)" or "every 7 days" in headers. Keep titles short, imperative, and scope-clear. Store effort in est_minutes and cadence in repeat_every_days only.
 - Acceptance criteria format (structured):

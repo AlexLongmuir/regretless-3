@@ -62,7 +62,8 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     acceptance_intro: '' as string | undefined,
     acceptance_outro: '' as string | undefined,
     dream_image: '',
-    occurrence_no: 1
+    occurrence_no: 1,
+    repeat_until_date: undefined as string | undefined
   });
   const [actionType, setActionType] = useState<'one-off' | 'repeating' | 'finite'>('one-off');
   const [focusedCriterionIndex, setFocusedCriterionIndex] = useState<number | null>(null);
@@ -70,6 +71,8 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
   const [isSaving, setIsSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dueDate, setDueDate] = useState<Date>(new Date());
+  const [showRepeatUntilPicker, setShowRepeatUntilPicker] = useState(false);
+  const [repeatUntilDate, setRepeatUntilDate] = useState<Date | undefined>(undefined);
 
   React.useEffect(() => {
     if (action) {
@@ -85,6 +88,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
       // Initialize due date from current occurrence if provided
       if (action.due_on) {
         setDueDate(new Date(action.due_on));
+      }
+      // Initialize repeat until date
+      if (action.repeat_until_date) {
+        setRepeatUntilDate(new Date(action.repeat_until_date));
+      } else {
+        setRepeatUntilDate(undefined);
       }
     }
   }, [action]);
@@ -104,10 +113,12 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
     if (actionType === 'one-off') {
       payload.repeat_every_days = null;
       payload.slice_count_target = null;
+      payload.repeat_until_date = null;
     } else if (actionType === 'repeating') {
       // default to 1 if not selected yet
       payload.repeat_every_days = payload.repeat_every_days ?? 1;
       payload.slice_count_target = null;
+      payload.repeat_until_date = repeatUntilDate ? repeatUntilDate.toISOString().split('T')[0] : null;
     } else if (actionType === 'finite') {
       // validate total steps
       if (!payload.slice_count_target || payload.slice_count_target < 1 || payload.slice_count_target > 32767) {
@@ -115,6 +126,7 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
         return;
       }
       payload.repeat_every_days = null;
+      payload.repeat_until_date = null;
     }
     // Include possibly updated due date for the current occurrence
     payload.due_on = dueDate.toISOString().split('T')[0];
@@ -401,28 +413,98 @@ function EditActionModal({ visible, action, onClose, onSave, dreamEndDate }: Edi
 
           {/* Repeating options */}
           {actionType === 'repeating' && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Repeat Every</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {[
-                  { value: 1, label: '1 day' },
-                  { value: 2, label: '2 days' },
-                  { value: 3, label: '3 days' }
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.primary[600] : theme.colors.background.card,
-                      borderRadius: 8,
-                      alignItems: 'center'
-                    }}
-                  >
-                    <Text style={{ color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600', fontSize: 14 }}>{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
+            <View>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Repeat Every</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[
+                    { value: 1, label: '1 day' },
+                    { value: 2, label: '2 days' },
+                    { value: 3, label: '3 days' }
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => setFormData(prev => ({ ...prev, repeat_every_days: option.value }))}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        backgroundColor: formData.repeat_every_days === option.value ? theme.colors.primary[600] : theme.colors.background.card,
+                        borderRadius: 8,
+                        alignItems: 'center'
+                      }}
+                    >
+                      <Text style={{ color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600', fontSize: 14 }}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8, color: theme.colors.text.primary }}>Repeat Until (Optional)</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowRepeatUntilPicker(true);
+                  }}
+                  style={{
+                    backgroundColor: theme.colors.background.card,
+                    borderRadius: 8,
+                    padding: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: repeatUntilDate ? theme.colors.text.primary : theme.colors.text.tertiary }}>
+                    {repeatUntilDate ? repeatUntilDate.toLocaleDateString() : 'Forever (until dream ends)'}
+                  </Text>
+                  {repeatUntilDate && (
+                    <TouchableOpacity 
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setRepeatUntilDate(undefined);
+                      }}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+                {showRepeatUntilPicker && (
+                  <View>
+                    <DateTimePicker
+                      value={repeatUntilDate || new Date(Date.now() + 86400000)} // Default to tomorrow if undefined
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowRepeatUntilPicker(false);
+                        }
+                        if (selectedDate) {
+                          setRepeatUntilDate(selectedDate);
+                        }
+                      }}
+                      minimumDate={new Date()}
+                      maximumDate={dreamEndDate ? new Date(dreamEndDate) : undefined}
+                      themeVariant={isDark ? 'dark' : 'light'}
+                    />
+                    {Platform.OS === 'ios' && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => setShowRepeatUntilPicker(false)}
+                          style={{
+                            backgroundColor: theme.colors.primary[600],
+                            paddingHorizontal: 20,
+                            paddingVertical: 10,
+                            borderRadius: 8
+                          }}
+                        >
+                          <Text style={{ color: theme.colors.text.inverse, fontWeight: '600' }}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -1462,6 +1544,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       est_minutes: actionData.est_minutes || 0,
       difficulty: actionData.difficulty || 'medium',
       repeat_every_days: actionData.repeat_every_days,
+      repeat_until_date: actionData.repeat_until_date,
       slice_count_target: actionData.slice_count_target,
       acceptance_criteria: actionData.acceptance_criteria || [],
       acceptance_intro: (actionData as any).acceptance_intro,
@@ -1489,21 +1572,34 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       }
 
       // Prepare updates for the action
-      const updates: { title?: string; est_minutes?: number; difficulty?: string; repeat_every_days?: number; slice_count_target?: number; acceptance_criteria?: { title: string; description: string }[]; acceptance_intro?: string; acceptance_outro?: string } = {};
+      const updates: { 
+        title?: string; 
+        est_minutes?: number; 
+        difficulty?: string; 
+        repeat_every_days?: number | null; 
+        repeat_until_date?: string | null;
+        slice_count_target?: number | null; 
+        acceptance_criteria?: { title: string; description: string }[]; 
+        acceptance_intro?: string; 
+        acceptance_outro?: string 
+      } = {};
       
       if (updatedAction.title !== actionData.title) updates.title = updatedAction.title;
       if (updatedAction.est_minutes !== actionData.est_minutes) updates.est_minutes = updatedAction.est_minutes;
       if (updatedAction.difficulty !== actionData.difficulty) updates.difficulty = updatedAction.difficulty;
       if (updatedAction.repeat_every_days !== actionData.repeat_every_days) updates.repeat_every_days = updatedAction.repeat_every_days;
+      if (updatedAction.repeat_until_date !== actionData.repeat_until_date) updates.repeat_until_date = updatedAction.repeat_until_date;
       if (updatedAction.slice_count_target !== actionData.slice_count_target) updates.slice_count_target = updatedAction.slice_count_target;
       if (JSON.stringify(updatedAction.acceptance_criteria) !== JSON.stringify(actionData.acceptance_criteria)) {
         updates.acceptance_criteria = updatedAction.acceptance_criteria;
       }
+      // Add missing type definition for updates object
+      const typedUpdates = updates as any;
       if ((updatedAction as any).acceptance_intro !== ((actionData as any).acceptance_intro || undefined)) {
-        updates.acceptance_intro = (updatedAction as any).acceptance_intro || undefined;
+        typedUpdates.acceptance_intro = (updatedAction as any).acceptance_intro || undefined;
       }
       if ((updatedAction as any).acceptance_outro !== ((actionData as any).acceptance_outro || undefined)) {
-        updates.acceptance_outro = (updatedAction as any).acceptance_outro || undefined;
+        typedUpdates.acceptance_outro = (updatedAction as any).acceptance_outro || undefined;
       }
 
       if (Object.keys(updates).length === 0) {
@@ -1791,11 +1887,13 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
           <View style={{ 
+            backgroundColor: theme.colors.background.card, 
             borderRadius: 12, 
             overflow: 'hidden',
           }}>
             {/* Header Row */}
             <View style={{ 
+              backgroundColor: isDark ? theme.colors.background.pressed : theme.colors.grey[400],
               paddingVertical: 10,
               paddingHorizontal: 16,
             }}>
@@ -2023,7 +2121,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginRight: -theme.spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background.page,
   },
   emojiText: {
     fontSize: 200,

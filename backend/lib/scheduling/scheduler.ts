@@ -207,7 +207,16 @@ function calculateSchedulingWindow(dream: Dream, actions: Action[]) {
         totalTimeNeeded += action.est_minutes * action.slice_count_target
       } else if (action.repeat_every_days) {
         // Habit: estimate based on window length and repeat frequency
-        const windowDays = Math.ceil((endDate?.getTime() || Date.now()) - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        // Respect repeat_until_date if set
+        let effectiveEndDate = endDate || new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000) // Default 90 days if no end date
+        if (action.repeat_until_date) {
+          const actionEnd = new Date(action.repeat_until_date)
+          if (!isNaN(actionEnd.getTime()) && actionEnd < effectiveEndDate) {
+            effectiveEndDate = actionEnd
+          }
+        }
+        
+        const windowDays = Math.ceil((effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
         const workDays = Math.floor(windowDays * 6 / 7) // Rough estimate excluding Sundays
         const occurrences = Math.max(1, Math.floor(workDays / action.repeat_every_days))
         totalTimeNeeded += action.est_minutes * occurrences
@@ -514,11 +523,21 @@ async function expandRepeats(
       let currentDate = new Date(seedDate)
       let occurrenceNo = 2
       
+      // Determine effective end date for this action
+      let effectiveEndDate = window.end_date
+      if (action.repeat_until_date) {
+        const actionEndDate = new Date(action.repeat_until_date)
+        // If action end date is valid and earlier than window end date, use it
+        if (!isNaN(actionEndDate.getTime()) && actionEndDate < effectiveEndDate) {
+          effectiveEndDate = actionEndDate
+        }
+      }
+      
       // Add repeat occurrences
-      while (currentDate <= window.end_date) {
+      while (currentDate <= effectiveEndDate) {
         currentDate.setDate(currentDate.getDate() + action.repeat_every_days)
         
-        if (currentDate > window.end_date) break
+        if (currentDate > effectiveEndDate) break
         
         // Skip rest days
         const dayOfWeek = currentDate.getDay()

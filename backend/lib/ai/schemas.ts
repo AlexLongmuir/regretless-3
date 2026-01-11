@@ -119,6 +119,7 @@ export const ACTIONS_SCHEMA = {
           est_minutes: { type: "integer" },
           difficulty: { type: "string" },
           repeat_every_days: { type: "integer" },
+          repeat_until_date: { type: "string", description: "Optional end date for the repeating action in YYYY-MM-DD format" },
           slice_count_target: { type: "integer" },
           acceptance_criteria: {
             type: "array",
