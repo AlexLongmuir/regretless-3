@@ -85,11 +85,26 @@ export async function PUT(request: NextRequest) {
 
         if (occurrences && dream) {
           // 1. Determine effective end date
-          let effectiveEndDate = dream.end_date ? new Date(dream.end_date) : new Date(new Date(dream.start_date).getTime() + 90 * 24 * 60 * 60 * 1000);
-          if (updatedAction.repeat_until_date) {
-            const actionEnd = new Date(updatedAction.repeat_until_date);
-            if (!isNaN(actionEnd.getTime()) && actionEnd < effectiveEndDate) {
-              effectiveEndDate = actionEnd;
+          let effectiveEndDate: Date;
+          
+          if (dream.end_date) {
+            // Dream has a hard end date
+            effectiveEndDate = new Date(dream.end_date);
+            // If action has an earlier end date, respect it
+            if (updatedAction.repeat_until_date) {
+              const actionEnd = new Date(updatedAction.repeat_until_date);
+              if (!isNaN(actionEnd.getTime()) && actionEnd < effectiveEndDate) {
+                effectiveEndDate = actionEnd;
+              }
+            }
+          } else {
+            // Dream is open-ended
+            if (updatedAction.repeat_until_date) {
+              // User specified an end date for the action, use it
+              effectiveEndDate = new Date(updatedAction.repeat_until_date);
+            } else {
+              // Default to 90 days from start if neither is set
+              effectiveEndDate = new Date(new Date(dream.start_date).getTime() + 90 * 24 * 60 * 60 * 1000);
             }
           }
 

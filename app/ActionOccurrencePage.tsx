@@ -1550,7 +1550,8 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       acceptance_intro: (actionData as any).acceptance_intro,
       acceptance_outro: (actionData as any).acceptance_outro,
       dream_image: dreamAreaData?.areaEmoji || '',
-      occurrence_no: occurrenceData?.occurrence_no || 1
+      occurrence_no: occurrenceData?.occurrence_no || 1,
+      due_on: occurrenceData?.due_on || currentDueDate
     };
 
     setEditingAction(actionForEdit);
