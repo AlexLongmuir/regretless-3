@@ -83,6 +83,10 @@ export async function PUT(request: NextRequest) {
           .eq('action_id', actionId)
           .order('occurrence_no', { ascending: true });
 
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:86',message:'Rescheduling debug',data:{actionId,dreamId:updatedAction.dream_id,occurrencesCount:occurrences?.length,updates,repeatEveryDays:updatedAction.repeat_every_days,repeatUntil:updatedAction.repeat_until_date},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+        // #endregion
+
         if (occurrences && dream) {
           // 1. Determine effective end date
           let effectiveEndDate: Date;
@@ -129,31 +133,43 @@ export async function PUT(request: NextRequest) {
 
           const anchorOccurrence = lastKeeperIndex >= 0 ? occurrences[lastKeeperIndex] : null;
 
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:130',message:'Anchor analysis',data:{lastKeeperIndex,anchorId:anchorOccurrence?.id,anchorDate:anchorOccurrence?.due_on,effectiveEndDate},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+          // #endregion
+
           // 3. Delete obsolete future occurrences
           // Delete all occurrences AFTER the anchor that are NOT completed (which should be all of them if we logic correctly)
           const occurrencesToDelete = occurrences.filter((occ, index) => 
             index > lastKeeperIndex && !occ.completed_at
           );
           
-          if (occurrencesToDelete.length > 0) {
-            await supabase
-              .from('action_occurrences')
-              .delete()
-              .in('id', occurrencesToDelete.map(o => o.id));
-          }
+            if (occurrencesToDelete.length > 0) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:143',message:'Deleting occurrences',data:{count:occurrencesToDelete.length,ids:occurrencesToDelete.map(o=>o.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+              // #endregion
+              
+              await supabase
+                .from('action_occurrences')
+                .delete()
+                .in('id', occurrencesToDelete.map(o => o.id));
+            }
 
-          // 4. Generate new occurrences if repeating
-          if (updatedAction.repeat_every_days && anchorOccurrence) {
-            const frequency = updatedAction.repeat_every_days;
-            const anchorDate = new Date(anchorOccurrence.due_on); // Use due_on or planned_due_on? due_on tracks current reality.
-            
-            let nextDate = new Date(anchorDate);
-            nextDate.setDate(nextDate.getDate() + frequency);
-            
-            let nextOccurrenceNo = anchorOccurrence.occurrence_no + 1;
-            const newOccurrences = [];
+            // 4. Generate new occurrences if repeating
+            if (updatedAction.repeat_every_days && anchorOccurrence) {
+              const frequency = updatedAction.repeat_every_days;
+              const anchorDate = new Date(anchorOccurrence.due_on); // Use due_on or planned_due_on? due_on tracks current reality.
+              
+              let nextDate = new Date(anchorDate);
+              nextDate.setDate(nextDate.getDate() + frequency);
+              
+              let nextOccurrenceNo = anchorOccurrence.occurrence_no + 1;
+              const newOccurrences = [];
 
-            while (nextDate <= effectiveEndDate) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:160',message:'Generating new occurrences',data:{startNextDate:nextDate,effectiveEndDate,frequency},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+              // #endregion
+
+              while (nextDate <= effectiveEndDate) {
               // Skip rest days (Sunday=0) if we want to mimic scheduler exactly, 
               // but for simple update logic we might skip this complexity or implement simple check.
               // Scheduler uses REST_DAYS = [0]. Let's respect it.
@@ -177,17 +193,24 @@ export async function PUT(request: NextRequest) {
               nextOccurrenceNo++;
             }
 
-            if (newOccurrences.length > 0) {
-              await supabase
-                .from('action_occurrences')
-                .insert(newOccurrences);
+              if (newOccurrences.length > 0) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:181',message:'Inserting new occurrences',data:{count:newOccurrences.length,first:newOccurrences[0],last:newOccurrences[newOccurrences.length-1]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+                // #endregion
+
+                await supabase
+                  .from('action_occurrences')
+                  .insert(newOccurrences);
+              }
             }
           }
+        } catch (err) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'update/route.ts:188',message:'Error rescheduling',data:{error:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'reschedule-debug'})}).catch(()=>{});
+          // #endregion
+          console.error('Error rescheduling occurrences during update:', err);
+          // Don't fail the request, just log error as action update succeeded
         }
-      } catch (err) {
-        console.error('Error rescheduling occurrences during update:', err);
-        // Don't fail the request, just log error as action update succeeded
-      }
     }
 
     return NextResponse.json({ 
