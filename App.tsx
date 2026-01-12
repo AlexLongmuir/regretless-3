@@ -151,15 +151,18 @@ export default function App() {
   }, []);
 
   // Calculate isDark based on saved theme preference (same logic as ThemeContext)
-  // Only use the loaded theme mode after it's loaded - default to light mode until theme loads
-  // This prevents showing dark mode when user prefers light mode
-  // Handle null systemScheme by defaulting to light mode
-  const isDark = themeLoaded 
-    ? (themeMode === 'dark' || (themeMode === 'system' && systemScheme === 'dark'))
-    : false; // Default to light mode until theme preference is loaded
-  // Ensure we never use dark mode if systemScheme is null (handle edge case)
-  const safeIsDark = isDark && systemScheme !== null;
-  const splashStyles = createSplashStyles(safeIsDark);
+  // Default to light mode if theme isn't loaded or system scheme is unknown
+  // Only use dark mode if explicitly set to 'dark' OR if 'system' mode and systemScheme is explicitly 'dark'
+  let isDark = false; // Default to light mode
+  if (themeLoaded) {
+    if (themeMode === 'dark') {
+      isDark = true;
+    } else if (themeMode === 'system' && systemScheme === 'dark') {
+      isDark = true;
+    }
+    // Otherwise default to light mode (for 'light', 'system' with null/light scheme, etc.)
+  }
+  const splashStyles = createSplashStyles(isDark);
   
   // Show loading screen while services are initializing OR theme is not loaded yet
   // This prevents flash by ensuring theme is ready before showing the app
@@ -178,11 +181,11 @@ export default function App() {
           <EntitlementsProvider>
             <SessionProvider>
             <DataProvider>
-              <AchievementPopup />
               <OnboardingProvider>
                 <ToastProvider>
                   <CreateDreamProvider>
                     <Navigation />
+                    <AchievementPopup />
                   </CreateDreamProvider>
                   <StatusBar style="auto" />
                 </ToastProvider>

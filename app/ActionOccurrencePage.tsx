@@ -572,9 +572,11 @@ const createEditModalStyles = (theme: Theme) => StyleSheet.create({
 
 // Save Action Sheet Component
 interface SaveActionSheetProps {
-  visible: boolean;
   onClose: () => void;
+  onBack?: () => void;
   onSubmit: () => Promise<void>;
+  onSuccess?: () => void;
+  initialViewMode?: 'editing' | 'success';
   actionTitle?: string;
   actionData?: any;
   params?: any;
@@ -589,12 +591,16 @@ interface SaveActionSheetProps {
   handleDeleteImage: (artifactId: string) => void;
   formatDate: (dateString: string) => string;
   formatTime: (minutes: number) => string;
+  navigation?: any;
+  checkDreamCompletion?: (dreamId: string) => Promise<boolean>;
 }
 
 function SaveActionSheet({
-  visible,
   onClose,
+  onBack,
   onSubmit,
+  onSuccess,
+  initialViewMode = 'editing',
   actionTitle,
   actionData,
   params,
@@ -609,6 +615,8 @@ function SaveActionSheet({
   handleDeleteImage,
   formatDate,
   formatTime,
+  navigation,
+  checkDreamCompletion,
 }: SaveActionSheetProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createSaveSheetStyles(theme), [theme]);
@@ -616,6 +624,20 @@ function SaveActionSheet({
   const descriptionSectionRef = useRef<View>(null);
   const descriptionSectionY = useRef<number>(0);
   const currentDate = new Date().toISOString().split('T')[0];
+  
+  // State for modal view mode
+  const [viewMode, setViewMode] = useState<'editing' | 'success'>(initialViewMode);
+  const [dreamId, setDreamId] = useState<string | null>(null);
+  const [isDreamComplete, setIsDreamComplete] = useState(false);
+  
+  // Sync viewMode with initialViewMode prop
+  useEffect(() => {
+    setViewMode(initialViewMode);
+    if (initialViewMode === 'editing') {
+      setDreamId(null);
+      setIsDreamComplete(false);
+    }
+  }, [initialViewMode]);
 
   const handleDescriptionFocus = () => {
     // Scroll to position the input near the top of the visible area
@@ -669,155 +691,339 @@ function SaveActionSheet({
 
   const handleSubmit = async () => {
     Keyboard.dismiss();
-    await onSubmit();
+    try {
+      await onSubmit();
+      // If onSubmit succeeds (doesn't throw), transition to success view
+      setViewMode('success');
+      if (onSuccess) {
+        onSuccess(); // This will update pageView in parent
+      }
+    } catch (error) {
+      // Error handling is done in parent's handleComplete
+      // Don't transition to success view on error
+    }
+  };
+
+  // Check dream completion when transitioning to success view
+  useEffect(() => {
+    const checkCompletion = async () => {
+      if (viewMode === 'success' && params?.occurrenceId && checkDreamCompletion) {
+        try {
+          // Get dream ID from occurrence
+          const { data: occurrenceData } = await supabaseClient
+            .from('action_occurrences')
+            .select(`
+              dream_id,
+              actions!inner(
+                areas!inner(
+                  dreams!inner(id, title, completed_at)
+                )
+              )
+            `)
+            .eq('id', params.occurrenceId)
+            .single();
+            
+          if (occurrenceData?.actions?.[0]?.areas?.[0]?.dreams?.[0]) {
+            const dream = occurrenceData.actions[0].areas[0].dreams[0];
+            const foundDreamId = dream.id;
+            setDreamId(foundDreamId);
+            
+            // Check if dream is complete
+            const isComplete = await checkDreamCompletion(foundDreamId);
+            setIsDreamComplete(isComplete);
+          }
+        } catch (error) {
+          console.error('Error checking dream completion:', error);
+        }
+      }
+    };
+    
+    checkCompletion();
+  }, [viewMode, params?.occurrenceId, checkDreamCompletion]);
+
+  const handleDone = () => {
+    if (isDreamComplete && dreamId && navigation) {
+      // Navigate to dream completion page
+      navigation.navigate('DreamCompleted', {
+        dreamId: dreamId,
+        dreamTitle: dreamAreaData?.dreamTitle || params?.dreamTitle,
+        completedAt: new Date().toISOString(),
+      });
+      onClose();
+    } else {
+      // Close modal and navigate back
+      onClose();
+    }
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.page }} edges={['top']}>
-        <SheetHeader
-          title="Save Action"
-          onClose={() => {
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.page }} edges={['top']}>
+      <View style={styles.header}>
+        {viewMode === 'editing' && onBack ? (
+          <IconButton
+            icon="chevron_left_rounded"
+            onPress={() => {
+              Keyboard.dismiss();
+              onBack();
+            }}
+            variant="secondary"
+            size="md"
+          />
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>
+            {viewMode === 'success' ? "Action Complete" : "Save Action"}
+          </Text>
+        </View>
+        <IconButton
+          icon="close"
+          onPress={() => {
             Keyboard.dismiss();
             onClose();
           }}
+          variant="secondary"
+          size="md"
         />
+      </View>
 
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
         >
-          <ScrollView 
-            ref={scrollRef}
-            style={{ flex: 1 }} 
-            contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-          {/* Title */}
-          <Text style={styles.sheetActionTitle}>
-            {actionData?.title || actionTitle || 'Action'}
-          </Text>
+          {viewMode === 'editing' ? (
+            <>
+              <ScrollView 
+                ref={scrollRef}
+                style={{ flex: 1 }} 
+                contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Title */}
+                <Text style={styles.sheetActionTitle}>
+                  {actionData?.title || actionTitle || 'Action'}
+                </Text>
 
-          {/* Sub Information Section */}
-          <View style={styles.subInfoSection}>
-            <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
-                <Ionicons name="calendar-outline" size={16} color={theme.colors.text.secondary} />
-                <Text style={styles.detailValue}>
-                  Completed {formatDate(currentDate)}
-                </Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
-                <Text style={styles.detailValue}>
-                  {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
-                </Text>
-              </View>
-              <View style={styles.detailItem}>
-                <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
-                <Text style={styles.detailValue}>
-                  {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Photo Upload Section */}
-          <View style={styles.photoSection}>
-            <Text style={styles.sectionLabel}>Photos</Text>
-            
-            {/* Uploaded Images */}
-            {artifacts.length > 0 && (
-              <View style={styles.uploadedImagesContainer}>
-                {artifacts.map((artifact) => (
-                  <View key={artifact.id} style={styles.artifactItem}>
-                    <Image
-                      source={{ uri: artifact.signed_url }}
-                      style={styles.artifactImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.deleteImageButton}
-                      onPress={() => handleDeleteImage(artifact.id)}
-                    >
-                      <Ionicons name="close-circle" size={24} color={theme.colors.error[500]} />
-                    </TouchableOpacity>
+                {/* Sub Information Section */}
+                <View style={styles.subInfoSection}>
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="calendar-outline" size={16} color={theme.colors.text.secondary} />
+                      <Text style={styles.detailValue}>
+                        Completed {formatDate(currentDate)}
+                      </Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
+                      <Text style={styles.detailValue}>
+                        {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
+                      </Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
+                      <Text style={styles.detailValue}>
+                        {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
+                      </Text>
+                    </View>
                   </View>
-                ))}
+                </View>
+
+                {/* Photo Upload Section */}
+                <View style={styles.photoSection}>
+                  <Text style={styles.sectionLabel}>Photos</Text>
+                  
+                  {/* Uploaded Images */}
+                  {artifacts.length > 0 && (
+                    <View style={styles.uploadedImagesContainer}>
+                      {artifacts.map((artifact) => (
+                        <View key={artifact.id} style={styles.artifactItem}>
+                          <Image
+                            source={{ uri: artifact.signed_url }}
+                            style={styles.artifactImage}
+                            resizeMode="cover"
+                          />
+                          <TouchableOpacity
+                            style={styles.deleteImageButton}
+                            onPress={() => handleDeleteImage(artifact.id)}
+                          >
+                            <Ionicons name="close-circle" size={24} color={theme.colors.error[500]} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Upload Button */}
+                  <TouchableOpacity 
+                    style={[styles.uploadButtonSheet, isUploading && styles.uploadButtonDisabled]}
+                    onPress={handleImagePicker}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Ionicons name="hourglass-outline" size={24} color={theme.colors.text.tertiary} />
+                        <Text style={[styles.uploadTextSheet, isUploading && styles.uploadTextDisabled]}>
+                          Uploading...
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Ionicons name="add" size={24} color={theme.colors.text.primary} />
+                        <Text style={styles.uploadTextSheet}>
+                          Upload Photo
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Description Section */}
+                <View 
+                  ref={descriptionSectionRef}
+                  style={styles.descriptionSection}
+                  onLayout={(event) => {
+                    // Store the Y position of the description section within the ScrollView content
+                    const { y } = event.nativeEvent.layout;
+                    descriptionSectionY.current = y;
+                  }}
+                >
+                  <Text style={styles.sectionLabel}>Description</Text>
+                  <TextInput
+                    style={styles.descriptionInput}
+                    placeholder="Add a description about your progress..."
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    multiline
+                    value={note}
+                    onChangeText={setNote}
+                    textAlignVertical="top"
+                    onFocus={handleDescriptionFocus}
+                  />
+                </View>
+              </ScrollView>
+
+              {/* Bottom Section with Mark as Done Button */}
+              <View style={styles.sheetBottomSection}>
+                <Button
+                  title={
+                    isSubmitting 
+                      ? "Submitting..." 
+                      : (isCompleted ? "Mark Incomplete" : "Mark as Done")
+                  }
+                  variant="black"
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  style={{ borderRadius: theme.radius.xl }}
+                />
               </View>
-            )}
+            </>
+          ) : (
+            <>
+              <ScrollView 
+                ref={scrollRef}
+                style={{ flex: 1 }} 
+                contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Success Icon */}
+                <View style={styles.successIcon}>
+                  <Text style={styles.checkmark}>✓</Text>
+                </View>
 
-            {/* Upload Button */}
-            <TouchableOpacity 
-              style={[styles.uploadButtonSheet, isUploading && styles.uploadButtonDisabled]}
-              onPress={handleImagePicker}
-              disabled={isUploading}
-            >
-              {isUploading ? (
-                <>
-                  <Ionicons name="hourglass-outline" size={24} color={theme.colors.text.tertiary} />
-                  <Text style={[styles.uploadTextSheet, isUploading && styles.uploadTextDisabled]}>
-                    Uploading...
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="add" size={24} color={theme.colors.text.primary} />
-                  <Text style={styles.uploadTextSheet}>
-                    Upload Photo
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+                {/* Hero Section */}
+                <View style={styles.heroSection}>
+                  <View style={styles.heroContent}>
+                    <Text style={styles.dreamTitle}>{dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream'}</Text>
+                    <Text style={styles.areaTitle}>{dreamAreaData?.areaName || params?.areaName || 'Area'}</Text>
+                    <Text style={styles.sheetActionTitle}>
+                      {actionData?.title || actionTitle || 'Action'}
+                    </Text>
+                    
+                    {/* Due Date */}
+                    <Text style={styles.detailLabel}>Completed on {new Date().toLocaleDateString()}</Text>
+                    
+                    {/* Details Row */}
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
+                        <Text style={styles.detailValue}>
+                          {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
+                        </Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
+                        <Text style={styles.detailValue}>
+                          {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
 
-          {/* Description Section */}
-          <View 
-            ref={descriptionSectionRef}
-            style={styles.descriptionSection}
-            onLayout={(event) => {
-              // Store the Y position of the description section within the ScrollView content
-              const { y } = event.nativeEvent.layout;
-              descriptionSectionY.current = y;
-            }}
-          >
-            <Text style={styles.sectionLabel}>Description</Text>
-            <TextInput
-              style={styles.descriptionInput}
-              placeholder="Add a description about your progress..."
-              placeholderTextColor={theme.colors.text.tertiary}
-              multiline
-              value={note}
-              onChangeText={setNote}
-              textAlignVertical="top"
-              onFocus={handleDescriptionFocus}
-            />
-          </View>
-          </ScrollView>
+                {/* Submitted Content */}
+                {((artifacts.length > 0) || note.trim()) && (
+                  <View style={styles.submittedContent}>
+                    <Text style={styles.sectionTitle}>What You Submitted</Text>
+                    
+                    {note.trim() && (
+                      <View style={styles.noteSection}>
+                        <Text style={styles.noteLabel}>Note:</Text>
+                        <Text style={styles.noteText}>{note.trim()}</Text>
+                      </View>
+                    )}
 
-          {/* Bottom Section with Mark as Done Button */}
-          <View style={styles.sheetBottomSection}>
-            <Button
-              title={
-                isSubmitting 
-                  ? "Submitting..." 
-                  : (isCompleted ? "Mark Incomplete" : "Mark as Done")
-              }
-              variant="black"
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              style={{ borderRadius: theme.radius.xl }}
-            />
-          </View>
+                    {artifacts.length > 0 && (
+                      <View style={styles.photosSection}>
+                        <Text style={styles.photosLabel}>Photos ({artifacts.length}):</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
+                          {artifacts.map((artifact) => (
+                            <Image
+                              key={artifact.id}
+                              source={{ uri: artifact.signed_url }}
+                              style={styles.submittedPhoto}
+                              resizeMode="cover"
+                            />
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+              
+              {/* Bottom button */}
+              <View style={styles.sheetBottomSection}>
+                <Button 
+                  title="Done" 
+                  variant="black"
+                  onPress={handleDone}
+                  style={{ borderRadius: theme.radius.xl }}
+                />
+              </View>
+            </>
+          )}
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+    </SafeAreaView>
   );
 }
 
 const createSaveSheetStyles = (theme: Theme) => StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+  },
   sheetActionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -912,10 +1118,97 @@ const createSaveSheetStyles = (theme: Theme) => StyleSheet.create({
   sheetBottomSection: {
     padding: 16,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 32,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border.default,
     backgroundColor: theme.colors.background.page,
+  },
+  successIcon: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: theme.colors.status.completed,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: 40,
+    marginBottom: 24,
+  },
+  checkmark: {
+    fontSize: 100,
+    color: theme.colors.text.inverse,
+    fontWeight: 'bold',
+  },
+  heroSection: {
+    padding: 0,
+    marginBottom: 8,
+  },
+  heroContent: {
+    alignItems: 'flex-start',
+    paddingHorizontal: 0,
+  },
+  dreamTitle: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    textAlign: 'left',
+    marginBottom: 4,
+  },
+  areaTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    textAlign: 'left',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: theme.colors.text.primary,
+    fontWeight: '500',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 16,
+  },
+  submittedContent: {
+    paddingHorizontal: 0,
+    marginBottom: 32,
+    marginTop: 16,
+  },
+  noteSection: {
+    marginBottom: 16,
+  },
+  noteLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+  },
+  noteText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    lineHeight: 22,
+  },
+  photosSection: {
+    marginBottom: 16,
+  },
+  photosLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+  },
+  photosScroll: {
+    flexDirection: 'row',
+  },
+  submittedPhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    marginRight: 12,
   },
 });
 
@@ -924,7 +1217,7 @@ const ActionOccurrencePage = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { deferOccurrence, unmarkOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode } = useData();
+  const { deferOccurrence, unmarkOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode, checkAchievements, checkDreamCompletion } = useData();
   const { show: showToast } = useToast();
   
   // Calculate emoji dimensions
@@ -992,7 +1285,7 @@ const ActionOccurrencePage = () => {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showOptionsPopover, setShowOptionsPopover] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showSaveSheet, setShowSaveSheet] = useState(false);
+  const [pageView, setPageView] = useState<'main' | 'save' | 'success'>('main');
   const [editingAction, setEditingAction] = useState<any>(null);
   const [menuButtonLayout, setMenuButtonLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const menuButtonRef = useRef<View>(null);
@@ -1221,6 +1514,23 @@ const ActionOccurrencePage = () => {
       // Complete the occurrence first
       await completeOccurrence(params.occurrenceId, note.trim() || undefined, session.access_token);
       
+      console.log('✅ [ACHIEVEMENT] Action completed via API, calling checkAchievements');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1223',message:'Action completed via API, calling checkAchievements',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch((e)=>{console.error('Log error:',e);});
+      // #endregion
+      
+      // Check for achievements after completing the action
+      try {
+        await checkAchievements();
+        console.log('✅ [ACHIEVEMENT] checkAchievements completed');
+      } catch (error) {
+        console.error('❌ [ACHIEVEMENT] Error in checkAchievements:', error);
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1228',message:'checkAchievements completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch((e)=>{console.error('Log error:',e);});
+      // #endregion
+      
       setIsCompleted(true);
       
       // Track action completed event
@@ -1232,16 +1542,7 @@ const ActionOccurrencePage = () => {
         has_artifacts: artifacts.length > 0,
       });
       
-      // Navigate to confirmation page
-      (navigation as any).navigate('ArtifactSubmitted', {
-        occurrenceId: params.occurrenceId,
-        actionTitle: actionData?.title || params?.actionTitle,
-        dreamTitle: dreamAreaData?.dreamTitle || params?.dreamTitle,
-        areaName: dreamAreaData?.areaName || params?.areaName,
-        areaEmoji: dreamAreaData?.areaEmoji || params?.areaEmoji,
-        note: note.trim(),
-        artifacts: artifacts,
-      });
+      // onSuccess callback will be called from SaveActionSheet to transition to success view
     } catch (error: any) {
       console.error('Error completing action:', error);
       const errorMessage = error?.message || error?.error || 'Failed to complete action. Please try again.';
@@ -1274,12 +1575,8 @@ const ActionOccurrencePage = () => {
         action_id: params.occurrenceId,
         action_title: actionData?.title || params?.actionTitle,
       });
-      
-      showToast('Success', 'Action marked as incomplete');
     } catch (error: any) {
       console.error('Error unmarking action:', error);
-      const errorMessage = error?.message || error?.error || 'Failed to unmark action. Please try again.';
-      showToast('Error', errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -1697,14 +1994,15 @@ Focus on practical, immediately actionable advice that moves me closer to comple
   return (
     <View style={styles.wrapper}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <SafeAreaView style={[styles.container, { backgroundColor: getPageBackgroundColor() }]} edges={['top']}>
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-          {/* Header */}
-          <View style={styles.header}>
+      {pageView === 'main' && (
+        <SafeAreaView style={[styles.container, { backgroundColor: getPageBackgroundColor() }]} edges={['top']}>
+          <KeyboardAvoidingView 
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            {/* Header */}
+            <View style={styles.header}>
         <IconButton
           icon="close"
           onPress={() => navigation.goBack()}
@@ -2032,12 +2330,12 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                 variant="secondary"
                 onPress={handleUnmark}
                 disabled={isSubmitting}
-                style={{ flex: 1, borderRadius: theme.radius.xl }}
+                style={{ flex: 1, borderRadius: theme.radius.xl, borderWidth: 0 }}
               />
               <Button
                 title={isSubmitting ? "Submitting..." : "Re-submit"}
                 variant="black"
-                onPress={() => setShowSaveSheet(true)}
+                onPress={() => setPageView('save')}
                 disabled={isSubmitting}
                 style={{ flex: 1, borderRadius: theme.radius.xl }}
               />
@@ -2046,16 +2344,90 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             <Button
               title={isSubmitting ? "Submitting..." : "Mark as Complete"}
               variant="black"
-              onPress={() => setShowSaveSheet(true)}
+              onPress={() => setPageView('save')}
               disabled={isSubmitting}
               style={{ borderRadius: theme.radius.xl }}
             />
           )}
         </View>
       )}
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      )}
+
+      {pageView === 'save' && (
+        <SaveActionSheet
+          onClose={() => {
+            setPageView('main');
+            navigation.goBack();
+          }}
+          onBack={() => setPageView('main')}
+          onSubmit={async () => {
+            if (isCompleted) {
+              await handleUnmark();
+              setPageView('main');
+            } else {
+              await handleComplete();
+              // Don't close modal here - it will transition to success view
+            }
+          }}
+          onSuccess={() => {
+            setPageView('success');
+          }}
+          actionTitle={actionData?.title || params?.actionTitle}
+          actionData={actionData}
+          params={params}
+          dreamAreaData={dreamAreaData}
+          note={note}
+          setNote={setNote}
+          artifacts={artifacts}
+          isUploading={isUploading}
+          isSubmitting={isSubmitting}
+          isCompleted={isCompleted}
+          handleImagePicker={handleImagePicker}
+          handleDeleteImage={handleDeleteImage}
+          formatDate={formatDate}
+          formatTime={formatTime}
+          navigation={navigation}
+          checkDreamCompletion={checkDreamCompletion}
+        />
+      )}
+
+      {pageView === 'success' && (
+        <SaveActionSheet
+          onClose={() => {
+            setPageView('main');
+            navigation.goBack();
+          }}
+          onBack={undefined}
+          initialViewMode="success"
+          onSubmit={async () => {
+            // Should not be called in success view
+          }}
+          onSuccess={() => {
+            // Already in success view
+          }}
+          actionTitle={actionData?.title || params?.actionTitle}
+          actionData={actionData}
+          params={params}
+          dreamAreaData={dreamAreaData}
+          note={note}
+          setNote={setNote}
+          artifacts={artifacts}
+          isUploading={isUploading}
+          isSubmitting={isSubmitting}
+          isCompleted={isCompleted}
+          handleImagePicker={handleImagePicker}
+          handleDeleteImage={handleDeleteImage}
+          formatDate={formatDate}
+          formatTime={formatTime}
+          navigation={navigation}
+          checkDreamCompletion={checkDreamCompletion}
+        />
+      )}
 
       {/* Options Popover */}
-      {!isPreviewMode && (
+      {!isPreviewMode && pageView === 'main' && (
         <OptionsPopover
           visible={showOptionsPopover}
           onClose={() => setShowOptionsPopover(false)}
@@ -2072,36 +2444,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
         onSave={handleSaveEdit}
         dreamEndDate={undefined}
       />
-
-      {/* Save Action Sheet */}
-      <SaveActionSheet
-        visible={showSaveSheet}
-        onClose={() => setShowSaveSheet(false)}
-        onSubmit={async () => {
-          if (isCompleted) {
-            await handleUnmark();
-          } else {
-            await handleComplete();
-          }
-          setShowSaveSheet(false);
-        }}
-        actionTitle={actionData?.title || params?.actionTitle}
-        actionData={actionData}
-        params={params}
-        dreamAreaData={dreamAreaData}
-        note={note}
-        setNote={setNote}
-        artifacts={artifacts}
-        isUploading={isUploading}
-        isSubmitting={isSubmitting}
-        isCompleted={isCompleted}
-        handleImagePicker={handleImagePicker}
-        handleDeleteImage={handleDeleteImage}
-        formatDate={formatDate}
-        formatTime={formatTime}
-      />
-        </KeyboardAvoidingView>
-      </SafeAreaView>
     </View>
   );
 };

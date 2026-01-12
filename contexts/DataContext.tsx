@@ -431,35 +431,42 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
    * Check for newly unlocked achievements and queue them for display
    */
   const checkAchievements = useCallback(async () => {
-    if (isScreenshotMode) return;
+    if (isScreenshotMode) {
+      console.log('⏭️ [ACHIEVEMENT] Skipping check (screenshot mode)');
+      return;
+    }
+    
+    console.log('🔍 [ACHIEVEMENT] checkAchievements called');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:427',message:'checkAchievements called',data:{isScreenshotMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch((e)=>{console.error('Log error:',e);});
+    // #endregion
     
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:427',message:'checkAchievements called',data:{isScreenshotMode},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
+        console.log('❌ [ACHIEVEMENT] No session token');
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:432',message:'No session token',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:432',message:'No session token',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch((e)=>{console.error('Log error:',e);});
         // #endregion
         return;
       }
       
+      console.log('📡 [ACHIEVEMENT] Calling checkNewAchievementsAPI');
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:436',message:'Calling checkNewAchievementsAPI',data:{hasToken:!!session.access_token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:436',message:'Calling checkNewAchievementsAPI',data:{hasToken:!!session.access_token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch((e)=>{console.error('Log error:',e);});
       // #endregion
       
       const response = await checkNewAchievementsAPI(session.access_token);
       
+      console.log('📥 [ACHIEVEMENT] API response:', { success: response.success, count: response.data?.new_achievements?.length || 0 });
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:440',message:'checkNewAchievementsAPI response',data:{success:response.success,achievementsCount:response.data.new_achievements.length,message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:440',message:'checkNewAchievementsAPI response',data:{success:response.success,achievementsCount:response.data?.new_achievements?.length || 0,message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch((e)=>{console.error('Log error:',e);});
       // #endregion
       
       if (response.success && response.data.new_achievements.length > 0) {
-        console.log('🏆 New achievements unlocked:', response.data.new_achievements.length);
+        console.log('🏆 [ACHIEVEMENT] New achievements unlocked:', response.data.new_achievements.length, response.data.new_achievements.map((a: any) => a.title));
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:444',message:'Setting unlocked achievements',data:{count:response.data.new_achievements.length,achievements:response.data.new_achievements.map((a:any)=>({id:a.achievement_id,title:a.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:444',message:'Setting unlocked achievements',data:{count:response.data.new_achievements.length,achievements:response.data.new_achievements.map((a:any)=>({id:a.achievement_id,title:a.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch((e)=>{console.error('Log error:',e);});
         // #endregion
         setState(s => {
           const updated = {
@@ -469,25 +476,27 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
               ...response.data.new_achievements
             ]
           };
+          console.log('💾 [ACHIEVEMENT] State updated:', { previous: s.unlockedAchievements.length, new: updated.unlockedAchievements.length });
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:469',message:'State updated with achievements',data:{previousCount:s.unlockedAchievements.length,newCount:updated.unlockedAchievements.length,totalUnlocked:updated.unlockedAchievements.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:469',message:'State updated with achievements',data:{previousCount:s.unlockedAchievements.length,newCount:updated.unlockedAchievements.length,totalUnlocked:updated.unlockedAchievements.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch((e)=>{console.error('Log error:',e);});
           // #endregion
           return updated;
         });
       } else if (!response.success) {
+        console.error('❌ [ACHIEVEMENT] checkNewAchievementsAPI failed:', response.message);
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:454',message:'checkNewAchievementsAPI failed',data:{message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:454',message:'checkNewAchievementsAPI failed',data:{message:response.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch((e)=>{console.error('Log error:',e);});
         // #endregion
-        console.error('Achievement check failed:', response.message);
       } else {
+        console.log('ℹ️ [ACHIEVEMENT] No new achievements');
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:458',message:'No new achievements found',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:458',message:'No new achievements found',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch((e)=>{console.error('Log error:',e);});
         // #endregion
       }
     } catch (error) {
-      console.error('Error checking achievements:', error);
+      console.error('❌ [ACHIEVEMENT] Exception in checkAchievements:', error);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:463',message:'Exception in checkAchievements',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:463',message:'Exception in checkAchievements',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch((e)=>{console.error('Log error:',e);});
       // #endregion
     }
   }, [isScreenshotMode]);

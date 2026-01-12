@@ -1,0 +1,1 @@
+SELECT * FROM user_achievements WHERE user_id = '9e0ec607-8bad-4731-84eb-958f98833131';

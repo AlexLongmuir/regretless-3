@@ -20,6 +20,13 @@ export const AchievementPopup: React.FC = () => {
 
   // If we have unlocked achievements, show the modal
   const showUnlockModal = state.unlockedAchievements && state.unlockedAchievements.length > 0;
+  
+  // Debug logging
+  React.useEffect(() => {
+    if (state.unlockedAchievements && state.unlockedAchievements.length > 0) {
+      console.log('🎉 [ACHIEVEMENT POPUP] Unlocked achievements detected:', state.unlockedAchievements.length, state.unlockedAchievements.map(a => a.title));
+    }
+  }, [state.unlockedAchievements]);
 
   const handleClose = () => {
     clearUnlockedAchievements();

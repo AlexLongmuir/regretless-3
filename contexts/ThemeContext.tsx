@@ -21,8 +21,9 @@ export const ThemeProvider = ({ children, initialMode }: { children: ReactNode; 
 
   // Load theme immediately using useLayoutEffect for faster initial load
   useLayoutEffect(() => {
-    // If initialMode was provided, use it and skip loading (already loaded in App.tsx)
+    // If initialMode was provided, sync state with it
     if (initialMode) {
+      setMode(initialMode);
       return;
     }
     
