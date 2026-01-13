@@ -356,7 +356,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.background.card,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 9999,
   },
   uploadButtonContent: {
     flexDirection: 'row',

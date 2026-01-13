@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface[50],
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 9999,
   },
   uploadButtonContent: {
     flexDirection: 'row',
