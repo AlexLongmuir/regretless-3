@@ -43,8 +43,8 @@ const imageData: ImageData[] = [
   },
   {
     id: '2',
-    source: require('../../assets/images/onboarding/20250916_0840_Golden City Sunrise_simple_compose_01k58qf6d3ekhv8gkph5ac0ygy.png'),
-    benefitText: 'Benefit 2',
+    source: require('../../assets/images/onboarding/BeforeAfter.png'),
+    benefitText: 'Track your progress in real time',
   },
   {
     id: '3',
@@ -156,6 +156,7 @@ const IntroStep: React.FC = () => {
 
   const renderImage = useCallback(({ item, index }: { item: ImageData; index: number }) => {
     const isFirstImage = index === 0;
+    const isSecondImage = index === 1;
     
     return (
       <View style={styles.imageContainer}>
@@ -164,6 +165,12 @@ const IntroStep: React.FC = () => {
             key={currentIndex === 0 ? 'reset' : 'scroll'} 
             source={item.source}
             shouldReset={currentIndex === 0}
+          />
+        ) : isSecondImage ? (
+          <HorizontalScrollingImage 
+            key={currentIndex === 1 ? 'reset' : 'scroll'} 
+            source={item.source}
+            shouldReset={currentIndex === 1}
           />
         ) : (
           <Image
@@ -188,7 +195,7 @@ const IntroStep: React.FC = () => {
         />
       </View>
     );
-  }, [handleImageTap, styles]);
+  }, [handleImageTap, styles, currentIndex]);
 
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
@@ -363,6 +370,100 @@ const ScrollingImage: React.FC<{
   );
 };
 
+// HorizontalScrollingImage component for second image - creates video-like horizontal scroll effect
+const HorizontalScrollingImage: React.FC<{
+  source: any;
+  shouldReset?: boolean;
+}> = ({ source, shouldReset = false }) => {
+  const scrollX = useSharedValue(0);
+  const visibleHeight = SCREEN_HEIGHT; // Full screen height
+  const visibleWidth = SCREEN_WIDTH;
+  
+  // Make image container wide enough to show full image when scrolling
+  // Use a large multiplier to ensure we can scroll the full image
+  // The image will fill the height with contentFit="cover" and scroll horizontally
+  const imageWidth = visibleWidth * 4; // Make it 4x screen width to show full image
+  const scrollDistance = imageWidth - visibleWidth; // How far to scroll from left to right
+
+  // Reset scroll position when shouldReset changes to true
+  useEffect(() => {
+    if (shouldReset) {
+      cancelAnimation(scrollX);
+      scrollX.value = 0;
+      // Force immediate reset by setting value directly
+      requestAnimationFrame(() => {
+        scrollX.value = 0;
+      });
+    }
+  }, [shouldReset, scrollX]);
+
+  useEffect(() => {
+    // Function to start scroll animation
+    const startScroll = () => {
+      // Ensure we start at the very left
+      scrollX.value = 0;
+      scrollX.value = withTiming(
+        -scrollDistance, // Scroll to right (showing right side of image)
+        {
+          duration: 15000, // 20 seconds to scroll from left to right (2x faster)
+          easing: Easing.linear,
+        },
+        (finished) => {
+          if (finished) {
+            // When finished, reset to left and start again
+            runOnJS(startScroll)();
+          }
+        }
+      );
+    };
+
+    // If resetting, cancel any ongoing animation and reset immediately
+    if (shouldReset) {
+      cancelAnimation(scrollX);
+      scrollX.value = 0;
+      // Wait a bit longer to ensure reset is applied before starting
+      const resetTimer = setTimeout(() => {
+        startScroll();
+      }, 150);
+      return () => {
+        cancelAnimation(scrollX);
+        clearTimeout(resetTimer);
+      };
+    }
+
+    // Normal start - ensure initial position is at left, then start animation
+    scrollX.value = 0;
+    const timer = setTimeout(() => {
+      startScroll();
+    }, 100);
+
+    return () => {
+      cancelAnimation(scrollX);
+      clearTimeout(timer);
+    };
+  }, [scrollX, scrollDistance, shouldReset]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: scrollX.value }],
+    };
+  });
+
+  return (
+    <View style={styles.horizontalScrollingImageContainer}>
+      <Animated.View style={[styles.horizontalScrollingImageWrapper, animatedStyle, { width: imageWidth }]}>
+        <Image
+          source={source}
+          style={[styles.horizontalScrollingImage, { width: imageWidth, height: visibleHeight }]}
+          contentFit="cover"
+          contentPosition="left"
+          cachePolicy="memory-disk"
+        />
+      </Animated.View>
+    </View>
+  );
+};
+
 // Separated ProgressBar component for optimization
 const ProgressBar: React.FC<{
   index: number;
@@ -455,6 +556,18 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  horizontalScrollingImageContainer: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#000000', // Black background to match image
+  },
+  horizontalScrollingImageWrapper: {
+    height: SCREEN_HEIGHT,
+  },
+  horizontalScrollingImage: {
+    height: SCREEN_HEIGHT,
   },
   benefitOverlay: {
     position: 'absolute',
@@ -588,6 +701,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   scrollingImage: {
     width: SCREEN_WIDTH,
+  },
+  horizontalScrollingImageContainer: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#000000', // Black background to match image
+  },
+  horizontalScrollingImageWrapper: {
+    height: SCREEN_HEIGHT,
+  },
+  horizontalScrollingImage: {
+    height: SCREEN_HEIGHT,
   },
   benefitOverlay: {
     position: 'absolute',
