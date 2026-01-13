@@ -40,14 +40,14 @@ export const StreakButton: React.FC<StreakButtonProps> = ({
 
   const buttonContent = (
     <View style={styles.buttonContent}>
-      <Icon 
-        name="fire" 
-        size={14} // Match text height (fontSize 14)
-        color={disabled ? theme.colors.disabled.inactive : iconColor}
-      />
       <Text style={[styles.streakBadge, { color: disabled ? theme.colors.disabled.text : theme.colors.text.primary }]}>
         {streak}
       </Text>
+      <Icon 
+        name="fire" 
+        size={16}
+        color={disabled ? theme.colors.disabled.inactive : theme.colors.black}
+      />
     </View>
   );
 
@@ -129,12 +129,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
   },
   streakBadge: {
     fontSize: 14,
     fontWeight: '600',
-    lineHeight: 14, // Match icon height exactly
+    lineHeight: 16,
+    includeFontPadding: false,
   },
   disabled: {
     opacity: 0.6,

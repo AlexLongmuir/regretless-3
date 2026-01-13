@@ -96,6 +96,7 @@ export interface GenerateAreasRequest {
   enjoyment?: string
   feedback?: string
   original_areas?: Area[]
+  figurine_url?: string
 }
 
 export interface GenerateActionsRequest {
@@ -121,6 +122,7 @@ export interface OnboardingGenerateAreasRequest {
   dream_id?: string // Optional for onboarding
   feedback?: string
   original_areas?: Area[]
+  figurine_url?: string
 }
 
 export interface OnboardingGenerateActionsRequest {
@@ -690,6 +692,162 @@ export const getDefaultCelebrities = async (): Promise<{ success: boolean; data:
   const res = await fetch(`${API_BASE}/api/dreams/celebrities/default`, { method: 'GET' });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+// Figurine API
+export interface Figurine {
+  id: string;
+  name: string;
+  signed_url: string;
+  path: string;
+}
+
+export const uploadSelfieForFigurine = async (file: any, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse; message: string }> => {
+  const formData = new FormData()
+  
+  // Handle React Native file upload
+  if (file.uri) {
+    formData.append('file', {
+      uri: file.uri,
+      type: file.type,
+      name: file.name,
+    } as any)
+  } else {
+    formData.append('file', file)
+  }
+
+  console.log('🌐 [BACKEND-BRIDGE] Uploading selfie for figurine generation')
+
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${token}`
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/figurines/upload-selfie`, {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Upload selfie response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Upload selfie Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Upload selfie Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Upload selfie Network/Parse Error:', error)
+    throw error
+  }
+}
+
+export const getPrecreatedFigurines = async (token?: string): Promise<{ success: boolean; data: { figurines: Figurine[] } }> => {
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  console.log('🌐 [BACKEND-BRIDGE] Getting precreated figurines')
+
+  try {
+    const res = await fetch(`${API_BASE}/api/figurines/precreated`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Get precreated figurines response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Get precreated figurines Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Get precreated figurines Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Get precreated figurines Network/Parse Error:', error)
+    throw error
+  }
+}
+
+export const generateDreamImage = async (figurineUrl: string, dreamTitle: string, dreamContext: string, dreamId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse }> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+
+  console.log('🌐 [BACKEND-BRIDGE] Generating dream image')
+
+  try {
+    const res = await fetch(`${API_BASE}/api/dreams/generate-image`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        figurine_url: figurineUrl,
+        dream_title: dreamTitle,
+        dream_context: dreamContext,
+        dream_id: dreamId
+      })
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Generate dream image response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Generate dream image Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Generate dream image Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Generate dream image Network/Parse Error:', error)
+    throw error
+  }
+}
+
+export const generateAreaImage = async (figurineUrl: string, dreamTitle: string, areaTitle: string, areaContext: string, areaId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse }> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+
+  console.log('🌐 [BACKEND-BRIDGE] Generating area image')
+
+  try {
+    const res = await fetch(`${API_BASE}/api/areas/generate-image`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        figurine_url: figurineUrl,
+        dream_title: dreamTitle,
+        area_title: areaTitle,
+        area_context: areaContext,
+        area_id: areaId
+      })
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Generate area image response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Generate area image Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Generate area image Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Generate area image Network/Parse Error:', error)
+    throw error
+  }
 }
 
 export const generateCelebrityDreams = async (name: string, token?: string): Promise<{ success: boolean; data: { dreams: GeneratedDreamSuggestion[] } }> => {

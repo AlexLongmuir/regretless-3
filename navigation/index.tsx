@@ -53,6 +53,8 @@ import ScreenshotMenuPage from '../app/ScreenshotMenuPage';
 import NotificationSettingsPage from '../app/NotificationSettingsPage';
 import DisplaySettingsPage from '../app/DisplaySettingsPage';
 import { DailyWelcomeContainer } from '../components/DailyWelcome/DailyWelcomeContainer';
+import { AchievementUnlockedPage } from '../app/AchievementUnlockedPage';
+import { AchievementListener } from '../components/AchievementListener';
 
 // Wrapper component removed - OnboardingProvider is now at App root
 // const OnboardingNavigatorWithProvider = () => (
@@ -303,6 +305,15 @@ const TabNavigator = ({ navigation, route }: any) => {
 
 // ScreenWrapper removed - was just a pass-through component
 
+// Global navigation ref for MainStack - allows AchievementListener to navigate
+let mainStackNavigation: any = null;
+
+/**
+ * Export function to get the MainStack navigation object
+ * This allows AchievementListener to access it
+ */
+export const getMainStackNavigation = () => mainStackNavigation;
+
 /**
  * MainNavigator - Stack navigation for authenticated users
  * 
@@ -334,8 +345,16 @@ const MainNavigator = ({
       >
         <MainStack.Screen 
           name="Tabs" 
-          component={TabNavigator}
-        />
+        >
+          {(props) => {
+            // Capture navigation from Tabs screen and store it globally
+            React.useEffect(() => {
+              mainStackNavigation = props.navigation;
+              console.log('✅ [MainNavigator] Navigation captured from Tabs screen');
+            }, [props.navigation]);
+            return <TabNavigator {...props} />;
+          }}
+        </MainStack.Screen>
         <MainStack.Screen 
           name="ActionOccurrence" 
           component={ActionOccurrencePage}
@@ -350,6 +369,11 @@ const MainNavigator = ({
           name="DreamCompleted" 
           component={DreamCompletedPage}
           options={{ presentation: 'modal' }}
+        />
+        <MainStack.Screen
+          name="AchievementUnlocked"
+          component={AchievementUnlockedPage}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <MainStack.Screen 
           name="Progress" 
@@ -393,6 +417,7 @@ const MainNavigator = ({
         />
       </MainStack.Navigator>
       <DailyWelcomeContainer />
+      <AchievementListener />
     </View>
   );
 };

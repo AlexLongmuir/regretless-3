@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, Alert } from 'react-native'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../contexts/ThemeContext'
 import { Theme } from '../utils/theme'
@@ -9,6 +10,7 @@ interface AreaChipProps {
   id: string
   title: string
   emoji: string
+  imageUrl?: string
   onEdit?: (id: string) => void
   onRemove?: (id: string) => void
   onMoveUp?: () => void
@@ -35,6 +37,7 @@ export function AreaChip({
   id,
   title,
   emoji,
+  imageUrl,
   onEdit,
   onRemove,
   onMoveUp,
@@ -203,9 +206,17 @@ export function AreaChip({
         </TouchableOpacity>
       )}
       
-      {/* Icon on the left */}
-      <View style={{ marginRight: 16 }}>
-        <Text style={{ fontSize: 40 }}>{emoji}</Text>
+      {/* Icon/Image on the left */}
+      <View style={{ marginRight: 16, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={{ width: 40, height: 40, borderRadius: 8 }}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={{ fontSize: 40 }}>{emoji}</Text>
+        )}
       </View>
       
       {/* Title and Progress on the right */}
@@ -333,6 +344,7 @@ interface AreaSuggestion {
   id: string
   title: string
   emoji: string
+  imageUrl?: string
   completedActions?: number
   totalActions?: number
 }
@@ -428,6 +440,7 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
             id={area.id}
             title={area.title}
             emoji={area.emoji}
+            imageUrl={area.imageUrl}
             onEdit={onEdit}
             onRemove={onRemove}
             onMoveUp={onReorder ? () => handleMoveUp(index) : undefined}

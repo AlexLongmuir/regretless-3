@@ -3,7 +3,7 @@ import { ScrollView, View, Text, StyleSheet, Image, Animated } from 'react-nativ
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
-import { DreamCard, DreamChipList, AchievementsButton, AchievementsSheet } from '../components';
+import { DreamCard, DreamChipList, AchievementsButton, AchievementsSheet, StreakButton } from '../components';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { DreamChipSkeleton } from '../components/SkeletonLoader';
@@ -53,8 +53,7 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   // Since we updated current_streak logic, we should probably aggregate or take the max?
   // Let's assume for now we take the max streak across active dreams as the "User Streak" or use the backend value if available
   const overallStreak = Math.max(...dreamsWithStats.map(d => d.current_streak || 0), 0);
-  // We'll use the same value for longest streak for now until we have a proper backend field for user-level stats
-  const longestStreak = overallStreak; // Placeholder
+  const [longestStreak, setLongestStreak] = useState<number>(0);
 
   // Smooth crossfade: show overlay when we need skeleton; fade out when content is ready
   useEffect(() => {
@@ -92,6 +91,38 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     };
     loadAchievements();
   }, [isAuthenticated, authLoading]);
+
+  // Load historical longest streak (fallback to longest_streak if historical doesn't exist)
+  useEffect(() => {
+    const loadLongestStreak = async () => {
+      if (!isAuthenticated || authLoading || !user?.id) return;
+      try {
+        // Try historical_longest_streak first, fallback to longest_streak
+        let { data, error } = await supabaseClient.rpc('historical_longest_streak', {
+          p_user_id: user.id
+        });
+        
+        // If historical function doesn't exist, use the existing longest_streak function
+        if (error && error.code === 'PGRST202') {
+          const { data: fallbackData, error: fallbackError } = await supabaseClient.rpc('longest_streak', {
+            p_user_id: user.id
+          });
+          if (fallbackError) {
+            console.error('Error loading longest streak:', fallbackError);
+          } else {
+            setLongestStreak(fallbackData || 0);
+          }
+        } else if (error) {
+          console.error('Error loading longest streak:', error);
+        } else {
+          setLongestStreak(data || 0);
+        }
+      } catch (error) {
+        console.error('Error loading longest streak:', error);
+      }
+    };
+    loadLongestStreak();
+  }, [isAuthenticated, authLoading, user?.id]);
 
   // Initial data load on mount
   useEffect(() => {
@@ -258,12 +289,11 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
               </Text>
             </View>
             <View style={styles.headerActions}>
-              <IconButton
-                icon="fire"
+              <StreakButton
+                streak={overallStreak}
                 onPress={() => setShowStreakSheet(true)}
                 variant="secondary"
                 size="md"
-                style={styles.streakButton}
               />
               <AchievementsButton
                 onPress={() => setShowAchievementsSheet(true)}

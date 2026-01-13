@@ -148,7 +148,8 @@ const ProgressStep: React.FC = () => {
           title: dreamParams.title,
           baseline: dreamParams.baseline,
           obstacles: dreamParams.obstacles,
-          enjoyment: dreamParams.enjoyment
+          enjoyment: dreamParams.enjoyment,
+          figurine_url: state.figurineUrl || undefined
         });
         
         if (areas && areas.length > 0) {

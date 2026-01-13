@@ -47,7 +47,8 @@ Categories inside a dream with soft-delete capability.
 | dream_id | uuid | Reference to dreams table | NOT NULL, FOREIGN KEY |
 | user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY |
 | title | text | Area title | NOT NULL |
-| icon | text | Icon identifier for UI | |
+| icon | text | DEPRECATED: Icon identifier for UI (kept for backward compatibility) | |
+| image_url | text | URL to AI-generated figurine image for this area | |
 | color | text | Hex color code for UI | |
 | position | integer | Position within dream | NOT NULL |
 | approved_at | timestamptz | When area was approved (locked) | |
@@ -949,6 +950,28 @@ CREATE POLICY "Users can view artifacts for their occurrences" ON storage.object
 CREATE POLICY "Users can delete artifacts for their occurrences" ON storage.objects
   FOR DELETE USING (
     bucket_id = 'artifacts' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Storage policies for figurines
+CREATE POLICY "Users can upload their own figurines" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'figurines' 
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+CREATE POLICY "Users can view their own figurines and precreated ones" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'figurines' 
+    AND (
+      auth.uid()::text = (storage.foldername(name))[1] 
+      OR (storage.foldername(name))[1] = 'precreated'
+    )
+  );
+
+CREATE POLICY "Users can delete their own figurines" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'figurines' 
     AND auth.uid()::text = (storage.foldername(name))[1]
   );
 ```

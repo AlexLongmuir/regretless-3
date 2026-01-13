@@ -126,7 +126,15 @@ const FinalStep: React.FC = () => {
               return (
                 <View key={area.id} style={styles.areaItem}>
                   <View style={styles.areaHeader}>
-                    <Text style={styles.areaEmoji}>{area.icon}</Text>
+                    {area.image_url ? (
+                      <Image
+                        source={{ uri: area.image_url }}
+                        style={styles.areaImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <Text style={styles.areaEmoji}>{area.icon}</Text>
+                    )}
                     <View style={styles.areaInfo}>
                       <Text style={styles.areaTitle}>{area.title}</Text>
                       <Text style={styles.areaActionCount}>
@@ -254,6 +262,12 @@ const styles = StyleSheet.create({
   areaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  areaImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    marginRight: theme.spacing.md,
   },
   areaEmoji: {
     fontSize: 24,

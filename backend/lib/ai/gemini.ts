@@ -5,6 +5,7 @@ if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
 export const GEMINI_MODEL = "gemini-3-flash-preview";
 export const GEMINI_FLASH_MODEL = "gemini-3-flash-preview";
+export const GEMINI_IMAGE_MODEL = "gemini-3-pro-image-preview";
 
 // Thinking budget presets for different use cases
 export const THINKING_BUDGETS = {
@@ -531,4 +532,108 @@ export async function generateJson(opts: {
   
   // This should never be reached because we return on successful parse or throw on error
   throw new Error('Failed to generate JSON after all retry attempts');
+}
+
+/**
+ * Generate an image using Gemini image generation model
+ * 
+ * @param opts Configuration options
+ * @param opts.prompt Text prompt describing the image to generate
+ * @param opts.referenceImage Optional base64-encoded reference image (for figurine adaptation)
+ * @param opts.modelId Model to use (default: GEMINI_IMAGE_MODEL)
+ * @returns Promise with image data as base64 string and usage metadata
+ */
+export async function generateImage(opts: {
+  prompt: string;
+  referenceImage?: { data: string; mimeType: string };
+  modelId?: string;
+}): Promise<{ imageData: string; usage: any }> {
+  const modelId = opts.modelId ?? GEMINI_IMAGE_MODEL;
+  const model = getModel(undefined, modelId);
+  
+  try {
+    console.log(`[GEMINI] Generating image with model: ${modelId}`);
+    console.log(`[GEMINI] Prompt: ${opts.prompt.substring(0, 200)}...`);
+    
+    // Build the parts array for the request
+    const parts: any[] = [{ text: opts.prompt }];
+    
+    // Add reference image if provided
+    if (opts.referenceImage) {
+      parts.push({
+        inlineData: {
+          data: opts.referenceImage.data,
+          mimeType: opts.referenceImage.mimeType
+        }
+      });
+      console.log(`[GEMINI] Using reference image (${opts.referenceImage.mimeType})`);
+    }
+    
+    // Generate image
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }] as any,
+    });
+    
+    // Extract image from response
+    // Gemini image generation returns images in the response
+    const response = result.response;
+    const usage = response.usageMetadata;
+    
+    // Check if response contains image data
+    // The response structure may vary, so we need to handle different formats
+    let imageData: string | null = null;
+    
+    // Try to extract image from candidates
+    if (response.candidates && response.candidates.length > 0) {
+      const candidate = response.candidates[0];
+      
+      // Check for inline data (base64 image)
+      if (candidate.content?.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            imageData = part.inlineData.data;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!imageData) {
+      // If no image data found, try alternative extraction methods
+      // Some Gemini models return images differently
+      console.warn('[GEMINI] Image data not found in expected location, checking alternative formats...');
+      
+      // Try to get text response and check if it's base64
+      try {
+        const textResponse = response.text();
+        // If the response is base64-encoded image data, use it
+        if (textResponse && textResponse.length > 100) {
+          // Check if it looks like base64 image data
+          const base64Pattern = /^[A-Za-z0-9+/=]+$/;
+          if (base64Pattern.test(textResponse.trim())) {
+            imageData = textResponse.trim();
+            console.log('[GEMINI] Found image data in text response');
+          }
+        }
+      } catch (e) {
+        // Text extraction failed, which is expected for image responses
+      }
+    }
+    
+    if (!imageData) {
+      throw new Error('No image data found in Gemini response. Response structure may have changed.');
+    }
+    
+    console.log(`[GEMINI] Successfully generated image (${imageData.length} bytes)`);
+    console.log('[GEMINI] Token usage:', {
+      inputTokens: usage?.promptTokenCount || 0,
+      outputTokens: usage?.candidatesTokenCount || 0,
+      totalTokens: usage?.totalTokenCount || 0
+    });
+    
+    return { imageData, usage };
+  } catch (error) {
+    console.error('[GEMINI] Image generation failed:', error);
+    throw new Error(`Gemini image generation failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }

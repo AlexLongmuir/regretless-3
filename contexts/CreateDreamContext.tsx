@@ -11,6 +11,7 @@ export interface CreateDreamState {
   start_date?: string | null
   end_date?: string | null
   image_url?: string | null
+  figurineUrl?: string | null // For generating personalized images
   
   // Form data collected during creation
   baseline?: string // What's your current progress

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -23,23 +23,21 @@ try {
 // Displays trophy animation and shows achievement details in a carousel if multiple achievements.
 //
 // TRIGGER: The sheet is triggered by calling checkNewAchievements() which checks the database
-// for newly unlocked achievements. It can be triggered from:
-// - DreamCompletedPage: When a dream is marked as complete
-// - AccountPage: For testing purposes (force show)
-// - Any other part of the app that calls checkNewAchievements()
+// for newly unlocked achievements.
 //
-// The sheet displays above all other UI (Modal with pageSheet presentation)
-// and shows a carousel if multiple achievements are unlocked simultaneously.
+// ARCHITECTURE: This component is a PURE VIEW. It is intended to be used:
+// 1. As a Screen in the Navigation Stack (native modal)
+// 2. Or wrapped in a Modal if needed
+//
+// The sheet displays full screen and shows a carousel if multiple achievements are unlocked simultaneously.
 
 interface AchievementUnlockedSheetProps {
-  visible: boolean;
   achievements: AchievementUnlockResult[];
   onClose: () => void;
   onViewAchievements: () => void;
 }
 
 export const AchievementUnlockedSheet: React.FC<AchievementUnlockedSheetProps> = ({ 
-  visible, 
   achievements, 
   onClose,
   onViewAchievements
@@ -73,12 +71,12 @@ export const AchievementUnlockedSheet: React.FC<AchievementUnlockedSheetProps> =
 
   // Play trophy animation when sheet appears
   useEffect(() => {
-    if (visible && LottieView && lottieRef.current) {
+    if (LottieView && lottieRef.current) {
       lottieRef.current?.play();
     }
-  }, [visible]);
+  }, []);
 
-  if (!visible || achievements.length === 0) return null;
+  if (achievements.length === 0) return null;
 
   const currentAchievement = achievements[currentIndex];
 
@@ -94,129 +92,123 @@ export const AchievementUnlockedSheet: React.FC<AchievementUnlockedSheetProps> =
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
+    <View style={styles.container}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      <View style={styles.container}>
-        {/* Background Image */}
-        {backgroundImageUrl && (
-          <Image 
-            source={{ uri: backgroundImageUrl }} 
-            style={[styles.backgroundImage, { opacity: backgroundOpacity }]}
-            contentFit="cover"
-            cachePolicy="disk"
-            transition={0}
-            priority="high"
-          />
-        )}
-        
-        {/* Header Overlay - Positioned above content like DreamPage */}
-        <View style={styles.headerOverlay} pointerEvents="box-none">
-          <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-            <View style={styles.headerContainer}>
-              <SheetHeader onClose={onClose} />
-            </View>
-          </SafeAreaView>
-        </View>
-        
-        {/* Content Container - No vertical scrolling */}
-        <View style={styles.contentContainer}>
-          {/* Achievement Carousel */}
-          <View style={styles.carouselWrapper}>
-            <ScrollView
-              ref={scrollViewRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              style={styles.carousel}
-              contentContainerStyle={styles.carouselContent}
-              bounces={false}
-              scrollEnabled={achievements.length > 1}
-            >
-              {achievements.map((achievement, index) => (
-                <View key={achievement.achievement_id} style={styles.carouselPage}>
-                  {/* Achievement Image - Full width at top, extends to header like detail view */}
-                  <View style={[styles.achievementImageBackground, { height: imageHeight, width: imageWidth }]}>
-                    {achievement.image_url ? (
-                      <Image 
-                        source={{ uri: achievement.image_url }} 
-                        style={styles.achievementImage}
-                        contentFit="cover"
-                        cachePolicy="disk"
-                      />
-                    ) : (
-                      <View style={styles.achievementPlaceholderBackground}>
-                        <Text style={styles.achievementPlaceholderQuestionMark}>?</Text>
-                      </View>
-                    )}
-                    
-                    {/* Trophy Animation & Congratulations Text - Overlaid on image (only on first achievement) */}
-                    {index === 0 && (
-                      <View style={styles.overlayContent}>
-                        <View style={styles.trophyContainer}>
-                          {LottieView ? (
-                            <LottieView
-                              ref={lottieRef}
-                              source={require('../assets/Trophy.json')}
-                              autoPlay
-                              loop={false}
-                              speed={0.35}
-                              style={styles.trophyAnimation}
-                            />
-                          ) : (
-                            <Text style={styles.trophyEmoji}>🏆</Text>
-                          )}
-                        </View>
-                        <Text style={styles.congratsText}>Achievement Unlocked!</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Achievement Title - Below image, matching detail view */}
-                  <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                  
-                  {/* Achievement Description - Matching detail view */}
-                  <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                </View>
-              ))}
-            </ScrollView>
+      
+      {/* Background Image */}
+      {backgroundImageUrl && (
+        <Image 
+          source={{ uri: backgroundImageUrl }} 
+          style={[styles.backgroundImage, { opacity: backgroundOpacity }]}
+          contentFit="cover"
+          cachePolicy="disk"
+          transition={0}
+          priority="high"
+        />
+      )}
+      
+      {/* Header Overlay - Positioned above content like DreamPage */}
+      <View style={styles.headerOverlay} pointerEvents="box-none">
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <View style={styles.headerContainer}>
+            <SheetHeader onClose={onClose} />
           </View>
-
-          {/* Dots Indicator for multiple achievements */}
-          {achievements.length > 1 && (
-            <View style={styles.dotsContainer}>
-              {achievements.map((_, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.dot,
-                    index === currentIndex && styles.activeDot
-                  ]} 
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Sticky Button at Bottom */}
-        <View style={styles.buttonContainer}>
-          <SafeAreaView edges={['bottom']} style={styles.buttonSafeArea}>
-            <Button
-              title="View Achievements"
-              onPress={handleViewAchievements}
-              variant="secondary"
-              style={styles.viewButton}
-            />
-          </SafeAreaView>
-        </View>
+        </SafeAreaView>
       </View>
-    </Modal>
+      
+      {/* Content Container - No vertical scrolling */}
+      <View style={styles.contentContainer}>
+        {/* Achievement Carousel */}
+        <View style={styles.carouselWrapper}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}
+            bounces={false}
+            scrollEnabled={achievements.length > 1}
+          >
+            {achievements.map((achievement, index) => (
+              <View key={achievement.achievement_id} style={styles.carouselPage}>
+                {/* Achievement Image - Full width at top, extends to header like detail view */}
+                <View style={[styles.achievementImageBackground, { height: imageHeight, width: imageWidth }]}>
+                  {achievement.image_url ? (
+                    <Image 
+                      source={{ uri: achievement.image_url }} 
+                      style={styles.achievementImage}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                    />
+                  ) : (
+                    <View style={styles.achievementPlaceholderBackground}>
+                      <Text style={styles.achievementPlaceholderQuestionMark}>?</Text>
+                    </View>
+                  )}
+                  
+                  {/* Trophy Animation & Congratulations Text - Overlaid on image (only on first achievement) */}
+                  {index === 0 && (
+                    <View style={styles.overlayContent}>
+                      <View style={styles.trophyContainer}>
+                        {LottieView ? (
+                          <LottieView
+                            ref={lottieRef}
+                            source={require('../assets/Trophy.json')}
+                            autoPlay
+                            loop={false}
+                            speed={0.35}
+                            style={styles.trophyAnimation}
+                          />
+                        ) : (
+                          <Text style={styles.trophyEmoji}>🏆</Text>
+                        )}
+                      </View>
+                      <Text style={styles.congratsText}>Achievement Unlocked!</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Achievement Title - Below image, matching detail view */}
+                <Text style={styles.achievementTitle}>{achievement.title}</Text>
+                
+                {/* Achievement Description - Matching detail view */}
+                <Text style={styles.achievementDescription}>{achievement.description}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Dots Indicator for multiple achievements */}
+        {achievements.length > 1 && (
+          <View style={styles.dotsContainer}>
+            {achievements.map((_, index) => (
+              <View 
+                key={index} 
+                style={[
+                  styles.dot,
+                  index === currentIndex && styles.activeDot
+                ]} 
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Sticky Button at Bottom */}
+      <View style={styles.buttonContainer}>
+        <SafeAreaView edges={['bottom']} style={styles.buttonSafeArea}>
+          <Button
+            title="View Achievements"
+            onPress={handleViewAchievements}
+            variant="secondary"
+            style={styles.viewButton}
+          />
+        </SafeAreaView>
+      </View>
+    </View>
   );
 };
 

@@ -71,7 +71,8 @@ export async function POST(req: Request) {
       hasObstacles: !!requestBody.obstacles,
       hasEnjoyment: !!requestBody.enjoyment,
       hasFeedback: !!requestBody.feedback,
-      hasOriginalAreas: !!requestBody.original_areas
+      hasOriginalAreas: !!requestBody.original_areas,
+      hasFigurineUrl: !!requestBody.figurine_url
     })
     
     const { 
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
       obstacles, 
       enjoyment,
       feedback,
-      original_areas
+      original_areas,
+      figurine_url
     } = requestBody
     
     if (!title) {
@@ -189,7 +191,8 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       user_id: user?.id || 'temp',
       dream_id: dream_id || 'temp',
       title: area.title,
-      icon: area.emoji,
+      icon: area.emoji, // Keep for backward compatibility
+      image_url: null, // Will be populated after image generation
       position: index + 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -198,6 +201,8 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
     console.log('💾 Generated areas:', JSON.stringify(areas, null, 2))
 
     // For onboarding, return the areas directly without saving to database
+    // Note: For onboarding, we can't generate images here since we don't have area IDs yet
+    // Images will be generated after areas are created in the onboarding flow
     if (isOnboarding) {
       console.log('✅ Returning areas for onboarding preview')
       return NextResponse.json(areas)
@@ -211,7 +216,8 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       user_id: user!.id,
       dream_id,
       title: area.title,
-      icon: area.icon,
+      icon: area.icon, // Keep for backward compatibility
+      image_url: area.image_url,
       position: area.position
     }))
     
@@ -246,6 +252,85 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
     if (selectError) {
       console.error('❌ Database select error:', selectError)
       return NextResponse.json({ error: 'Failed to retrieve saved areas' }, { status: 500 })
+    }
+
+    // Generate images for each area if figurine_url is provided (after areas are saved with real IDs)
+    if (figurine_url && savedAreas && savedAreas.length > 0) {
+      console.log('🎨 Generating images for areas...')
+      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
+      
+      // Generate images in parallel for better performance
+      const imagePromises = savedAreas.map(async (area: any) => {
+        // Skip if area already has an image_url
+        if (area.image_url) {
+          console.log(`⏭️ Area "${area.title}" already has image, skipping generation`)
+          return null
+        }
+        
+        try {
+          const response = await fetch(`${baseUrl}/api/areas/generate-image`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              figurine_url,
+              dream_title: title,
+              area_title: area.title,
+              area_context: '', // Context not available here
+              area_id: area.id
+            })
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error(`❌ Failed to generate image for area ${area.title}:`, errorData)
+            return null
+          }
+
+          const imageData = await response.json()
+          if (imageData.success && imageData.data?.signed_url) {
+            console.log(`✅ Generated image for area: ${area.title}`)
+            return {
+              areaId: area.id,
+              image_url: imageData.data.signed_url
+            }
+          }
+          return null
+        } catch (error) {
+          console.error(`❌ Error generating image for area ${area.title}:`, error)
+          return null
+        }
+      })
+
+      const imageResults = await Promise.all(imagePromises)
+      
+      // Update areas with generated image URLs in database
+      for (const result of imageResults) {
+        if (result) {
+          await supabase
+            .from('areas')
+            .update({ image_url: result.image_url })
+            .eq('id', result.areaId)
+            .eq('user_id', user!.id)
+        }
+      }
+      
+      console.log('✅ Area image generation complete')
+      
+      // Re-fetch areas to get updated image_urls
+      const { data: updatedAreas } = await supabase
+        .from('areas')
+        .select('*')
+        .eq('dream_id', dream_id)
+        .is('deleted_at', null)
+        .order('position')
+      
+      if (updatedAreas) {
+        console.log('✅ Returning areas with generated images')
+        return NextResponse.json(updatedAreas)
+      }
     }
 
     console.log('✅ Saved areas:', JSON.stringify(savedAreas, null, 2))

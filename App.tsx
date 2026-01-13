@@ -46,7 +46,7 @@ import { notificationService } from './lib/NotificationService';
 import { initializeRevenueCat } from './lib/revenueCat';
 import { initializeMixpanel, getMixpanelStatus } from './lib/mixpanel';
 import { theme } from './utils/theme';
-import { AchievementPopup } from './components/AchievementPopup';
+// import { AchievementPopup } from './components/AchievementPopup'; // Removed - moved to Navigation
 
 // Globally disable font scaling to ensure consistent UI across devices
 // This overrides system accessibility settings to maintain the "virtual iPhone" layout on iPad
@@ -120,6 +120,7 @@ export default function App() {
             toValue: 0,
             duration: 200,
             useNativeDriver: true,
+            useNativeDriver: true,
           }).start(() => {
             setShowSplash(false);
           });
@@ -185,7 +186,7 @@ export default function App() {
                 <ToastProvider>
                   <CreateDreamProvider>
                     <Navigation />
-                    <AchievementPopup />
+                    {/* AchievementPopup removed - replaced by navigation screen */}
                   </CreateDreamProvider>
                   <StatusBar style="auto" />
                 </ToastProvider>

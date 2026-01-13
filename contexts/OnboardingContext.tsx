@@ -30,6 +30,9 @@ interface OnboardingState {
   // Dream image
   dreamImageUrl: string | null;
   
+  // Figurine URL (for generating personalized images)
+  figurineUrl: string | null;
+  
   // Generated content from onboarding
   generatedAreas: Area[];
   generatedActions: Action[];
@@ -51,6 +54,7 @@ interface OnboardingContextType {
   updateAnswer: (questionId: number, answer: string) => void;
   updateAnswers: (answers: Record<number, string>) => void;
   setDreamImageUrl: (imageUrl: string | null) => void;
+  setFigurineUrl: (figurineUrl: string | null) => void;
   setGeneratedAreas: (areas: Area[]) => void;
   setGeneratedActions: (actions: Action[]) => void;
   setSubscriptionStatus: (hasActive: boolean) => void;
@@ -65,6 +69,7 @@ const defaultState: OnboardingState = {
   name: '',
   answers: {},
   dreamImageUrl: null,
+  figurineUrl: null,
   generatedAreas: [],
   generatedActions: [],
   hasActiveSubscription: false,
@@ -144,6 +149,10 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     setState(prev => ({ ...prev, dreamImageUrl: imageUrl }));
   };
 
+  const setFigurineUrl = (figurineUrl: string | null) => {
+    setState(prev => ({ ...prev, figurineUrl: figurineUrl }));
+  };
+
   const setGeneratedAreas = (areas: Area[]) => {
     setState(prev => {
       // Check if area IDs have changed
@@ -192,6 +201,7 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     updateAnswer,
     updateAnswers,
     setDreamImageUrl,
+    setFigurineUrl,
     setGeneratedAreas,
     setGeneratedActions,
     setSubscriptionStatus,

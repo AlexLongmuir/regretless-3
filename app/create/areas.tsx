@@ -16,6 +16,7 @@ interface AreaSuggestion {
   id: string
   title: string
   emoji: string
+  imageUrl?: string
   selected?: boolean
 }
 
@@ -38,7 +39,8 @@ export default function AreasStep() {
     end_date,
     baseline,
     obstacles,
-    enjoyment
+    enjoyment,
+    figurineUrl
   } = useCreateDream()
   
   const [isLoading, setIsLoading] = useState(!areasAnalyzed)
@@ -54,7 +56,8 @@ export default function AreasStep() {
     .map(area => ({
       id: area.id,
       title: area.title,
-      emoji: area.icon || '🚀'
+      emoji: area.icon || '🚀',
+      imageUrl: area.image_url
     }))
 
   useFocusEffect(
@@ -90,7 +93,8 @@ export default function AreasStep() {
               end_date: end_date || undefined,
               baseline: baseline || undefined,
               obstacles: obstacles || undefined,
-              enjoyment: enjoyment || undefined
+              enjoyment: enjoyment || undefined,
+              figurine_url: figurineUrl || undefined
             }, session.access_token)
             
             if (generatedAreas && generatedAreas.length > 0) {
@@ -277,7 +281,8 @@ export default function AreasStep() {
                   obstacles: obstacles || undefined,
                   enjoyment: enjoyment || undefined,
                   feedback: feedback.trim() || undefined,
-                  original_areas: areas.length > 0 ? areas : undefined
+                  original_areas: areas.length > 0 ? areas : undefined,
+                  figurine_url: figurineUrl || undefined
                 }, session.access_token)
                 
                 if (generatedAreas && generatedAreas.length > 0) {

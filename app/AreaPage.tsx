@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -24,6 +25,7 @@ interface AreaPageProps {
       areaId?: string;
       areaTitle?: string;
       areaEmoji?: string;
+      areaImageUrl?: string;
       dreamId?: string;
       dreamTitle?: string;
     };
@@ -36,7 +38,7 @@ interface AreaPageProps {
 
 const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
   const params = route?.params || {};
-  const { areaId, areaTitle: initialAreaTitle = 'Area', areaEmoji: initialAreaEmoji = '🚀', dreamId, dreamTitle = 'Dream' } = params;
+  const { areaId, areaTitle: initialAreaTitle = 'Area', areaEmoji: initialAreaEmoji = '🚀', areaImageUrl: initialAreaImageUrl, dreamId, dreamTitle = 'Dream' } = params;
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   
@@ -64,7 +66,8 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
     : null;
   
   const areaTitle = currentArea?.title || initialAreaTitle;
-  const areaEmoji = currentArea?.icon || initialAreaEmoji;
+  const areaEmoji = currentArea?.icon || initialAreaEmoji; // Keep for backward compatibility
+  const areaImageUrl = currentArea?.image_url || initialAreaImageUrl;
 
   useEffect(() => {
     if (dreamId) {
@@ -532,9 +535,17 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
 
         {/* ScrollView with Emoji and Content */}
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-          {/* Area Emoji - scrolls with content */}
+          {/* Area Image/Emoji - scrolls with content */}
           <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
-            <Text style={styles.areaEmoji}>{areaEmoji}</Text>
+            {areaImageUrl ? (
+              <Image
+                source={{ uri: areaImageUrl }}
+                style={styles.areaImage}
+                contentFit="cover"
+              />
+            ) : (
+              <Text style={styles.areaEmoji}>{areaEmoji}</Text>
+            )}
           </View>
 
           {/* Dream Title */}
@@ -689,6 +700,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.background.page,
+  },
+  areaImage: {
+    width: '100%',
+    height: '100%',
   },
   areaEmoji: {
     fontSize: 200,

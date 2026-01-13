@@ -3,6 +3,7 @@ import { Modal, View, Text, StyleSheet, ScrollView, Animated, Dimensions, Toucha
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import { SheetHeader } from './SheetHeader';
@@ -10,6 +11,7 @@ import { Icon } from './Icon';
 import type { Achievement, UserAchievement } from '../backend/database/types';
 import { supabaseClient } from '../lib/supabaseClient';
 import { getAchievements } from '../frontend-services/backend-bridge';
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 
 interface StreakSheetProps {
   visible: boolean;
@@ -27,10 +29,14 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const [streakAchievements, setStreakAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
+  const [selectedAchievement, setSelectedAchievement] = useState<(Achievement & { user_progress?: UserAchievement | null }) | null>(null);
   const backgroundOpacity = 1.0; // 100% opacity
+  const screenWidth = Dimensions.get('window').width;
   
   // Animation for the fire icon pulse
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Animation for slide between grid and detail view
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Get background image URL from Supabase storage
   const getBackgroundImageUrl = () => {
@@ -98,6 +104,58 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
   const challengeTiers = [7, 14, 30, 60, 90, 180, 365];
   const nextChallengeTarget = challengeTiers.find(tier => streak < tier) || challengeTiers[challengeTiers.length - 1];
 
+  const handleAchievementPress = (achievement: Achievement & { user_progress?: UserAchievement | null }) => {
+    setSelectedAchievement(achievement);
+    // Animate slide to detail view
+    Animated.spring(slideAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  };
+
+  const handleBack = () => {
+    // Animate slide back to grid view
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start(() => {
+      setSelectedAchievement(null);
+    });
+  };
+
+  const handleClose = () => {
+    // Reset animation and close
+    slideAnim.setValue(0);
+    setSelectedAchievement(null);
+    onClose();
+  };
+
+  // Reset animation when modal closes
+  useEffect(() => {
+    if (!visible) {
+      slideAnim.setValue(0);
+      setSelectedAchievement(null);
+    }
+  }, [visible]);
+
+  const formatUnlockDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day} ${year}`;
+  };
+
+  const screenHeight = Dimensions.get('window').height;
+  const imageHeight = screenHeight * 0.45;
+  const imageWidth = screenWidth + (theme.spacing.lg * 2);
+  
+  const isUnlocked = selectedAchievement ? !!selectedAchievement.user_progress : false;
+
   return (
     <Modal 
       visible={visible} 
@@ -105,7 +163,7 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <StatusBar style={isDark ? "light" : "dark"} />
+      <StatusBar style={selectedAchievement ? "light" : (isDark ? "light" : "dark")} />
       <View style={styles.container}>
         {/* Background Image */}
         {backgroundImageUrl && (
@@ -119,14 +177,29 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
           />
         )}
         <View style={styles.contentContainer}>
-          <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <SheetHeader onClose={onClose} />
-            
-            <ScrollView 
-              style={styles.scrollView}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
+          {/* Grid View */}
+          <Animated.View
+            style={[
+              styles.viewContainer,
+              {
+                transform: [{
+                  translateX: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -screenWidth]
+                  })
+                }]
+              }
+            ]}
+            pointerEvents={selectedAchievement ? 'none' : 'auto'}
+          >
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+              <SheetHeader onClose={handleClose} />
+              
+              <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
             {/* Header Section */}
             <View style={styles.headerSection}>
               <View style={styles.streakCountRow}>
@@ -146,6 +219,9 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
             {/* Challenge Card */}
             <View style={styles.challengeCard}>
               <View style={styles.challengeHeader}>
+                <Text style={styles.challengeTitle}>
+                  {nextChallengeTarget} Action Challenge
+                </Text>
                 <Text style={styles.challengeProgress}>
                   {streak} / {nextChallengeTarget}
                 </Text>
@@ -217,9 +293,23 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
                 })}
               </View>
               
-              <Text style={styles.challengeFooter}>
-                {nextChallengeTarget} Action Challenge: Complete {nextChallengeTarget} consecutive actions without missing a deadline
+              <Text style={styles.challengeDescription}>
+                Complete {nextChallengeTarget} consecutive actions without missing a deadline
               </Text>
+              
+              {longestStreak > 0 && (
+                <View style={styles.longestStreakCard}>
+                  <View style={styles.longestStreakIconContainer}>
+                    <Icon name="fire" size={24} color={theme.colors.warning[500]} />
+                  </View>
+                  <View style={styles.longestStreakContent}>
+                    <Text style={styles.longestStreakLabel}>
+                      {streak === longestStreak ? '🎉 This is your longest streak!' : 'Longest Streak'}
+                    </Text>
+                    <Text style={styles.longestStreakValue}>{longestStreak} actions</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
 
@@ -238,7 +328,7 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
                       key={achievement.id}
                       style={styles.achievementItem}
                       activeOpacity={0.8}
-                      disabled={true} // For now just display
+                      onPress={() => handleAchievementPress(achievement)}
                     >
                       <View style={[
                         styles.achievementCard,
@@ -291,8 +381,110 @@ export const StreakSheet: React.FC<StreakSheetProps> = ({
               </View>
             </View>
 
-            </ScrollView>
-          </SafeAreaView>
+              </ScrollView>
+            </SafeAreaView>
+          </Animated.View>
+
+          {/* Detail View */}
+          <Animated.View
+            style={[
+              styles.viewContainer,
+              styles.detailViewContainer,
+              {
+                transform: [{
+                  translateX: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [screenWidth, 0]
+                  })
+                }]
+              }
+            ]}
+            pointerEvents={selectedAchievement ? 'auto' : 'none'}
+          >
+            {/* Detail Header Overlay */}
+            <View style={styles.detailHeaderOverlay} pointerEvents="box-none">
+              <SafeAreaView edges={['top']} style={styles.detailHeaderSafeArea}>
+                <View style={styles.detailHeader}>
+                  {/* Back button */}
+                  {isDark ? (
+                    <TouchableOpacity onPress={handleBack} style={styles.glassButtonWrapper}>
+                      <View style={[styles.glassButton, { backgroundColor: theme.colors.background.card }]}>
+                        <View style={{ marginLeft: -1 }}>
+                          <Icon name="chevron_left_rounded" size={42} color={theme.colors.text.primary} />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={handleBack} style={styles.glassButtonWrapper}>
+                      <BlurView intensity={100} tint="light" style={styles.glassButton}>
+                        <View style={{ marginLeft: -1 }}>
+                          <Icon name="chevron_left_rounded" size={42} color={theme.colors.text.primary} />
+                        </View>
+                      </BlurView>
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ width: 44 }} />
+                </View>
+              </SafeAreaView>
+            </View>
+
+            <View style={styles.detailContentContainer}>
+              {selectedAchievement && (
+                <ScrollView 
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.detailScrollContent}
+                  showsVerticalScrollIndicator={false}
+                  scrollEnabled={true}
+                >
+                  {/* Background Image - using achievement image or locked image */}
+                  <View style={[styles.detailImageBackground, { height: imageHeight, width: imageWidth }]}>
+                    {isUnlocked && selectedAchievement.image_url ? (
+                      <Image 
+                        source={{ uri: selectedAchievement.image_url }} 
+                        style={styles.detailBackgroundImage}
+                        contentFit="cover"
+                      />
+                    ) : selectedAchievement.locked_image_url ? (
+                      <Image 
+                        source={{ uri: selectedAchievement.locked_image_url }} 
+                        style={[styles.detailBackgroundImage, styles.lockedImage]}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.detailPlaceholderBackground}>
+                        <Text style={styles.detailPlaceholderQuestionMark}>?</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Title */}
+                  <Text style={styles.detailTitle}>
+                    {selectedAchievement.title}
+                  </Text>
+
+                  {/* Status Info */}
+                  <View style={styles.detailStatusRow}>
+                    <Text style={styles.detailStatus}>
+                      {isUnlocked && selectedAchievement.user_progress 
+                        ? `✓ Unlocked on ${formatUnlockDate(selectedAchievement.user_progress.unlocked_at)}`
+                        : '🔒 Locked'
+                      }
+                    </Text>
+                  </View>
+                  
+                  {/* Description */}
+                  <Text style={styles.detailDescription}>
+                    {isUnlocked 
+                      ? selectedAchievement.description 
+                      : selectedAchievement.hidden 
+                        ? 'Keep playing to unlock this achievement.'
+                        : selectedAchievement.description
+                    }
+                  </Text>
+                </ScrollView>
+              )}
+            </View>
+          </Animated.View>
         </View>
       </View>
     </Modal>
@@ -381,15 +573,65 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   },
   challengeHeader: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
+  },
+  challengeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    // Use dark mode colors for better contrast with background image
+    color: isDark ? theme.colors.text.primary : '#F9FAFB', // grey[50] for light mode
+    flex: 1,
   },
   challengeProgress: {
     fontSize: 14,
     fontWeight: '600',
     // Use dark mode colors for better contrast with background image
     color: isDark ? theme.colors.text.secondary : '#D1D5DB', // grey[300] for light mode
+  },
+  challengeDescription: {
+    fontSize: 14,
+    // Use dark mode colors for better contrast with background image
+    color: isDark ? theme.colors.text.secondary : '#D1D5DB', // grey[300] for light mode
+    textAlign: 'left',
+    marginTop: theme.spacing.xs,
+    lineHeight: 20,
+  },
+  longestStreakCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? 'rgba(249, 115, 22, 0.15)' : 'rgba(249, 115, 22, 0.2)', // orange with transparency
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.warning[500],
+  },
+  longestStreakIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: isDark ? 'rgba(249, 115, 22, 0.3)' : 'rgba(249, 115, 22, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.md,
+  },
+  longestStreakContent: {
+    flex: 1,
+  },
+  longestStreakLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    // Use dark mode colors for better contrast with background image
+    color: isDark ? theme.colors.text.secondary : '#D1D5DB', // grey[300] for light mode
+    marginBottom: 2,
+  },
+  longestStreakValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    // Use dark mode colors for better contrast with background image
+    color: isDark ? theme.colors.text.primary : '#F9FAFB', // grey[50] for light mode
   },
   bubblesContainer: {
     flexDirection: 'row',
@@ -452,13 +694,130 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     borderRadius: 6,
     backgroundColor: isDark ? theme.colors.disabled.text : 'rgba(209, 213, 219, 0.3)', // Subtle dot for empty
   },
-  challengeFooter: {
+  // Detail view styles
+  viewContainer: {
+    width: windowWidth,
+    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+  },
+  detailViewContainer: {
+    left: 0,
+    backgroundColor: 'transparent',
+    zIndex: 1,
+  },
+  detailContentContainer: {
+    flex: 1,
+  },
+  detailHeaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: 'transparent',
+  },
+  detailHeaderSafeArea: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+  detailHeader: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  glassButtonWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  glassButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.background.card + 'F0',
+    borderWidth: 0.5,
+    borderColor: theme.colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  detailScrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 60,
+    paddingBottom: BOTTOM_NAV_PADDING,
+  },
+  detailImageBackground: {
+    overflow: 'hidden',
+    marginLeft: -theme.spacing.lg,
+    marginRight: -theme.spacing.lg,
+    marginTop: -60,
+    marginBottom: 0,
+  },
+  detailBackgroundImage: {
+    width: '100%',
+    height: '100%',
+  },
+  lockedImage: {
+    opacity: 0.8,
+  },
+  detailPlaceholderBackground: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.colors.background.imagePlaceholder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailPlaceholderQuestionMark: {
+    fontSize: 120,
+    fontWeight: 'bold',
+    color: theme.colors.text.tertiary,
+    opacity: 0.5,
+  },
+  detailTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    // Use dark mode colors for better contrast with background image
+    color: isDark ? theme.colors.text.primary : '#F9FAFB', // grey[50] for light mode
+    textAlign: 'left',
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  detailStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  detailStatus: {
     fontSize: 14,
+    fontWeight: '600',
     // Use dark mode colors for better contrast with background image
     color: isDark ? theme.colors.text.secondary : '#D1D5DB', // grey[300] for light mode
-    textAlign: 'center',
-    marginTop: theme.spacing.md,
-    lineHeight: 20,
+  },
+  detailDescription: {
+    fontSize: 16,
+    // Use white for better contrast with background image
+    color: '#FFFFFF', // white
+    textAlign: 'left',
+    lineHeight: 22,
+    marginBottom: theme.spacing.xl,
   },
 
   // Achievements Grid

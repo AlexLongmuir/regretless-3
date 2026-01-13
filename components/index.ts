@@ -21,6 +21,8 @@ export { default as SkeletonLoader, ActionChipSkeleton, DreamChipSkeleton, AreaC
 export { AchievementsButton } from './AchievementsButton'
 export { AchievementsSheet } from './AchievementsSheet'
 export { AchievementUnlockedSheet } from './AchievementUnlockedSheet'
+export { StreakButton } from './StreakButton'
+export { StreakSheet } from './StreakSheet'
 
 // Progress components
 export * from './progress'

@@ -5,7 +5,6 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  Image, 
   Alert,
   TextInput,
   Modal,
@@ -25,6 +24,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
 import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import { Button } from '../components/Button';
@@ -1237,6 +1237,7 @@ const ActionOccurrencePage = () => {
     dreamTitle?: string;
     areaName?: string;
     areaEmoji?: string;
+    areaImageUrl?: string;
     sliceCountTarget?: number;
     occurrenceNo?: number;
     isCompleted?: boolean;
@@ -1668,7 +1669,8 @@ const ActionOccurrencePage = () => {
       return {
         dreamTitle: params.dreamTitle,
         areaName: params.areaName,
-        areaEmoji: params.areaEmoji
+        areaEmoji: params.areaEmoji,
+        areaImageUrl: params.areaImageUrl
       };
     }
     
@@ -1677,7 +1679,8 @@ const ActionOccurrencePage = () => {
       return {
         dreamTitle: actionData.areas.dreams?.title,
         areaName: actionData.areas.title,
-        areaEmoji: actionData.areas.icon
+        areaEmoji: actionData.areas.icon,
+        areaImageUrl: actionData.areas.image_url
       };
     }
     
@@ -1688,7 +1691,8 @@ const ActionOccurrencePage = () => {
         return {
           dreamTitle: actions.areas.dreams?.title,
           areaName: actions.areas.title,
-          areaEmoji: actions.areas.icon
+          areaEmoji: actions.areas.icon,
+          areaImageUrl: actions.areas.image_url
         };
       }
     }
@@ -1706,7 +1710,8 @@ const ActionOccurrencePage = () => {
               return {
                 dreamTitle: dreamDetail.dream.title,
                 areaName: area.title,
-                areaEmoji: area.icon
+                areaEmoji: area.icon,
+                areaImageUrl: area.image_url
               };
             }
           }
@@ -1861,7 +1866,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
       acceptance_criteria: actionData.acceptance_criteria || [],
       acceptance_intro: (actionData as any).acceptance_intro,
       acceptance_outro: (actionData as any).acceptance_outro,
-      dream_image: dreamAreaData?.areaEmoji || '',
+      dream_image: dreamAreaData?.areaImageUrl || dreamAreaData?.areaEmoji || '',
       occurrence_no: occurrenceData?.occurrence_no || 1,
       due_on: occurrenceData?.due_on || currentDueDate
     };
@@ -2099,10 +2104,18 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Area Emoji - scrolls with content */}
-            {(dreamAreaData?.areaEmoji || params?.areaEmoji) && (
+            {/* Area Image/Emoji - scrolls with content */}
+            {((dreamAreaData?.areaImageUrl || params?.areaImageUrl) || (dreamAreaData?.areaEmoji || params?.areaEmoji)) && (
               <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
-                <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+                {(dreamAreaData?.areaImageUrl || params?.areaImageUrl) ? (
+                  <Image
+                    source={{ uri: dreamAreaData?.areaImageUrl || params?.areaImageUrl }}
+                    style={styles.areaImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+                )}
               </View>
             )}
 
@@ -2496,6 +2509,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginRight: -theme.spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  areaImage: {
+    width: '100%',
+    height: '100%',
   },
   emojiText: {
     fontSize: 100,

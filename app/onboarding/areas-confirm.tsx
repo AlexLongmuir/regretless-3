@@ -40,7 +40,8 @@ const AreasConfirmStep: React.FC = () => {
     .map(area => ({
       id: area.id,
       title: area.title,
-      emoji: area.icon || '🚀'
+      emoji: area.icon || '🚀',
+      imageUrl: area.image_url
     }));
 
   const emojiOptions = ['🚀', '✍️', '🔧', '📢', '📚', '💡', '🎯', '⚡', '🔥', '💪', '🎨', '📈', '🌟', '🎉', '💎', '🏆'];
@@ -78,7 +79,8 @@ const AreasConfirmStep: React.FC = () => {
         obstacles: dreamParams.obstacles,
         enjoyment: dreamParams.enjoyment,
         feedback: feedback.trim(),
-        original_areas: state.generatedAreas
+        original_areas: state.generatedAreas,
+        figurine_url: state.figurineUrl || undefined
       });
 
       if (newAreas && newAreas.length > 0) {

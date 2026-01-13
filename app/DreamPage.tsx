@@ -204,6 +204,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
         areaId: area.id,
         areaTitle: area.title,
         areaEmoji: area.icon || '🚀',
+        areaImageUrl: area.image_url,
         dreamId: dreamId,
         dreamTitle: title
       });
@@ -857,6 +858,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             areaId: createdArea.id,
             areaTitle: createdArea.title,
             areaEmoji: createdArea.icon || '🚀',
+            areaImageUrl: createdArea.image_url,
             dreamId: dreamId,
             dreamTitle: title
           });
@@ -1017,6 +1019,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
                   id: area.id,
                   title: area.title,
                   emoji: area.icon || '🚀',
+                  imageUrl: area.image_url,
                   completedActions,
                   totalActions
                 };

@@ -2,6 +2,7 @@
  * Intro Step - First screen showing the main app interface
  * 
  * Shows image carousel with 4 images that auto-advance
+ * Implemented with React Native Reanimated for buttery smooth transitions
  */
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
@@ -9,6 +10,15 @@ import { View, Text, StyleSheet, Dimensions, FlatList, TouchableOpacity } from '
 import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withRepeat,
+  Easing, 
+  runOnJS, 
+  cancelAnimation 
+} from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -28,8 +38,8 @@ interface ImageData {
 const imageData: ImageData[] = [
   {
     id: '1',
-    source: require('../../assets/images/onboarding/20250916_0844_Individuality Amidst Motion_simple_compose_01k58qptvqfr5awmazzyd181js.png'),
-    benefitText: 'Benefit 1',
+    source: require('../../assets/images/onboarding/Figurines.png'),
+    benefitText: 'Realise whatever dream you choose',
   },
   {
     id: '2',
@@ -48,8 +58,8 @@ const imageData: ImageData[] = [
   },
 ];
 
-// Auto-advance duration in milliseconds (3 seconds per image)
-const AUTO_ADVANCE_DURATION = 3000;
+// Auto-advance duration in milliseconds (15 seconds per image)
+const AUTO_ADVANCE_DURATION = 15000;
 
 const IntroStep: React.FC = () => {
   const navigation = useNavigation();
@@ -58,125 +68,125 @@ const IntroStep: React.FC = () => {
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Reanimated shared value for progress (0 to 1)
+  const progress = useSharedValue(0);
 
   // Preload all onboarding images when this screen mounts
   useEffect(() => {
     preloadOnboardingImages();
   }, []);
 
-  // Track step view when screen is focused
+  // Track step view when screen is focused and reset to start
   useFocusEffect(
     React.useCallback(() => {
       trackEvent('onboarding_step_viewed', {
         step_name: 'intro'
       });
-    }, [])
+      
+      // Reset to first image and top position when screen is focused
+      setCurrentIndex(0);
+      progress.value = 0;
+      cancelAnimation(progress);
+      
+      // Reset scroll position
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: 0,
+          animated: false,
+        });
+      }, 100);
+    }, [progress])
   );
 
-  // Handle scroll to update current index
-  const handleScroll = useCallback((event: any) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffsetX / SCREEN_WIDTH);
-    if (index >= 0 && index < imageData.length && index !== currentIndex) {
-      setCurrentIndex(index);
-    }
-  }, [currentIndex]);
-
-  // Auto-advance to next image
+  // Function to update index (called from UI thread)
   const advanceToNext = useCallback(() => {
-    if (currentIndex < imageData.length - 1) {
-      const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-    }
-  }, [currentIndex]);
-
-  // Set up auto-advance timer when index changes
-  useEffect(() => {
-    // Clear any existing timer
-    if (autoAdvanceTimerRef.current) {
-      clearTimeout(autoAdvanceTimerRef.current);
-    }
-
-    // Set new timer to advance to next image
-    if (currentIndex < imageData.length - 1) {
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        advanceToNext();
-      }, AUTO_ADVANCE_DURATION);
-    }
-
-    return () => {
-      if (autoAdvanceTimerRef.current) {
-        clearTimeout(autoAdvanceTimerRef.current);
-      }
-    };
-  }, [currentIndex, advanceToNext]);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimerRef.current) {
-        clearTimeout(autoAdvanceTimerRef.current);
-      }
-    };
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % imageData.length);
   }, []);
 
-  // Pause auto-advance when screen loses focus
+  // Function to start animation
+  const startAnimation = useCallback(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, {
+      duration: AUTO_ADVANCE_DURATION,
+      easing: Easing.linear,
+    }, (finished) => {
+      if (finished) {
+        runOnJS(advanceToNext)();
+      }
+    });
+  }, [advanceToNext, progress]);
+
+  // Effect to handle index changes (scroll and restart animation)
+  useEffect(() => {
+    // Scroll to the new index immediately
+    flatListRef.current?.scrollToIndex({
+      index: currentIndex,
+      animated: true,
+    });
+
+    // Start the progress animation
+    startAnimation();
+
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [currentIndex, startAnimation, progress]);
+
+  // Pause animation when screen loses focus
   useFocusEffect(
     React.useCallback(() => {
       return () => {
-        // Cleanup: clear timer when screen loses focus
-        if (autoAdvanceTimerRef.current) {
-          clearTimeout(autoAdvanceTimerRef.current);
-        }
+        cancelAnimation(progress);
       };
-    }, [])
+    }, [progress])
   );
 
   // Handle tap to skip to next image
   const handleImageTap = useCallback(() => {
-    // Clear current timer
-    if (autoAdvanceTimerRef.current) {
-      clearTimeout(autoAdvanceTimerRef.current);
-    }
-    
-    if (currentIndex < imageData.length - 1) {
-      const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-    }
-  }, [currentIndex]);
+    cancelAnimation(progress);
+    advanceToNext();
+  }, [advanceToNext, progress]);
 
   const handleContinue = () => {
-    // Clear timer before navigating
-    if (autoAdvanceTimerRef.current) {
-      clearTimeout(autoAdvanceTimerRef.current);
-    }
+    cancelAnimation(progress);
     trackEvent('onboarding_started');
     navigation.navigate('Welcome' as never);
   };
 
   const renderImage = useCallback(({ item, index }: { item: ImageData; index: number }) => {
+    const isFirstImage = index === 0;
+    
     return (
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={handleImageTap}
-        style={styles.imageContainer}
-      >
-        <Image
-          source={item.source}
-          style={styles.image}
-          contentFit="contain"
-          transition={200}
+      <View style={styles.imageContainer}>
+        {isFirstImage ? (
+          <ScrollingImage 
+            key={currentIndex === 0 ? 'reset' : 'scroll'} 
+            source={item.source}
+            shouldReset={currentIndex === 0}
+          />
+        ) : (
+          <Image
+            source={item.source}
+            style={styles.image}
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+          />
+        )}
+        {/* Benefit Text Overlay - Left aligned, white, on top of image */}
+        <View style={styles.benefitOverlay}>
+          <Text style={styles.benefitText}>
+            {item.benefitText}
+          </Text>
+        </View>
+        {/* Tap area */}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={handleImageTap}
+          style={styles.tapArea}
         />
-      </TouchableOpacity>
+      </View>
     );
   }, [handleImageTap, styles]);
 
@@ -189,63 +199,60 @@ const IntroStep: React.FC = () => {
     []
   );
 
+  // Calculate progress bar width (full width minus side padding)
+  const progressBarWidth = useMemo(() => {
+    return SCREEN_WIDTH - (theme.spacing.lg * 2);
+  }, [theme.spacing.lg]);
+
+  const progressBarSegmentWidth = useMemo(() => {
+    return (progressBarWidth - (8 * (imageData.length - 1))) / imageData.length;
+  }, [progressBarWidth]);
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Progress Indicators */}
+        {/* Progress Indicators - Full width with side padding */}
         <View style={styles.progressContainer}>
           {imageData.map((_, index) => (
-            <View
+            <ProgressBar
               key={index}
-              style={[
-                styles.progressLine,
-                index === currentIndex && styles.progressLineActive,
-              ]}
-            />
+              index={index}
+              currentIndex={currentIndex}
+              progress={progress}
+              width={progressBarSegmentWidth}
+      />
           ))}
         </View>
       </SafeAreaView>
 
-      {/* Image Carousel */}
-      <FlatList
-        ref={flatListRef}
-        data={imageData}
-        renderItem={renderImage}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        getItemLayout={getItemLayout}
-        scrollEnabled={false} // Disable manual scrolling, only programmatic
-        onScrollToIndexFailed={(info) => {
-          // Fallback: scroll to offset if scrollToIndex fails
-          const wait = new Promise((resolve) => setTimeout(resolve, 500));
-          wait.then(() => {
-            flatListRef.current?.scrollToOffset({
-              offset: info.averageItemLength * info.index,
-              animated: true,
-            });
-          });
-        }}
-      />
-
-      {/* Benefit Text */}
-      <View style={styles.benefitContainer}>
-        <Text style={styles.benefitText}>
-          {imageData[currentIndex]?.benefitText}
-        </Text>
+      {/* Image Carousel - Full Screen */}
+      <View style={styles.carouselContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={imageData}
+          renderItem={renderImage}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          getItemLayout={getItemLayout}
+          scrollEnabled={false} // Disable manual scrolling, only programmatic
+          removeClippedSubviews={false} // Keep all views rendered for smoother transitions
+          initialNumToRender={4} // Render all images at once
+          windowSize={5} // Keep all items in memory
+        />
       </View>
 
-      {/* Button Container - Unchanged */}
+      {/* Button Container - Overlay on top of image */}
       <View style={styles.buttonContainer}>
-        <Button
-          title="Continue"
+        <TouchableOpacity
           onPress={handleContinue}
-          variant="black"
-          style={styles.button}
-        />
+          style={styles.buttonOverlay}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.buttonText}>Continue</Text>
+        </TouchableOpacity>
         
         <Text style={styles.signInText}>
           Already purchased? <Text style={styles.signInLink} onPress={() => navigation.navigate('PostPurchaseSignIn' as never)}>Sign in</Text>
@@ -262,6 +269,262 @@ const IntroStep: React.FC = () => {
   );
 };
 
+// ScrollingImage component for first image - creates video-like vertical scroll effect
+const ScrollingImage: React.FC<{
+  source: any;
+  shouldReset?: boolean;
+}> = ({ source, shouldReset = false }) => {
+  const scrollY = useSharedValue(0);
+  const visibleHeight = SCREEN_HEIGHT; // Full screen height
+  const visibleWidth = SCREEN_WIDTH;
+  
+  // Make image container tall enough to show full image when scrolling
+  // Use a large multiplier to ensure we can scroll the full image
+  // The image will maintain its aspect ratio with contentFit="contain" and fill the width
+  const imageHeight = visibleHeight * 4; // Make it 4x screen height to show full image
+  const scrollDistance = imageHeight - visibleHeight; // How far to scroll from top to bottom
+
+  // Reset scroll position when shouldReset changes to true
+  useEffect(() => {
+    if (shouldReset) {
+      cancelAnimation(scrollY);
+      scrollY.value = 0;
+      // Force immediate reset by setting value directly
+      requestAnimationFrame(() => {
+        scrollY.value = 0;
+      });
+    }
+  }, [shouldReset, scrollY]);
+
+  useEffect(() => {
+    // Function to start scroll animation
+    const startScroll = () => {
+      // Ensure we start at the very top
+      scrollY.value = 0;
+      scrollY.value = withTiming(
+        -scrollDistance, // Scroll to bottom (showing bottom of image)
+        {
+          duration: 40000, // 40 seconds to scroll from top to bottom (slower)
+          easing: Easing.linear,
+        },
+        (finished) => {
+          if (finished) {
+            // When finished, reset to top and start again
+            runOnJS(startScroll)();
+          }
+        }
+      );
+    };
+
+    // If resetting, cancel any ongoing animation and reset immediately
+    if (shouldReset) {
+      cancelAnimation(scrollY);
+      scrollY.value = 0;
+      // Wait a bit longer to ensure reset is applied before starting
+      const resetTimer = setTimeout(() => {
+        startScroll();
+      }, 150);
+      return () => {
+        cancelAnimation(scrollY);
+        clearTimeout(resetTimer);
+      };
+    }
+
+    // Normal start - ensure initial position is at top, then start animation
+    scrollY.value = 0;
+    const timer = setTimeout(() => {
+      startScroll();
+    }, 100);
+
+    return () => {
+      cancelAnimation(scrollY);
+      clearTimeout(timer);
+    };
+  }, [scrollY, scrollDistance, shouldReset]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: scrollY.value }],
+    };
+  });
+
+  return (
+    <View style={styles.scrollingImageContainer}>
+      <Animated.View style={[styles.scrollingImageWrapper, animatedStyle, { height: imageHeight }]}>
+        <Image
+          source={source}
+          style={[styles.scrollingImage, { width: visibleWidth, height: imageHeight }]}
+          contentFit="contain"
+          contentPosition="top"
+          cachePolicy="memory-disk"
+        />
+      </Animated.View>
+    </View>
+  );
+};
+
+// Separated ProgressBar component for optimization
+const ProgressBar: React.FC<{
+  index: number;
+  currentIndex: number;
+  progress: Animated.SharedValue<number>;
+  width: number;
+}> = ({ index, currentIndex, progress, width }) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    let currentWidth = 0;
+    
+    if (index < currentIndex) {
+      currentWidth = width;
+    } else if (index === currentIndex) {
+      currentWidth = progress.value * width;
+    } else {
+      currentWidth = 0;
+    }
+
+    return {
+      width: currentWidth,
+    };
+  });
+
+  return (
+    <View
+      style={[
+        styles.progressLineContainer,
+        { width },
+      ]}
+    >
+      <View style={[styles.progressLineBackground, { width }]} />
+      <Animated.View
+        style={[
+          styles.progressLineFill,
+          animatedStyle,
+        ]}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#E5E7EB', // Default light theme background
+  },
+  safeArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 12,
+    paddingHorizontal: 24, // theme.spacing.lg
+    gap: 8,
+  },
+  progressLineContainer: {
+    height: 4,
+    position: 'relative',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressLineBackground: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 2,
+    position: 'absolute',
+  },
+  progressLineFill: {
+    height: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    position: 'absolute',
+    left: 0,
+  },
+  carouselContainer: {
+    flex: 1,
+  },
+  imageContainer: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  benefitOverlay: {
+    position: 'absolute',
+    bottom: 160, // Position above button with equal spacing
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24, // theme.spacing.lg
+  },
+  benefitText: {
+    fontFamily: 'System',
+    fontSize: 28, // theme.typography.fontSize.title1
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'left',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tapArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 32, // theme.spacing.xl
+    left: 0,
+    right: 0,
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 24, // theme.spacing.lg
+    zIndex: 5,
+  },
+  buttonOverlay: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24, // theme.radius.xl
+    paddingVertical: 16, // theme.spacing.md
+    paddingHorizontal: 24, // theme.spacing.lg
+    marginBottom: 16, // theme.spacing.md - Equal spacing between button and sign-in text
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    fontFamily: 'System',
+    fontSize: 16, // theme.typography.fontSize.callout
+    fontWeight: '600',
+    color: '#000000',
+  },
+  signInText: {
+    fontFamily: 'System',
+    fontSize: 15, // theme.typography.fontSize.subheadline
+    fontWeight: '400',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  signInLink: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+});
+
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
@@ -276,68 +539,122 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   progressContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 8,
     paddingBottom: 12,
     paddingHorizontal: theme.spacing.lg,
     gap: 8,
   },
-  progressLine: {
-    height: 3,
-    width: 30,
-    backgroundColor: theme.colors.grey[400],
-    borderRadius: 1.5,
+  progressLineContainer: {
+    height: 4,
+    position: 'relative',
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  progressLineActive: {
-    backgroundColor: theme.colors.text.primary,
-    width: 40,
+  progressLineBackground: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 2,
+    position: 'absolute',
+  },
+  progressLineFill: {
+    height: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    position: 'absolute',
+    left: 0,
+  },
+  carouselContainer: {
+    flex: 1,
   },
   imageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background.page,
+    height: '100%',
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  benefitContainer: {
+  scrollingImageContainer: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#000000', // Black background to match image
+  },
+  scrollingImageWrapper: {
+    width: SCREEN_WIDTH,
+  },
+  scrollingImage: {
+    width: SCREEN_WIDTH,
+  },
+  benefitOverlay: {
+    position: 'absolute',
+    bottom: 160, // Position above button with equal spacing
+    left: 0,
+    right: 0,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-    alignItems: 'center',
   },
   benefitText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.title1,
     fontWeight: theme.typography.fontWeight.bold as any,
-    color: theme.colors.text.primary,
-    textAlign: 'center',
+    color: '#FFFFFF',
+    textAlign: 'left',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tapArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   buttonContainer: {
+    position: 'absolute',
+    bottom: theme.spacing.xl,
+    left: 0,
+    right: 0,
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    zIndex: 5,
   },
-  button: {
+  buttonOverlay: {
     width: '100%',
-    marginBottom: theme.spacing.lg,
+    backgroundColor: '#FFFFFF',
     borderRadius: theme.radius.xl,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.md, // Equal spacing between button and sign-in text
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.callout,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: '#000000',
   },
   signInText: {
     fontFamily: theme.typography.fontFamily.system,
     fontSize: theme.typography.fontSize.subheadline,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.text.secondary,
+    color: '#FFFFFF',
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   signInLink: {
     fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.text.primary,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
 });
 

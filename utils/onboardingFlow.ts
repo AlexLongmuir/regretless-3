@@ -153,12 +153,14 @@ export interface PendingOnboardingDream {
   name: string;
   answers: Record<number, string>;
   dreamImageUrl: string | null;
+  figurineUrl?: string | null;
   generatedAreas: Array<{
     id: string;
     user_id: string;
     dream_id: string;
     title: string;
     icon?: string;
+    image_url?: string;
     position: number;
     created_at: string;
     updated_at: string;

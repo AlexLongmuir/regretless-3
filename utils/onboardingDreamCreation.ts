@@ -5,7 +5,7 @@
  * This ensures dreams are saved regardless of where the user signs in.
  */
 
-import { upsertDream, upsertAreas, upsertActions, activateDream } from '../frontend-services/backend-bridge';
+import { upsertDream, upsertAreas, upsertActions, activateDream, generateDreamImage, generateAreaImage } from '../frontend-services/backend-bridge';
 import type { PendingOnboardingDream } from './onboardingFlow';
 import type { Area, Action } from '../backend/database/types';
 import { trackEvent } from '../lib/mixpanel';
@@ -90,7 +90,8 @@ export const createDreamFromOnboardingData = async (
     console.log('🎯 [ONBOARDING] Saving areas...');
     const areasToSave = data.generatedAreas.map((area, index) => ({
       title: area.title,
-      icon: area.icon,
+      icon: area.icon, // Keep for backward compatibility
+      image_url: area.image_url, // Include generated image URL if available
       position: area.position ?? index + 1,
       // Remove temp ID - backend will create new one
       // Also remove other fields that shouldn't be sent
@@ -102,6 +103,41 @@ export const createDreamFromOnboardingData = async (
     }, token);
 
     console.log('✅ [ONBOARDING] Areas saved:', areasResponse.areas.length);
+
+    // Generate images for areas if figurine URL is available and images weren't already generated
+    if (data.figurineUrl && areasResponse.areas.length > 0) {
+      console.log('🎨 [ONBOARDING] Generating images for areas...');
+      try {
+        await Promise.all(
+          areasResponse.areas.map(async (area) => {
+            // Skip if area already has an image_url
+            if (area.image_url) {
+              console.log(`⏭️ [ONBOARDING] Area "${area.title}" already has image, skipping generation`);
+              return;
+            }
+            
+            try {
+              await generateAreaImage(
+                data.figurineUrl!,
+                dreamTitle,
+                area.title,
+                '', // area context not available here
+                area.id,
+                token
+              );
+              console.log(`✅ [ONBOARDING] Generated image for area: ${area.title}`);
+            } catch (error) {
+              console.error(`❌ [ONBOARDING] Failed to generate image for area ${area.title}:`, error);
+              // Don't fail the whole process if image generation fails
+            }
+          })
+        );
+        console.log('✅ [ONBOARDING] Area image generation complete');
+      } catch (error) {
+        console.error('❌ [ONBOARDING] Error during area image generation:', error);
+        // Don't fail the whole process
+      }
+    }
 
     // Map temp area IDs to real area IDs by matching title, position, and icon
     const areaIdMap = new Map<string, string>();
@@ -205,6 +241,30 @@ export const createDreamFromOnboardingData = async (
 
     if (activationResponse.success) {
       console.log('✅ [ONBOARDING] Dream activated and actions scheduled successfully!');
+      
+      // Generate dream image if figurine URL is available
+      if (data.figurineUrl) {
+        console.log('🎨 [ONBOARDING] Generating dream image...');
+        try {
+          const dreamContext = [
+            dreamBaseline ? `Current baseline: ${dreamBaseline}` : '',
+            dreamObstacles ? `Obstacles: ${dreamObstacles}` : '',
+            dreamEnjoyment ? `Enjoyment: ${dreamEnjoyment}` : ''
+          ].filter(Boolean).join('. ');
+          
+          await generateDreamImage(
+            data.figurineUrl,
+            dreamTitle,
+            dreamContext,
+            dreamResponse.id,
+            token
+          );
+          console.log('✅ [ONBOARDING] Dream image generated successfully');
+        } catch (error) {
+          console.error('❌ [ONBOARDING] Failed to generate dream image:', error);
+          // Don't fail the whole process if image generation fails
+        }
+      }
       
       // Track Dream Created event
       trackEvent('Dream Created', {

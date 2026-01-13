@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button } from '../../components/Button'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
-import { activateDream } from '../../frontend-services/backend-bridge'
+import { activateDream, generateDreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
@@ -12,7 +12,7 @@ import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 export default function ActionsConfirmStep() {
   const { theme } = useTheme()
   const navigation = useNavigation<any>()
-  const { areas, actions, dreamId } = useCreateDream()
+  const { areas, actions, dreamId, title, baseline, obstacles, enjoyment, figurineUrl } = useCreateDream()
   const [isActivating, setIsActivating] = useState(false)
 
   const handleViewDream = async () => {
@@ -32,6 +32,29 @@ export default function ActionsConfirmStep() {
 
       // Activate the dream and schedule actions
       const result = await activateDream({ dream_id: dreamId }, session.access_token)
+      
+      // Generate dream image if figurine URL is available
+      if (result.success && figurineUrl) {
+        try {
+          const dreamContext = [
+            baseline ? `Current baseline: ${baseline}` : '',
+            obstacles ? `Obstacles: ${obstacles}` : '',
+            enjoyment ? `Enjoyment: ${enjoyment}` : ''
+          ].filter(Boolean).join('. ');
+          
+          await generateDreamImage(
+            figurineUrl,
+            title || 'My Dream',
+            dreamContext,
+            dreamId,
+            session.access_token
+          );
+          console.log('✅ Dream image generated successfully');
+        } catch (error) {
+          console.error('❌ Failed to generate dream image:', error);
+          // Don't fail the whole process if image generation fails
+        }
+      }
       
       // Check if activation and scheduling were successful
       if (result.success) {

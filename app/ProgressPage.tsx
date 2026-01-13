@@ -10,10 +10,11 @@ import {
   HistorySection,
   AchievementsButton,
   AchievementsSheet,
-  IconButton
+  StreakButton
 } from '../components';
 import { StreakSheet } from '../components/StreakSheet';
 import { useData } from '../contexts/DataContext';
+import { useAuthContext } from '../contexts/AuthContext';
 import { trackEvent } from '../lib/mixpanel';
 import { getAchievements } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
@@ -28,6 +29,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
   const [showStreakSheet, setShowStreakSheet] = useState(false);
   const { state, getDreamsWithStats, getProgress, onScreenFocus, isScreenshotMode } = useData();
+  const { user, isAuthenticated, loading: authLoading } = useAuthContext();
 
   // Load achievements
   useEffect(() => {
@@ -45,6 +47,38 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     };
     loadAchievements();
   }, []);
+
+  // Load historical longest streak (fallback to longest_streak if historical doesn't exist)
+  useEffect(() => {
+    const loadLongestStreak = async () => {
+      if (!isAuthenticated || authLoading || !user?.id) return;
+      try {
+        // Try historical_longest_streak first, fallback to longest_streak
+        let { data, error } = await supabaseClient.rpc('historical_longest_streak', {
+          p_user_id: user.id
+        });
+        
+        // If historical function doesn't exist, use the existing longest_streak function
+        if (error && error.code === 'PGRST202') {
+          const { data: fallbackData, error: fallbackError } = await supabaseClient.rpc('longest_streak', {
+            p_user_id: user.id
+          });
+          if (fallbackError) {
+            console.error('Error loading longest streak:', fallbackError);
+          } else {
+            setLongestStreak(fallbackData || 0);
+          }
+        } else if (error) {
+          console.error('Error loading longest streak:', error);
+        } else {
+          setLongestStreak(data || 0);
+        }
+      } catch (error) {
+        console.error('Error loading longest streak:', error);
+      }
+    };
+    loadLongestStreak();
+  }, [isAuthenticated, authLoading, user?.id]);
 
   // Load data on mount
   useEffect(() => {
@@ -106,7 +140,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   // For MVP, we'll take the max streak of any dream as the "overall streak"
   // Since our new logic is dream-specific, aggregating is tricky without backend support
   const overallStreak = Math.max(...dreams.map(d => d.current_streak || 0), 0);
-  const longestStreak = overallStreak; // Placeholder
+  const [longestStreak, setLongestStreak] = useState<number>(0);
 
   // Log if we have no data at all
   const hasRealData = dreams.length > 0 || progressPhotos.length > 0 || overallStreak > 0;
@@ -137,12 +171,11 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           <View style={styles.headerContent}>
             <Text style={styles.title}>Progress</Text>
             <View style={styles.headerActions}>
-              <IconButton
-                icon="fire"
+              <StreakButton
+                streak={overallStreak}
                 onPress={() => setShowStreakSheet(true)}
                 variant="secondary"
                 size="md"
-                style={styles.streakButton}
               />
               <AchievementsButton
                 onPress={() => setShowAchievementsSheet(true)}

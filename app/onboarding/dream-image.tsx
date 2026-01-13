@@ -15,17 +15,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Button } from '../../components/Button';
-import { getDefaultImages, getDefaultImagesPublic, uploadDreamImage, type DreamImage } from '../../frontend-services/backend-bridge';
+import { getPrecreatedFigurines, uploadSelfieForFigurine, type Figurine } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { theme } from '../../utils/theme';
 import { trackEvent } from '../../lib/mixpanel';
 
 const DreamImageStep: React.FC = () => {
   const navigation = useNavigation();
-  const { state, setDreamImageUrl } = useOnboardingContext();
-  const [defaultImages, setDefaultImages] = useState<DreamImage[]>([]);
-  const [selectedImage, setSelectedImage] = useState<string | null>(state.dreamImageUrl || null);
+  const { state, setDreamImageUrl, setFigurineUrl } = useOnboardingContext();
+  const [precreatedFigurines, setPrecreatedFigurines] = useState<Figurine[]>([]);
+  const [selectedFigurine, setSelectedFigurine] = useState<string | null>(state.figurineUrl || null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
@@ -38,26 +39,18 @@ const DreamImageStep: React.FC = () => {
     }, [])
   );
 
-  // Update selectedImage when dreamImageUrl changes from context
+  // Update selectedFigurine when figurineUrl changes from context
   useEffect(() => {
-    if (state.dreamImageUrl) {
-      setSelectedImage(state.dreamImageUrl);
+    if (state.figurineUrl) {
+      setSelectedFigurine(state.figurineUrl);
     }
-  }, [state.dreamImageUrl]);
+  }, [state.figurineUrl]);
 
-  // Load default images on component mount
+  // Load precreated figurines on component mount
   useEffect(() => {
-    // Check if images are already preloaded
-    if (state.preloadedDefaultImages !== null && state.preloadedDefaultImages !== undefined && Array.isArray(state.preloadedDefaultImages)) {
-      setDefaultImages(state.preloadedDefaultImages);
-      setIsLoading(false);
-      return;
-    }
-
-    // Fallback to fetching if not preloaded
-    const loadDefaultImages = async () => {
+    const loadPrecreatedFigurines = async () => {
       try {
-        console.log('🖼️ [DREAM-IMAGE] Starting to load default images...');
+        console.log('🖼️ [DREAM-IMAGE] Starting to load precreated figurines...');
         const { data: { session } } = await supabaseClient.auth.getSession();
         
         // Add timeout to prevent hanging
@@ -65,48 +58,37 @@ const DreamImageStep: React.FC = () => {
           setTimeout(() => reject(new Error('Request timeout')), 10000)
         );
         
-        let response: any;
-        
-        if (session?.access_token) {
-          console.log('🖼️ [DREAM-IMAGE] User authenticated - using authenticated endpoint');
-          response = await Promise.race([
-            getDefaultImages(session.access_token),
-            timeoutPromise
-          ]);
-        } else {
-          console.log('🖼️ [DREAM-IMAGE] User not authenticated - using public endpoint');
-          response = await Promise.race([
-            getDefaultImagesPublic(),
-            timeoutPromise
-          ]);
-        }
+        const response = await Promise.race([
+          getPrecreatedFigurines(session?.access_token),
+          timeoutPromise
+        ]) as any;
         
         console.log('🖼️ [DREAM-IMAGE] API response:', response);
         
-        if (response.success && response.data?.images) {
-          console.log('✅ [DREAM-IMAGE] Successfully loaded', response.data.images.length, 'default images');
-          setDefaultImages(response.data.images);
+        if (response.success && response.data?.figurines) {
+          console.log('✅ [DREAM-IMAGE] Successfully loaded', response.data.figurines.length, 'precreated figurines');
+          setPrecreatedFigurines(response.data.figurines);
         } else {
-          console.log('⚠️ [DREAM-IMAGE] API call succeeded but no images found:', response);
-          setDefaultImages([]); // Set empty array to show upload option only
+          console.log('⚠️ [DREAM-IMAGE] API call succeeded but no figurines found:', response);
+          setPrecreatedFigurines([]);
         }
       } catch (error) {
-        console.error('❌ [DREAM-IMAGE] Error loading default images:', error);
-        setDefaultImages([]); // Set empty array on error to show upload option
+        console.error('❌ [DREAM-IMAGE] Error loading precreated figurines:', error);
+        setPrecreatedFigurines([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadDefaultImages();
-  }, [state.preloadedDefaultImages]);
+    loadPrecreatedFigurines();
+  }, []);
 
-  const handleImageSelect = (imageUrl: string) => {
-    setSelectedImage(imageUrl);
-    setDreamImageUrl(imageUrl);
+  const handleFigurineSelect = (figurineUrl: string) => {
+    setSelectedFigurine(figurineUrl);
+    setFigurineUrl(figurineUrl);
   };
 
-  const handleImageUpload = async () => {
+  const handleSelfieUpload = async () => {
     try {
       // Request permission to access media library
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -126,32 +108,33 @@ const DreamImageStep: React.FC = () => {
 
       if (!result.canceled && result.assets[0]) {
         setIsUploading(true);
+        setIsGenerating(true);
         try {
           const { data: { session } } = await supabaseClient.auth.getSession();
           if (session?.access_token) {
             // Create a file object for React Native
             const file = {
               uri: result.assets[0].uri,
-              name: result.assets[0].fileName || 'image.jpg',
+              name: result.assets[0].fileName || 'selfie.jpg',
               type: result.assets[0].type || 'image/jpeg',
               size: result.assets[0].fileSize || 0,
             };
 
-            // For onboarding, we'll use a temporary dream ID since we haven't created the dream yet
-            // The actual dream creation will happen later in the flow
-            const tempDreamId = 'onboarding-temp-dream';
-            const uploadResponse = await uploadDreamImage(file, tempDreamId, session.access_token);
+            const uploadResponse = await uploadSelfieForFigurine(file, session.access_token);
             
             if (uploadResponse.success) {
-              setSelectedImage(uploadResponse.data.signed_url);
-              setDreamImageUrl(uploadResponse.data.signed_url);
+              setSelectedFigurine(uploadResponse.data.signed_url);
+              setFigurineUrl(uploadResponse.data.signed_url);
+            } else {
+              Alert.alert('Error', uploadResponse.message || 'Failed to generate figurine. Please try again.');
             }
           }
         } catch (error) {
-          console.error('Error uploading image:', error);
-          Alert.alert('Error', 'Failed to upload image. Please try again.');
+          console.error('Error uploading selfie:', error);
+          Alert.alert('Error', 'Failed to generate figurine. Please try again.');
         } finally {
           setIsUploading(false);
+          setIsGenerating(false);
         }
       }
     } catch (error) {
@@ -161,11 +144,11 @@ const DreamImageStep: React.FC = () => {
   };
 
   const handleContinue = () => {
-    // Check if an image is selected
-    if (!selectedImage) {
+    // Check if a figurine is selected
+    if (!selectedFigurine) {
       Alert.alert(
-        'Image Required',
-        'Please select or upload an image to personalize your dream before continuing.',
+        'Figurine Required',
+        'Please upload a selfie or select a figurine to personalize your dream before continuing.',
         [{ text: 'OK' }]
       );
       return;
@@ -183,50 +166,51 @@ const DreamImageStep: React.FC = () => {
     setLoadedImages(prev => new Set(prev).add(imageUrl));
   };
 
-  const renderImageItem = ({ item, index }: { item: DreamImage; index: number }) => {
-    const isSelected = selectedImage === item.signed_url;
+  const renderFigurineItem = ({ item, index }: { item: Figurine | { id: string; name: string }; index: number }) => {
     const isFirstItem = index === 0;
-    // If images are preloaded, assume they're ready (prefetched = cached = instant load)
-    const isPreloaded = state.preloadedDefaultImages !== null && state.preloadedDefaultImages !== undefined;
     
     if (isFirstItem) {
-      // First item is the upload button
+      // First item is the upload selfie button
       return (
         <TouchableOpacity
-          onPress={handleImageUpload}
-          disabled={isUploading}
+          onPress={handleSelfieUpload}
+          disabled={isUploading || isGenerating}
           style={[
             styles.imageItem,
             styles.uploadButton,
-            isUploading && styles.uploadButtonDisabled
+            (isUploading || isGenerating) && styles.uploadButtonDisabled
           ]}
         >
-          {isUploading ? (
+          {(isUploading || isGenerating) ? (
             <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
           ) : (
-            <Ionicons name="add" size={24} color={theme.colors.grey[900]} />
+            <Ionicons name="camera" size={24} color={theme.colors.grey[900]} />
           )}
-          <Text style={[styles.uploadText, isUploading && styles.uploadTextDisabled]}>
-            {isUploading ? 'Uploading...' : 'Add'}
+          <Text style={[styles.uploadText, (isUploading || isGenerating) && styles.uploadTextDisabled]}>
+            {isGenerating ? 'Generating...' : isUploading ? 'Uploading...' : 'Upload Selfie'}
           </Text>
         </TouchableOpacity>
       );
     }
     
+    // Render precreated figurine
+    const figurine = item as Figurine;
+    const isSelected = selectedFigurine === figurine.signed_url;
+    
     return (
       <TouchableOpacity
-        onPress={() => handleImageSelect(item.signed_url)}
+        onPress={() => handleFigurineSelect(figurine.signed_url)}
         style={[
           styles.imageItem,
           isSelected && styles.selectedImageItem
         ]}
       >
         <Image
-          source={{ uri: item.signed_url }}
+          source={{ uri: figurine.signed_url }}
           style={styles.image as any}
           contentFit="cover"
-          onLoad={() => handleImageLoad(item.signed_url)}
-          transition={isPreloaded ? 0 : 200}
+          onLoad={() => handleImageLoad(figurine.signed_url)}
+          transition={200}
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>
@@ -250,17 +234,17 @@ const DreamImageStep: React.FC = () => {
         </Text>
 
         <Text style={styles.subtitle}>
-          Choose an image to represent your dream and keep you motivated: *
+          Upload a selfie to create a custom figurine, or choose a precreated one: *
         </Text>
         
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading images...</Text>
+            <Text style={styles.loadingText}>Loading figurines...</Text>
           </View>
         ) : (
           <FlatList
-            data={[{ id: 'upload', name: 'upload' } as DreamImage, ...defaultImages]}
-            renderItem={renderImageItem}
+            data={[{ id: 'upload', name: 'upload' } as Figurine, ...precreatedFigurines]}
+            renderItem={renderFigurineItem}
             numColumns={3}
             keyExtractor={(item, index) => item.id || `upload-${index}`}
             columnWrapperStyle={styles.row}
@@ -273,9 +257,9 @@ const DreamImageStep: React.FC = () => {
       <View style={styles.footer}>
         <Button 
           title="Continue"
-          variant={selectedImage ? "black" : "outline"}
+          variant={selectedFigurine ? "black" : "outline"}
           onPress={handleContinue}
-          disabled={!selectedImage}
+          disabled={!selectedFigurine || isGenerating}
           style={styles.button}
         />
       </View>
