@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Generate figurine using Gemini
     console.log('🎨 Generating figurine from selfie...');
-    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person, on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
+    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person standing upright, on a white background with no other objects. Make the person slightly more attractive and fashionable while preserving their original hair style and outfit style. The figurine should be minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
     
     let generatedImageData: string;
     try {

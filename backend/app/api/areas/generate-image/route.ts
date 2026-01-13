@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Generate area-specific image
     console.log('🎨 Generating area-specific image...');
-    const prompt = `Generate an image of this figurine adapted to represent the area: ${area_title} within the dream: ${dream_title}. Change the outfit, action pose, and any items they're holding to match this specific area. Context: ${area_context || 'No additional context provided'}. Maintain the same isometric, realistic style on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
+    const prompt = `Generate an image of this figurine adapted to represent the area: ${area_title} within the dream: ${dream_title}. The person should be standing upright with no other objects in the scene. Change the outfit, action pose, and any items they're holding to match this specific area. Context: ${area_context || 'No additional context provided'}. Make the person slightly more attractive and fashionable while preserving their original hair style and outfit style. Maintain the same isometric, realistic style on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
     
     let generatedImageData: string;
     try {

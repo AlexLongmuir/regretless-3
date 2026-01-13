@@ -90,65 +90,99 @@ const DreamImageStep: React.FC = () => {
 
   const handleSelfieUpload = async () => {
     try {
-      // Request permission to access media library
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Permission Required', 'Permission to access camera roll is required!');
-        return;
-      }
-
-      // Launch image picker
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setIsUploading(true);
-        setIsGenerating(true);
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session?.access_token) {
-            // Create a file object for React Native
-            const file = {
-              uri: result.assets[0].uri,
-              name: result.assets[0].fileName || 'selfie.jpg',
-              type: result.assets[0].type || 'image/jpeg',
-              size: result.assets[0].fileSize || 0,
-            };
-
-            const uploadResponse = await uploadSelfieForFigurine(file, session.access_token);
-            
-            if (uploadResponse.success) {
-              setSelectedFigurine(uploadResponse.data.signed_url);
-              setFigurineUrl(uploadResponse.data.signed_url);
-            } else {
-              Alert.alert('Error', uploadResponse.message || 'Failed to generate figurine. Please try again.');
+      // Show action sheet to choose camera or photo library
+      Alert.alert(
+        'Add Photo',
+        'Choose an option',
+        [
+          {
+            text: 'Camera',
+            onPress: async () => {
+              const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+              if (cameraPermission.granted === false) {
+                Alert.alert('Permission Required', 'Permission to access camera is required!');
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+              });
+              if (!result.canceled && result.assets[0]) {
+                await processImage(result.assets[0]);
+              }
             }
+          },
+          {
+            text: 'Photo Library',
+            onPress: async () => {
+              const libraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (libraryPermission.granted === false) {
+                Alert.alert('Permission Required', 'Permission to access photo library is required!');
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+              });
+              if (!result.canceled && result.assets[0]) {
+                await processImage(result.assets[0]);
+              }
+            }
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
           }
-        } catch (error) {
-          console.error('Error uploading selfie:', error);
-          Alert.alert('Error', 'Failed to generate figurine. Please try again.');
-        } finally {
-          setIsUploading(false);
-          setIsGenerating(false);
-        }
-      }
+        ]
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
       console.error('Image picker error:', error);
     }
   };
 
+  const processImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    setIsUploading(true);
+    setIsGenerating(true);
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.access_token) {
+        const file = {
+          uri: asset.uri,
+          name: asset.fileName || 'selfie.jpg',
+          type: asset.type || 'image/jpeg',
+          size: asset.fileSize || 0,
+        };
+
+        const uploadResponse = await uploadSelfieForFigurine(file, session.access_token);
+        
+        if (uploadResponse.success) {
+          setSelectedFigurine(uploadResponse.data.signed_url);
+          setFigurineUrl(uploadResponse.data.signed_url);
+        } else {
+          Alert.alert('Error', uploadResponse.message || 'Failed to generate figurine. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading selfie:', error);
+      Alert.alert('Error', 'Failed to generate figurine. Please try again.');
+    } finally {
+      setIsUploading(false);
+      setIsGenerating(false);
+    }
+  };
+
+
   const handleContinue = () => {
     // Check if a figurine is selected
     if (!selectedFigurine) {
       Alert.alert(
         'Figurine Required',
-        'Please upload a selfie or select a figurine to personalize your dream before continuing.',
+        'Please upload a photo of yourself or select a figurine to personalize your dream before continuing.',
         [{ text: 'OK' }]
       );
       return;
@@ -166,34 +200,39 @@ const DreamImageStep: React.FC = () => {
     setLoadedImages(prev => new Set(prev).add(imageUrl));
   };
 
-  const renderFigurineItem = ({ item, index }: { item: Figurine | { id: string; name: string }; index: number }) => {
-    const isFirstItem = index === 0;
+  const renderFigurineItem = ({ item }: { item: Figurine | { id: string; name: string } }) => {
+    const isUploadButton = item.id === 'upload' || (item as any).name === 'upload';
     
-    if (isFirstItem) {
-      // First item is the upload selfie button
+    if (isUploadButton) {
       return (
         <TouchableOpacity
           onPress={handleSelfieUpload}
           disabled={isUploading || isGenerating}
           style={[
-            styles.imageItem,
             styles.uploadButton,
             (isUploading || isGenerating) && styles.uploadButtonDisabled
           ]}
         >
           {(isUploading || isGenerating) ? (
-            <Ionicons name="hourglass-outline" size={24} color={theme.colors.grey[500]} />
+            <View style={styles.uploadButtonContent}>
+              <Ionicons name="hourglass-outline" size={20} color={theme.colors.grey[500]} />
+              <Text style={[styles.uploadText, styles.uploadTextDisabled]}>
+                {isGenerating ? 'Generating...' : 'Uploading...'}
+              </Text>
+            </View>
           ) : (
-            <Ionicons name="camera" size={24} color={theme.colors.grey[900]} />
+            <View style={styles.uploadButtonContent}>
+              <Ionicons name="camera-outline" size={20} color={theme.colors.grey[900]} />
+              <Text style={styles.uploadText}>
+                Upload or Take Photo of Yourself
+              </Text>
+            </View>
           )}
-          <Text style={[styles.uploadText, (isUploading || isGenerating) && styles.uploadTextDisabled]}>
-            {isGenerating ? 'Generating...' : isUploading ? 'Uploading...' : 'Upload Selfie'}
-          </Text>
         </TouchableOpacity>
       );
     }
     
-    // Render precreated figurine
+    // Render figurine (full width)
     const figurine = item as Figurine;
     const isSelected = selectedFigurine === figurine.signed_url;
     
@@ -214,7 +253,7 @@ const DreamImageStep: React.FC = () => {
         />
         {isSelected && (
           <View style={styles.selectedOverlay}>
-            <Ionicons name="checkmark-circle" size={20} color="white" />
+            <Ionicons name="checkmark-circle" size={24} color="white" />
           </View>
         )}
       </TouchableOpacity>
@@ -234,7 +273,7 @@ const DreamImageStep: React.FC = () => {
         </Text>
 
         <Text style={styles.subtitle}>
-          Upload a selfie to create a custom figurine, or choose a precreated one: *
+          Upload a photo of yourself to create a custom figurine, or choose a precreated one
         </Text>
         
         {isLoading ? (
@@ -242,15 +281,15 @@ const DreamImageStep: React.FC = () => {
             <Text style={styles.loadingText}>Loading figurines...</Text>
           </View>
         ) : (
-          <FlatList
-            data={[{ id: 'upload', name: 'upload' } as Figurine, ...precreatedFigurines]}
-            renderItem={renderFigurineItem}
-            numColumns={3}
-            keyExtractor={(item, index) => item.id || `upload-${index}`}
-            columnWrapperStyle={styles.row}
-            scrollEnabled={false}
-            contentContainerStyle={styles.gridContainer}
-          />
+          <View style={styles.figurinesContainer}>
+            <FlatList
+              data={[{ id: 'upload', name: 'upload' } as Figurine, ...precreatedFigurines]}
+              renderItem={renderFigurineItem}
+              keyExtractor={(item, index) => item.id || `figurine-${index}`}
+              scrollEnabled={false}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+          </View>
         )}
       </ScrollView>
       
@@ -307,15 +346,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.grey[600],
   },
-  gridContainer: {
-    paddingBottom: 20,
+  figurinesContainer: {
+    width: '100%',
   },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  separator: {
+    height: theme.spacing.md,
   },
   imageItem: {
-    width: '30%',
+    width: '100%',
     aspectRatio: 1,
     borderRadius: 12,
     overflow: 'hidden',
@@ -323,20 +361,24 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   uploadButton: {
+    width: '100%',
+    height: 56,
     backgroundColor: theme.colors.surface[50],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: theme.colors.grey[200],
-    borderStyle: 'dashed',
+    borderRadius: 12,
+  },
+  uploadButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   uploadButtonDisabled: {
     opacity: 0.5,
   },
   uploadText: {
-    fontSize: 12,
+    fontSize: 16,
     color: theme.colors.grey[900],
-    marginTop: 4,
     fontWeight: '500',
   },
   uploadTextDisabled: {
