@@ -579,6 +579,17 @@ export async function generateImage(opts: {
     const response = result.response;
     const usage = response.usageMetadata;
     
+    // Log response structure for debugging
+    console.log('[GEMINI] Response structure:', {
+      hasCandidates: !!response.candidates,
+      candidatesLength: response.candidates?.length || 0,
+      candidateKeys: response.candidates?.[0] ? Object.keys(response.candidates[0]) : [],
+      hasContent: !!response.candidates?.[0]?.content,
+      contentKeys: response.candidates?.[0]?.content ? Object.keys(response.candidates[0].content) : [],
+      hasParts: !!response.candidates?.[0]?.content?.parts,
+      partsLength: response.candidates?.[0]?.content?.parts?.length || 0
+    });
+    
     // Check if response contains image data
     // The response structure may vary, so we need to handle different formats
     let imageData: string | null = null;
@@ -587,14 +598,44 @@ export async function generateImage(opts: {
     if (response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
       
-      // Check for inline data (base64 image)
-      if (candidate.content?.parts) {
-        for (const part of candidate.content.parts) {
+      // Log candidate structure
+      console.log('[GEMINI] Candidate structure:', {
+        hasContent: !!candidate.content,
+        contentType: candidate.content?.constructor?.name,
+        hasParts: !!candidate.content?.parts,
+        partsType: Array.isArray(candidate.content?.parts) ? 'array' : typeof candidate.content?.parts
+      });
+      
+      // Check for inline data (base64 image) in parts
+      if (candidate.content?.parts && Array.isArray(candidate.content.parts)) {
+        console.log('[GEMINI] Checking', candidate.content.parts.length, 'parts for image data');
+        for (let i = 0; i < candidate.content.parts.length; i++) {
+          const part = candidate.content.parts[i];
+          console.log(`[GEMINI] Part ${i}:`, {
+            hasInlineData: !!part.inlineData,
+            inlineDataKeys: part.inlineData ? Object.keys(part.inlineData) : [],
+            hasData: !!part.inlineData?.data,
+            dataLength: part.inlineData?.data?.length || 0
+          });
+          
           if (part.inlineData && part.inlineData.data) {
             imageData = part.inlineData.data;
+            console.log('[GEMINI] Found image data in part', i);
             break;
           }
         }
+      }
+      
+      // Also check if content itself has inlineData (using type assertion for dynamic structure)
+      if (!imageData && (candidate.content as any)?.inlineData?.data) {
+        imageData = (candidate.content as any).inlineData.data;
+        console.log('[GEMINI] Found image data in candidate.content.inlineData');
+      }
+      
+      // Check if candidate has inlineData directly (using type assertion for dynamic structure)
+      if (!imageData && (candidate as any)?.inlineData?.data) {
+        imageData = (candidate as any).inlineData.data;
+        console.log('[GEMINI] Found image data in candidate.inlineData');
       }
     }
     
@@ -606,6 +647,7 @@ export async function generateImage(opts: {
       // Try to get text response and check if it's base64
       try {
         const textResponse = response.text();
+        console.log('[GEMINI] Text response length:', textResponse?.length || 0);
         // If the response is base64-encoded image data, use it
         if (textResponse && textResponse.length > 100) {
           // Check if it looks like base64 image data
@@ -616,11 +658,38 @@ export async function generateImage(opts: {
           }
         }
       } catch (e) {
-        // Text extraction failed, which is expected for image responses
+        console.log('[GEMINI] Text extraction failed (expected for image responses):', e instanceof Error ? e.message : String(e));
+      }
+      
+      // Try to access response as a raw object
+      try {
+        const rawResponse = result.response as any;
+        console.log('[GEMINI] Raw response keys:', Object.keys(rawResponse || {}));
+        
+        // Check for image in various possible locations
+        if (rawResponse.imageData) {
+          imageData = rawResponse.imageData;
+          console.log('[GEMINI] Found image data in response.imageData');
+        } else if (rawResponse.data) {
+          imageData = rawResponse.data;
+          console.log('[GEMINI] Found image data in response.data');
+        }
+      } catch (e) {
+        console.log('[GEMINI] Raw response access failed:', e instanceof Error ? e.message : String(e));
       }
     }
     
     if (!imageData) {
+      // Log full response structure for debugging
+      console.error('[GEMINI] Full response structure:', JSON.stringify({
+        candidates: response.candidates?.map((c: any) => ({
+          hasContent: !!c.content,
+          contentKeys: c.content ? Object.keys(c.content) : [],
+          hasParts: !!c.content?.parts,
+          partsCount: c.content?.parts?.length || 0,
+          partTypes: c.content?.parts?.map((p: any) => Object.keys(p)) || []
+        })) || []
+      }, null, 2));
       throw new Error('No image data found in Gemini response. Response structure may have changed.');
     }
     
