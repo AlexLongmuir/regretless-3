@@ -20,6 +20,7 @@ export default function PersonalizeStep() {
   const { dreamId, title, start_date, end_date, image_url, figurineUrl, setField } = useCreateDream()
   const [precreatedFigurines, setPrecreatedFigurines] = useState<Figurine[]>([])
   const [selectedFigurine, setSelectedFigurine] = useState<string | null>(figurineUrl || null)
+  const [userGeneratedFigurine, setUserGeneratedFigurine] = useState<Figurine | null>(null)
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -104,9 +105,17 @@ export default function PersonalizeStep() {
 
             const uploadResponse = await uploadSelfieForFigurine(file, session.access_token)
             
-            if (uploadResponse.success) {
+            if (uploadResponse.success && uploadResponse.data) {
+              const generatedFigurine: Figurine = {
+                id: uploadResponse.data.id || `generated-${Date.now()}`,
+                name: 'Your Custom Figurine',
+                signed_url: uploadResponse.data.signed_url,
+                path: (uploadResponse.data as any).path || uploadResponse.data.id || ''
+              }
+              setUserGeneratedFigurine(generatedFigurine)
               setSelectedFigurine(uploadResponse.data.signed_url)
               setField('figurineUrl', uploadResponse.data.signed_url)
+              console.log('✅ [PERSONALIZE] Generated figurine added to list:', generatedFigurine)
             } else {
               Alert.alert('Error', uploadResponse.message || 'Failed to generate figurine. Please try again.')
             }
@@ -146,9 +155,9 @@ export default function PersonalizeStep() {
   }
 
   const renderFigurineItem = ({ item, index }: { item: Figurine | { id: string; name: string }; index: number }) => {
-    const isFirstItem = index === 0
+    const isUploadButton = item.id === 'upload' || (item as any).name === 'upload'
     
-    if (isFirstItem) {
+    if (isUploadButton) {
       return (
         <TouchableOpacity
           onPress={handleSelfieUpload}
@@ -217,10 +226,14 @@ export default function PersonalizeStep() {
           </View>
         ) : (
           <FlatList
-            data={[{ id: 'upload', name: 'upload' } as Figurine, ...precreatedFigurines]}
+            data={[
+              { id: 'upload', name: 'upload' } as Figurine,
+              ...(userGeneratedFigurine ? [userGeneratedFigurine] : []),
+              ...precreatedFigurines
+            ]}
             renderItem={renderFigurineItem}
             numColumns={3}
-            keyExtractor={(item, index) => item.id || `upload-${index}`}
+            keyExtractor={(item, index) => item.id || `figurine-${index}`}
             columnWrapperStyle={styles.row}
             scrollEnabled={false}
             contentContainerStyle={styles.gridContainer}

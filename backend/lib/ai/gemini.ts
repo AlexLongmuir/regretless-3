@@ -579,6 +579,11 @@ export async function generateImage(opts: {
     const response = result.response;
     const usage = response.usageMetadata;
     
+    // Log the full result object structure
+    console.log('[GEMINI] Full result object keys:', Object.keys(result || {}));
+    console.log('[GEMINI] Result.response type:', typeof result.response);
+    console.log('[GEMINI] Result.response constructor:', result.response?.constructor?.name);
+    
     // Log response structure for debugging
     console.log('[GEMINI] Response structure:', {
       hasCandidates: !!response.candidates,
@@ -606,8 +611,61 @@ export async function generateImage(opts: {
         partsType: Array.isArray(candidate.content?.parts) ? 'array' : typeof candidate.content?.parts
       });
       
+      // Try to access content properties directly (might be getters)
+      try {
+        const contentAny = candidate.content as any;
+        // Try accessing parts as a property
+        const parts = contentAny.parts;
+        console.log('[GEMINI] Direct parts access:', {
+          hasParts: !!parts,
+          isArray: Array.isArray(parts),
+          type: typeof parts,
+          value: parts ? (Array.isArray(parts) ? `Array(${parts.length})` : typeof parts) : 'null/undefined'
+        });
+        
+        // If parts is an array, check it
+        if (Array.isArray(parts) && parts.length > 0) {
+          console.log('[GEMINI] Parts array length:', parts.length);
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            console.log(`[GEMINI] Part ${i} type:`, typeof part, 'keys:', Object.keys(part || {}));
+            if (part && part.inlineData && part.inlineData.data) {
+              imageData = part.inlineData.data;
+              console.log('[GEMINI] Found image data in parts array, index', i);
+              break;
+            }
+          }
+        }
+        
+        // Try accessing inlineData directly on content
+        if (!imageData && contentAny.inlineData) {
+          console.log('[GEMINI] Found inlineData on content directly');
+          if (contentAny.inlineData.data) {
+            imageData = contentAny.inlineData.data;
+            console.log('[GEMINI] Found image data in content.inlineData.data');
+          }
+        }
+        
+        // Try calling parts() if it's a method
+        if (!imageData && typeof contentAny.parts === 'function') {
+          const partsResult = contentAny.parts();
+          console.log('[GEMINI] parts() method returned:', typeof partsResult, Array.isArray(partsResult) ? `Array(${partsResult.length})` : '');
+          if (Array.isArray(partsResult)) {
+            for (const part of partsResult) {
+              if (part?.inlineData?.data) {
+                imageData = part.inlineData.data;
+                console.log('[GEMINI] Found image data via parts() method');
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[GEMINI] Error accessing content directly:', e instanceof Error ? e.message : String(e));
+      }
+      
       // Check for inline data (base64 image) in parts
-      if (candidate.content?.parts && Array.isArray(candidate.content.parts)) {
+      if (!imageData && candidate.content?.parts && Array.isArray(candidate.content.parts)) {
         console.log('[GEMINI] Checking', candidate.content.parts.length, 'parts for image data');
         for (let i = 0; i < candidate.content.parts.length; i++) {
           const part = candidate.content.parts[i];
@@ -673,6 +731,64 @@ export async function generateImage(opts: {
         } else if (rawResponse.data) {
           imageData = rawResponse.data;
           console.log('[GEMINI] Found image data in response.data');
+        }
+        
+        // Check if candidate.content itself is the image data or has image properties
+        if (!imageData && response.candidates?.[0]?.content) {
+          const content = response.candidates[0].content as any;
+          
+          // Try to serialize content to see its actual structure
+          try {
+            const contentStr = JSON.stringify(content, null, 2);
+            console.log('[GEMINI] Content JSON (first 1000 chars):', contentStr.substring(0, 1000));
+          } catch (e) {
+            console.log('[GEMINI] Could not stringify content (may contain circular refs or getters)');
+          }
+          
+          // Try accessing properties that might be getters
+          try {
+            // Check if content has inlineData directly
+            if (content.inlineData?.data) {
+              imageData = content.inlineData.data;
+              console.log('[GEMINI] Found image data in content.inlineData.data');
+            }
+            
+            // Check if content has parts as a property (not array)
+            if (!imageData && content.parts) {
+              if (Array.isArray(content.parts)) {
+                for (const part of content.parts) {
+                  if (part?.inlineData?.data) {
+                    imageData = part.inlineData.data;
+                    console.log('[GEMINI] Found image data in content.parts array');
+                    break;
+                  }
+                }
+              } else {
+                const partsObj = content.parts as any;
+                if (partsObj.inlineData?.data) {
+                  imageData = partsObj.inlineData.data;
+                  console.log('[GEMINI] Found image data in content.parts.inlineData.data');
+                }
+              }
+            }
+            
+            // Try accessing via getter methods if they exist
+            if (!imageData && typeof content.getParts === 'function') {
+              const parts = content.getParts();
+              console.log('[GEMINI] getParts() returned:', typeof parts, Array.isArray(parts) ? `Array(${parts.length})` : '');
+              if (Array.isArray(parts)) {
+                for (const part of parts) {
+                  if (part?.inlineData?.data) {
+                    imageData = part.inlineData.data;
+                    console.log('[GEMINI] Found image data via getParts()');
+                    break;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.log('[GEMINI] Error accessing content properties:', e instanceof Error ? e.message : String(e));
+          }
         }
       } catch (e) {
         console.log('[GEMINI] Raw response access failed:', e instanceof Error ? e.message : String(e));
