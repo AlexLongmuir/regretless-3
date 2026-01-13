@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Generate figurine using Gemini
     console.log('🎨 Generating figurine from selfie...');
-    const prompt = `Make a miniature, full-body figurine of this person in a standard video game character creation pose, facing straight on (front-facing, directly toward the camera). The person should be standing upright with their arms extended out to the right side (T-pose style), on a white background with no other objects. Make the person slightly more attractive and fashionable. Adapt the outfit to be stylized and game-like rather than hyper-realistic, while keeping the general style and color scheme similar to the original. The figurine should be isometric style, minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
+    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
     
     let generatedImageData: string;
     try {

@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Generate dream-specific image
     console.log('🎨 Generating dream-specific image...');
-    const prompt = `Generate an image of this figurine adapted to represent the dream: ${dream_title}. The person must be facing straight on (front-facing, directly toward the camera) with their arms extended out to the right side (T-pose style), standing upright with no other objects in the scene. Change the outfit, action pose, and any items they're holding to match the dream context: ${dream_context || 'No additional context provided'}. Make the outfit stylized and game-like rather than hyper-realistic. Make the person slightly more attractive and fashionable while preserving their original hair style. Maintain the same isometric style on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos.`;
+    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
     
     let generatedImageData: string;
     try {
