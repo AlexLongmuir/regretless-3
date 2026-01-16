@@ -49,7 +49,7 @@ const NameStep: React.FC = () => {
     Keyboard.dismiss(); // Close keyboard when continuing
     if (name.trim()) {
       updateName(name.trim());
-      navigation.navigate('Understanding' as never);
+      navigation.navigate('CreateFigurine' as never);
     }
   };
 

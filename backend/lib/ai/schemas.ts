@@ -18,6 +18,16 @@ export const PLAN_SCHEMA = {
                   title: { type: "string" },
                   est_minutes: { type: "integer", minimum: 5 },
                   difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                  primary_skill: { type: "string", enum: [
+                    'Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages',
+                    'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness',
+                    'Communication', 'Finance', 'Travel', 'Career', 'Coding'
+                  ] },
+                  secondary_skill: { type: "string", enum: [
+                    'Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages',
+                    'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness',
+                    'Communication', 'Finance', 'Travel', 'Career', 'Coding'
+                  ] },
                   acceptance_criteria: {
                     type: "array",
                     maxItems: 3,
@@ -31,7 +41,7 @@ export const PLAN_SCHEMA = {
                     }
                   },
                 },
-                required: ["title","est_minutes","difficulty","acceptance_criteria"]
+                required: ["title","est_minutes","difficulty","acceptance_criteria", "primary_skill"]
               }
             }
           },
@@ -118,6 +128,16 @@ export const ACTIONS_SCHEMA = {
           title: { type: "string" },
           est_minutes: { type: "integer" },
           difficulty: { type: "string" },
+          primary_skill: { type: "string", enum: [
+            'Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages',
+            'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness',
+            'Communication', 'Finance', 'Travel', 'Career', 'Coding'
+          ] },
+          secondary_skill: { type: "string", enum: [
+            'Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages',
+            'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness',
+            'Communication', 'Finance', 'Travel', 'Career', 'Coding'
+          ] },
           repeat_every_days: { type: "integer" },
           repeat_until_date: { type: "string", description: "Optional end date for the repeating action in YYYY-MM-DD format" },
           slice_count_target: { type: "integer" },
@@ -136,7 +156,7 @@ export const ACTIONS_SCHEMA = {
           acceptance_outro: { type: "string" },
           position: { type: "integer" }
         },
-        required: ["area_id", "title", "est_minutes", "difficulty", "acceptance_criteria", "position"]
+        required: ["area_id", "title", "est_minutes", "difficulty", "acceptance_criteria", "position", "primary_skill"]
       }
     }
   },
@@ -202,4 +222,3 @@ export const DREAMBOARD_ANALYSIS_SCHEMA = {
   },
   required: ["dreams"]
 };
-  

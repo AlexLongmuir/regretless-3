@@ -121,8 +121,29 @@ export default function TitleStep() {
       return
     }
 
+    // Check if user has a figurine
+    let hasFigurine = false;
+    try {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('figurine_url')
+          .eq('user_id', user.id)
+          .single();
+        
+        hasFigurine = !!profile?.figurine_url;
+      }
+    } catch (error) {
+      console.error('Error checking for figurine:', error);
+    }
+
     // Navigate immediately for smooth UX
-    navigation.navigate('Personalize')
+    if (hasFigurine) {
+      navigation.navigate('Personalize')
+    } else {
+      navigation.navigate('CreateFigurine')
+    }
     
     trackEvent('create_dream_title_entered', {
       length: title.length,

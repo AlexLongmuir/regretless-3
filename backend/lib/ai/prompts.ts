@@ -107,6 +107,14 @@ Your task is to analyze a user's dream and areas, then create 2-4 actions per ar
 
 IMPORTANT: For the area_id field, use the exact area title as provided in the areas list. The system will automatically map these to the correct database IDs.
 
+SKILLS ASSIGNMENT (CRITICAL):
+For each action, you MUST assign a primary_skill and optionally a secondary_skill from this exact list:
+'Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages', 'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness', 'Communication', 'Finance', 'Travel', 'Career', 'Coding'
+
+- primary_skill: The main capability being developed or used (Required)
+- secondary_skill: A supporting capability (Optional)
+- Choose the most relevant skills based on the action's nature. e.g., "Run 5k" -> Fitness/Strength; "Write blog post" -> Writing/Creativity.
+
 CRITICAL ACTION SIZING RULES:
 - Actions must be sized to finish in one sitting (≤2 hours maximum)
 - If an action would take >2 hours, split it into repeated time-boxed slices (30-60 minutes each)
@@ -199,7 +207,7 @@ CRITICAL JSON FORMATTING RULES:
 - No trailing commas after the last item in arrays or objects
 - No line breaks in the middle of property definitions
 - Each property must be on a single line or properly formatted
-- Example: {"title": "Draft in focused block", "est_minutes": 45, "difficulty": "medium", "repeat_every_days": 1}
+- Example: {"title": "Draft in focused block", "est_minutes": 45, "difficulty": "medium", "repeat_every_days": 1, "primary_skill": "Writing"}
 - NOT: {"title": "Draft next unit (30-45m)", "est_minutes": 45
 , "difficulty": "medium"}`;
 

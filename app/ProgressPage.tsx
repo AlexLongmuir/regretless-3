@@ -13,6 +13,8 @@ import {
   StreakButton
 } from '../components';
 import { StreakSheet } from '../components/StreakSheet';
+import { SkillsButton } from '../components/SkillsButton';
+import { SkillsSheet } from '../components/SkillsSheet';
 import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { trackEvent } from '../lib/mixpanel';
@@ -28,6 +30,8 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
   const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
   const [showStreakSheet, setShowStreakSheet] = useState(false);
+  const [showSkillsSheet, setShowSkillsSheet] = useState(false);
+  const [overallLevel, setOverallLevel] = useState(1);
   const { state, getDreamsWithStats, getProgress, onScreenFocus, isScreenshotMode } = useData();
   const { user, isAuthenticated, loading: authLoading } = useAuthContext();
 
@@ -78,6 +82,31 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
       }
     };
     loadLongestStreak();
+  }, [isAuthenticated, authLoading, user?.id]);
+
+  // Load overall level
+  useEffect(() => {
+    const loadOverallLevel = async () => {
+      if (!isAuthenticated || authLoading || !user?.id) return;
+      try {
+        const { data, error } = await supabaseClient
+          .from('v_user_overall_level')
+          .select('overall_level, total_xp')
+          .eq('user_id', user.id)
+          .single();
+
+        if (error) {
+          // If view doesn't exist or no data, default to level 1
+          setOverallLevel(1);
+        } else {
+          setOverallLevel(data?.overall_level || 1);
+        }
+      } catch (error) {
+        console.error('Error loading overall level:', error);
+        setOverallLevel(1);
+      }
+    };
+    loadOverallLevel();
   }, [isAuthenticated, authLoading, user?.id]);
 
   // Load data on mount
@@ -171,6 +200,12 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           <View style={styles.headerContent}>
             <Text style={styles.title}>Progress</Text>
             <View style={styles.headerActions}>
+              <SkillsButton
+                level={overallLevel}
+                onPress={() => setShowSkillsSheet(true)}
+                variant="secondary"
+                size="md"
+              />
               <StreakButton
                 streak={overallStreak}
                 onPress={() => setShowStreakSheet(true)}
@@ -262,6 +297,11 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
         onClose={() => setShowStreakSheet(false)}
         streak={overallStreak}
         longestStreak={longestStreak}
+      />
+
+      <SkillsSheet
+        visible={showSkillsSheet}
+        onClose={() => setShowSkillsSheet(false)}
       />
     </View>
   );

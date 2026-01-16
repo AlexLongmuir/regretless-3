@@ -97,6 +97,7 @@ CRITICAL RULES:
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
 - Acceptance criteria: Provide 2-3 structured objects, each with 'title' (short, max 5 words) and 'description' (1-2 sentences explaining what to do and how to verify it). Example: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
+- SKILL ASSIGNMENT: Assign a primary_skill (required) and secondary_skill (optional) from the approved list for each action.
 
 Note: Only regenerate actions for the area listed above.`
     } else {
@@ -118,6 +119,7 @@ CRITICAL RULES:
 - Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 structured objects, each with 'title' - short max 5 words, and 'description' - 1-2 sentences explaining what to do and how to verify it), and acceptance_outro (one sentence defining "done"). Example criteria: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 - Avoid overlapping actions across areas.
+- SKILL ASSIGNMENT: Assign a primary_skill (required) and secondary_skill (optional) from the approved list for each action.
 
 Each action should be atomic, measurable, and bounded.`
     }
@@ -226,6 +228,8 @@ Each action should be atomic, measurable, and bounded.`
         acceptance_outro: action.acceptance_outro || null,
         position: action.position,
         is_active: true,
+        primary_skill: action.primary_skill || null,
+        secondary_skill: action.secondary_skill || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -256,7 +260,9 @@ Each action should be atomic, measurable, and bounded.`
       acceptance_criteria: action.acceptance_criteria,
       acceptance_intro: action.acceptance_intro || null,
       acceptance_outro: action.acceptance_outro || null,
-      position: action.position
+      position: action.position,
+      primary_skill: action.primary_skill || null,
+      secondary_skill: action.secondary_skill || null,
     }))
     
     // Get area IDs that are being regenerated

@@ -26,6 +26,7 @@ import { LightThemeProvider } from '../contexts/LightThemeProvider';
 import IntroStep from '../app/onboarding/intro';
 import WelcomeStep from '../app/onboarding/welcome';
 import NameStep from '../app/onboarding/name';
+import CreateFigurineStep from '../app/onboarding/create-figurine';
 import UnderstandingStep from '../app/onboarding/understanding';
 import CurrentLifeStep from '../app/onboarding/current-life';
 import MainDreamStep from '../app/onboarding/main-dream';
@@ -140,6 +141,13 @@ const OnboardingNavigator = () => {
         <OnboardingStack.Screen 
           name="Name" 
           component={NameStep}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <OnboardingStack.Screen 
+          name="CreateFigurine" 
+          component={CreateFigurineStep}
           options={{
             headerShown: false,
           }}

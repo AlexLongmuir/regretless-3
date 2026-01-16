@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Generate figurine using Gemini
     console.log('🎨 Generating figurine from selfie...');
-    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
+    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a transparent background. Dress the figurine in a plain white crew-neck t-shirt, mid-blue straight-leg jeans, and clean white trainers. Minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
     
     let generatedImageData: string;
     try {
@@ -143,6 +143,17 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create signed URL' },
         { status: 500 }
       );
+    }
+
+    // Save figurine URL to user's profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ figurine_url: signedUrlData.signedUrl })
+      .eq('user_id', user.id);
+
+    if (profileError) {
+      console.error('Error updating profile with figurine URL:', profileError);
+      // Don't fail the request, just log the error
     }
 
     return NextResponse.json({

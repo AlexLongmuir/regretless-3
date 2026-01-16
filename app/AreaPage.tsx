@@ -544,7 +544,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
                 contentFit="cover"
               />
             ) : (
-              <Text style={styles.areaEmoji}>{areaEmoji}</Text>
+            <Text style={styles.areaEmoji}>{areaEmoji}</Text>
             )}
           </View>
 

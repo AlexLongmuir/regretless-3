@@ -1,13 +1,12 @@
 /**
  * Dream Image Step - Onboarding screen for selecting dream image
  * 
- * Allows users to select or upload an image to associate with their dream
- * This follows the same pattern as the personalize.tsx screen but integrates
- * with the OnboardingContext instead of CreateDreamContext
+ * Uses the user's existing figurine to generate a dream-specific image,
+ * or allows users to upload their own image
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, FlatList, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,20 +14,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useOnboardingContext } from '../../contexts/OnboardingContext';
 import { OnboardingHeader } from '../../components/onboarding';
 import { Button } from '../../components/Button';
-import { getPrecreatedFigurines, uploadSelfieForFigurine, type Figurine } from '../../frontend-services/backend-bridge';
+import { generateDreamImage } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { theme } from '../../utils/theme';
 import { trackEvent } from '../../lib/mixpanel';
 
 const DreamImageStep: React.FC = () => {
   const navigation = useNavigation();
-  const { state, setDreamImageUrl, setFigurineUrl } = useOnboardingContext();
-  const [precreatedFigurines, setPrecreatedFigurines] = useState<Figurine[]>([]);
-  const [selectedFigurine, setSelectedFigurine] = useState<string | null>(state.figurineUrl || null);
-  const [isUploading, setIsUploading] = useState(false);
+  const { state, setDreamImageUrl } = useOnboardingContext();
+  const [userFigurineUrl, setUserFigurineUrl] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(state.dreamImageUrl || null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [uploadedImageUri, setUploadedImageUri] = useState<string | null>(null);
 
   // Track step view when screen is focused
   useFocusEffect(
@@ -39,58 +37,34 @@ const DreamImageStep: React.FC = () => {
     }, [])
   );
 
-  // Update selectedFigurine when figurineUrl changes from context
+  // Load user's figurine from profile
   useEffect(() => {
-    if (state.figurineUrl) {
-      setSelectedFigurine(state.figurineUrl);
-    }
-  }, [state.figurineUrl]);
-
-  // Load precreated figurines on component mount
-  useEffect(() => {
-    const loadPrecreatedFigurines = async () => {
+    const loadUserFigurine = async () => {
       try {
-        console.log('🖼️ [DREAM-IMAGE] Starting to load precreated figurines...');
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        );
-        
-        const response = await Promise.race([
-          getPrecreatedFigurines(session?.access_token),
-          timeoutPromise
-        ]) as any;
-        
-        console.log('🖼️ [DREAM-IMAGE] API response:', response);
-        
-        if (response.success && response.data?.figurines) {
-          console.log('✅ [DREAM-IMAGE] Successfully loaded', response.data.figurines.length, 'precreated figurines');
-          setPrecreatedFigurines(response.data.figurines);
-        } else {
-          console.log('⚠️ [DREAM-IMAGE] API call succeeded but no figurines found:', response);
-          setPrecreatedFigurines([]);
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+
+          if (!error && profile?.figurine_url) {
+            setUserFigurineUrl(profile.figurine_url);
+          }
         }
       } catch (error) {
-        console.error('❌ [DREAM-IMAGE] Error loading precreated figurines:', error);
-        setPrecreatedFigurines([]);
+        console.error('Error loading user figurine:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadPrecreatedFigurines();
+    loadUserFigurine();
   }, []);
 
-  const handleFigurineSelect = (figurineUrl: string) => {
-    setSelectedFigurine(figurineUrl);
-    setFigurineUrl(figurineUrl);
-  };
-
-  const handleSelfieUpload = async () => {
+  const handleImageUpload = async () => {
     try {
-      // Show action sheet to choose camera or photo library
       Alert.alert(
         'Add Photo',
         'Choose an option',
@@ -110,7 +84,8 @@ const DreamImageStep: React.FC = () => {
                 quality: 0.8,
               });
               if (!result.canceled && result.assets[0]) {
-                await processImage(result.assets[0]);
+                setUploadedImageUri(result.assets[0].uri);
+                setSelectedImageUrl(result.assets[0].uri);
               }
             }
           },
@@ -129,7 +104,8 @@ const DreamImageStep: React.FC = () => {
                 quality: 0.8,
               });
               if (!result.canceled && result.assets[0]) {
-                await processImage(result.assets[0]);
+                setUploadedImageUri(result.assets[0].uri);
+                setSelectedImageUrl(result.assets[0].uri);
               }
             }
           },
@@ -145,119 +121,61 @@ const DreamImageStep: React.FC = () => {
     }
   };
 
-  const processImage = async (asset: ImagePicker.ImagePickerAsset) => {
-    setIsUploading(true);
+  const handleGenerateFromFigurine = async () => {
+    if (!userFigurineUrl) {
+      Alert.alert('Error', 'No figurine found. Please upload an image instead.');
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session?.access_token) {
-        const file = {
-          uri: asset.uri,
-          name: asset.fileName || 'selfie.jpg',
-          type: asset.type || 'image/jpeg',
-          size: asset.fileSize || 0,
-        };
+      if (session?.access_token && state.answers) {
+        // Get dream title from answers (question ID 2 stores the main dream)
+        const dreamTitle = state.answers[2] || 'My Dream';
+        const dreamContext = Object.values(state.answers).join(' ');
 
-        const uploadResponse = await uploadSelfieForFigurine(file, session.access_token);
-        
-        if (uploadResponse.success) {
-          setSelectedFigurine(uploadResponse.data.signed_url);
-          setFigurineUrl(uploadResponse.data.signed_url);
+        // For onboarding, we might not have a dream ID yet, so we'll need to handle that
+        // For now, we'll generate the image and store it in context
+        const response = await generateDreamImage(
+          userFigurineUrl,
+          dreamTitle,
+          dreamContext,
+          'temp-dream-id', // Temporary ID for onboarding
+          session.access_token
+        );
+
+        if (response.success && response.data) {
+          setSelectedImageUrl(response.data.signed_url);
+          setDreamImageUrl(response.data.signed_url);
         } else {
-          Alert.alert('Error', uploadResponse.message || 'Failed to generate figurine. Please try again.');
+          Alert.alert('Error', 'Failed to generate dream image. Please try uploading an image instead.');
         }
       }
     } catch (error) {
-      console.error('Error uploading selfie:', error);
-      Alert.alert('Error', 'Failed to generate figurine. Please try again.');
+      console.error('Error generating dream image:', error);
+      Alert.alert('Error', 'Failed to generate dream image. Please try uploading an image instead.');
     } finally {
-      setIsUploading(false);
       setIsGenerating(false);
     }
   };
 
-
   const handleContinue = () => {
-    // Check if a figurine is selected
-    if (!selectedFigurine) {
+    if (!selectedImageUrl) {
       Alert.alert(
-        'Figurine Required',
-        'Please upload a photo of yourself or select a figurine to personalize your dream before continuing.',
+        'Image Required',
+        'Please generate an image from your figurine or upload your own image to continue.',
         [{ text: 'OK' }]
       );
       return;
     }
 
-    // Navigate to next step
+    setDreamImageUrl(selectedImageUrl);
     navigation.navigate('TimeCommitment' as never);
   };
 
   const handleBack = () => {
     navigation.goBack();
-  };
-
-  const handleImageLoad = (imageUrl: string) => {
-    setLoadedImages(prev => new Set(prev).add(imageUrl));
-  };
-
-  const renderFigurineItem = ({ item }: { item: Figurine | { id: string; name: string } }) => {
-    const isUploadButton = item.id === 'upload' || (item as any).name === 'upload';
-    
-    if (isUploadButton) {
-      return (
-        <TouchableOpacity
-          onPress={handleSelfieUpload}
-          disabled={isUploading || isGenerating}
-          style={[
-            styles.uploadButton,
-            (isUploading || isGenerating) && styles.uploadButtonDisabled
-          ]}
-        >
-          {(isUploading || isGenerating) ? (
-            <View style={styles.uploadButtonContent}>
-              <Ionicons name="hourglass-outline" size={20} color={theme.colors.grey[500]} />
-              <Text style={[styles.uploadText, styles.uploadTextDisabled]}>
-                {isGenerating ? 'Generating...' : 'Uploading...'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.uploadButtonContent}>
-              <Ionicons name="camera-outline" size={20} color={theme.colors.grey[900]} />
-              <Text style={styles.uploadText}>
-                Upload or Take Photo of Yourself
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      );
-    }
-    
-    // Render figurine (full width)
-    const figurine = item as Figurine;
-    const isSelected = selectedFigurine === figurine.signed_url;
-    
-    return (
-      <TouchableOpacity
-        onPress={() => handleFigurineSelect(figurine.signed_url)}
-        style={[
-          styles.imageItem,
-          isSelected && styles.selectedImageItem
-        ]}
-      >
-        <Image
-          source={{ uri: figurine.signed_url }}
-          style={styles.image as any}
-          contentFit="cover"
-          onLoad={() => handleImageLoad(figurine.signed_url)}
-          transition={200}
-        />
-        {isSelected && (
-          <View style={styles.selectedOverlay}>
-            <Ionicons name="checkmark-circle" size={24} color="white" />
-          </View>
-        )}
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -269,26 +187,80 @@ const DreamImageStep: React.FC = () => {
       
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>
-          Personalize your dream
+          Make this dream yours
         </Text>
 
         <Text style={styles.subtitle}>
-          Upload a photo of yourself to create a custom figurine, or choose a precreated one
+          Generate a personalized image from your character, or upload your own image
         </Text>
         
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading figurines...</Text>
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
         ) : (
-          <View style={styles.figurinesContainer}>
-            <FlatList
-              data={[{ id: 'upload', name: 'upload' } as Figurine, ...precreatedFigurines]}
-              renderItem={renderFigurineItem}
-              keyExtractor={(item, index) => item.id || `figurine-${index}`}
-              scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-            />
+          <View style={styles.contentArea}>
+            {/* Generated or Uploaded Image */}
+            {selectedImageUrl && (
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: selectedImageUrl }}
+                  style={styles.dreamImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              </View>
+            )}
+
+            {/* Generate from Figurine Button */}
+            {userFigurineUrl && !selectedImageUrl && (
+              <TouchableOpacity
+                onPress={handleGenerateFromFigurine}
+                disabled={isGenerating}
+                style={[
+                  styles.generateButton,
+                  isGenerating && styles.generateButtonDisabled
+                ]}
+              >
+                {isGenerating ? (
+                  <View style={styles.buttonContent}>
+                    <Ionicons name="hourglass-outline" size={20} color={theme.colors.grey[500]} />
+                    <Text style={[styles.buttonText, styles.buttonTextDisabled]}>
+                      Generating...
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.buttonContent}>
+                    <Ionicons name="sparkles-outline" size={20} color={theme.colors.grey[900]} />
+                    <Text style={styles.buttonText}>
+                      Generate from your character
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Or Divider */}
+            {userFigurineUrl && (
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            )}
+
+            {/* Upload Image Button */}
+            <TouchableOpacity
+              onPress={handleImageUpload}
+              style={styles.uploadButton}
+            >
+              <View style={styles.buttonContent}>
+                <Ionicons name="image-outline" size={20} color={theme.colors.grey[900]} />
+                <Text style={styles.buttonText}>
+                  Upload your own image
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -296,9 +268,9 @@ const DreamImageStep: React.FC = () => {
       <View style={styles.footer}>
         <Button 
           title="Continue"
-          variant={selectedFigurine ? "black" : "outline"}
+          variant={selectedImageUrl ? "black" : "outline"}
           onPress={handleContinue}
-          disabled={!selectedFigurine || isGenerating}
+          disabled={!selectedImageUrl || isGenerating}
           style={styles.button}
         />
       </View>
@@ -346,19 +318,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.grey[600],
   },
-  figurinesContainer: {
+  contentArea: {
     width: '100%',
   },
-  separator: {
-    height: theme.spacing.md,
-  },
-  imageItem: {
+  imageContainer: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: 'white',
-    position: 'relative',
+    marginBottom: theme.spacing.lg,
+  },
+  dreamImage: {
+    width: '100%',
+    height: '100%',
+  },
+  generateButton: {
+    width: '100%',
+    height: 56,
+    backgroundColor: theme.colors.surface[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9999,
+    marginBottom: theme.spacing.md,
+  },
+  generateButtonDisabled: {
+    opacity: 0.5,
   },
   uploadButton: {
     width: '100%',
@@ -367,38 +352,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 9999,
+    borderWidth: 2,
+    borderColor: theme.colors.grey[200],
+    borderStyle: 'dashed',
   },
-  uploadButtonContent: {
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
   },
-  uploadButtonDisabled: {
-    opacity: 0.5,
-  },
-  uploadText: {
+  buttonText: {
     fontSize: 16,
     color: theme.colors.grey[900],
     fontWeight: '500',
   },
-  uploadTextDisabled: {
+  buttonTextDisabled: {
     color: theme.colors.grey[500],
   },
-  image: {
-    width: '100%',
-    height: '100%',
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: theme.spacing.md,
   },
-  selectedImageItem: {
-    borderWidth: 3,
-    borderColor: theme.colors.primary[600] || '#000000',
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.grey[200],
   },
-  selectedOverlay: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12,
-    padding: 4,
+  dividerText: {
+    marginHorizontal: theme.spacing.md,
+    fontSize: 14,
+    color: theme.colors.grey[500],
   },
   footer: {
     paddingHorizontal: theme.spacing.lg,

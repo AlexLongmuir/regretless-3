@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Generate dream-specific image
     console.log('🎨 Generating dream-specific image...');
-    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
+    const prompt = `Create a scene featuring this miniature figurine that represents the dream: "${dream_title}". ${dream_context ? `Context: ${dream_context}.` : ''} Adapt the figurine's outfit and pose to match the dream theme. Create an appropriate background that fits the dream context. Make it isometric, realistic, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
     
     let generatedImageData: string;
     try {

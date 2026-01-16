@@ -13,6 +13,7 @@ One row per Supabase auth user (FK to auth.users).
 | user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
 | username | text | User's username | NOT NULL, UNIQUE |
 | theme_mode | text | User's theme preference: 'light', 'dark', or 'system' | DEFAULT 'system', CHECK (theme_mode IN ('light', 'dark', 'system')) |
+| figurine_url | text | URL to user's generated figurine image, stored at user level for use across all dreams | |
 | created_at | timestamptz | When profile was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When profile was last modified | NOT NULL, DEFAULT now() |
 
@@ -80,6 +81,8 @@ Planned work inside an area (templates for recurring work).
 | deleted_at | timestamptz | When action was soft-deleted | |
 | created_at | timestamptz | When action was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When action was last modified | NOT NULL, DEFAULT now() |
+| primary_skill | text | Primary skill associated with this action | CHECK (primary_skill IN ('Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages', 'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness', 'Communication', 'Finance', 'Travel', 'Career', 'Coding')) |
+| secondary_skill | text | Secondary skill associated with this action | CHECK (secondary_skill IN ('Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages', 'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness', 'Communication', 'Finance', 'Travel', 'Career', 'Coding')) |
 
 ### action_occurrences
 Each scheduled/finished unit of work (instances of actions).
@@ -99,6 +102,7 @@ Each scheduled/finished unit of work (instances of actions).
 | completed_at | timestamptz | When occurrence was completed | |
 | ai_rating | integer | AI rating 1-5 | CHECK (ai_rating >= 1 AND ai_rating <= 5) |
 | ai_feedback | text | AI feedback on completion | |
+| xp_gained | integer | XP gained upon completion | |
 | created_at | timestamptz | When occurrence was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When occurrence was last modified | NOT NULL, DEFAULT now() |
 
@@ -118,6 +122,20 @@ Many photos/files per occurrence with storage path and metadata.
 | mime_type | text | File MIME type | |
 | metadata | jsonb | Additional file metadata | |
 | created_at | timestamptz | When artifact was uploaded | NOT NULL, DEFAULT now() |
+
+### user_xp
+XP tracked per skill for each user.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, DEFAULT gen_random_uuid() |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) ON DELETE CASCADE |
+| skill | text | Skill name | NOT NULL, CHECK (skill IN ('Fitness', 'Strength', 'Nutrition', 'Writing', 'Learning', 'Languages', 'Music', 'Creativity', 'Business', 'Marketing', 'Sales', 'Mindfulness', 'Communication', 'Finance', 'Travel', 'Career', 'Coding')) |
+| xp | integer | Total XP for this skill | NOT NULL, DEFAULT 0 |
+| created_at | timestamptz | When record was created | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | When record was last modified | NOT NULL, DEFAULT now() |
+
+**Unique Constraint:** `(user_id, skill)`
 
 ### ai_events
 AI usage tracking and telemetry for monitoring costs and performance.
@@ -442,6 +460,32 @@ WHERE d.archived_at IS NULL  -- Exclude archived dreams
 GROUP BY d.user_id, d.id;
 ```
 
+### v_user_levels
+User skill levels calculated from XP. Formula: Level = floor(sqrt(XP / 50)) + 1.
+
+```sql
+CREATE VIEW v_user_levels AS
+SELECT 
+  user_id,
+  skill,
+  xp,
+  floor(sqrt(xp::float / 50)) + 1 as level
+FROM user_xp;
+```
+
+### v_user_overall_level
+User overall level based on total XP.
+
+```sql
+CREATE VIEW v_user_overall_level AS
+SELECT 
+  user_id,
+  SUM(xp) as total_xp,
+  floor(sqrt(SUM(xp)::float / 50)) + 1 as overall_level
+FROM user_xp
+GROUP BY user_id;
+```
+
 ### current_streak(user_id, dream_id) → int
 Rolling streak length for a specific dream. The streak is maintained from the most recent completion date until it's actually broken by missing a day.
 
@@ -529,6 +573,16 @@ BEGIN
         AND d.user_id = auth.uid()
     );
 END;
+$$;
+```
+
+### calculate_xp_on_completion()
+Deterministically calculates XP based on action properties and awards it to user skills upon completion. Triggered by update on `action_occurrences`.
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_xp_on_completion()
+RETURNS trigger
+-- ... implementation details ...
 $$;
 ```
 

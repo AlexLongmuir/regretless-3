@@ -215,7 +215,7 @@ export function AreaChip({
             contentFit="cover"
           />
         ) : (
-          <Text style={{ fontSize: 40 }}>{emoji}</Text>
+        <Text style={{ fontSize: 40 }}>{emoji}</Text>
         )}
       </View>
       

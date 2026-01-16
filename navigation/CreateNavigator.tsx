@@ -16,6 +16,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Import create flow screens
 import TitleStep from '../app/create/index';
+import CreateFigurineStep from '../app/create/create-figurine';
 import PersonalizeStep from '../app/create/personalize';
 import TimeCommitmentStep from '../app/create/time-commitment';
 import QuestionsStep from '../app/create/questions';
@@ -47,6 +48,7 @@ const CreateNavigator = () => (
     }}
   >
     <CreateStack.Screen name="Title" component={TitleStep} />
+    <CreateStack.Screen name="CreateFigurine" component={CreateFigurineStep} />
     <CreateStack.Screen name="Questions" component={QuestionsStep} />
     <CreateStack.Screen name="Personalize" component={PersonalizeStep} />
     <CreateStack.Screen name="GoalFeasibility" component={GoalFeasibilityStep} />

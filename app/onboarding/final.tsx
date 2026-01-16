@@ -133,7 +133,7 @@ const FinalStep: React.FC = () => {
                         contentFit="cover"
                       />
                     ) : (
-                      <Text style={styles.areaEmoji}>{area.icon}</Text>
+                    <Text style={styles.areaEmoji}>{area.icon}</Text>
                     )}
                     <View style={styles.areaInfo}>
                       <Text style={styles.areaTitle}>{area.title}</Text>

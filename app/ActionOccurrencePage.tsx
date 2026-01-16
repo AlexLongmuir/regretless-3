@@ -30,6 +30,7 @@ import { Theme } from '../utils/theme';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { Icon } from '../components/Icon';
+import type { SkillType } from '../backend/database/types';
 import { OptionsPopover } from '../components/OptionsPopover';
 import { useToast } from '../components/toast/ToastProvider';
 import { SheetHeader } from '../components/SheetHeader';
@@ -593,6 +594,7 @@ interface SaveActionSheetProps {
   formatTime: (minutes: number) => string;
   navigation?: any;
   checkDreamCompletion?: (dreamId: string) => Promise<boolean>;
+  xpGained?: number | null;
 }
 
 function SaveActionSheet({
@@ -617,6 +619,7 @@ function SaveActionSheet({
   formatTime,
   navigation,
   checkDreamCompletion,
+  xpGained,
 }: SaveActionSheetProps) {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createSaveSheetStyles(theme), [theme]);
@@ -958,7 +961,40 @@ function SaveActionSheet({
                           {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
                         </Text>
                       </View>
+                      {(actionData?.primary_skill || params?.primarySkill) && (
+                        <View style={styles.detailItem}>
+                          <Icon name="military_tech" size={16} color={theme.colors.text.secondary} />
+                          <Text style={styles.detailValue}>
+                            {actionData?.primary_skill || params?.primarySkill}
+                            {actionData?.secondary_skill || params?.secondarySkill ? ` / ${actionData?.secondary_skill || params?.secondarySkill}` : ''}
+                          </Text>
+                        </View>
+                      )}
                     </View>
+                    
+                    {/* XP Gained */}
+                    {xpGained !== null && xpGained > 0 && (
+                      <View style={[styles.detailRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border.default }]}>
+                        <View style={[styles.detailItem, { backgroundColor: theme.colors.primary[50], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]}>
+                          <Icon name="military_tech" size={18} color={theme.colors.primary[600]} />
+                          <Text style={[styles.detailValue, { color: theme.colors.primary[700], fontWeight: '700', fontSize: 16 }]}>
+                            +{xpGained} XP
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    
+                    {/* XP Gained */}
+                    {xpGained !== null && xpGained > 0 && (
+                      <View style={[styles.detailRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border.default }]}>
+                        <View style={[styles.detailItem, { backgroundColor: theme.colors.primary[50], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]}>
+                          <Icon name="military_tech" size={18} color={theme.colors.primary[600]} />
+                          <Text style={[styles.detailValue, { color: theme.colors.primary[700], fontWeight: '700', fontSize: 16 }]}>
+                            +{xpGained} XP
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -1295,6 +1331,7 @@ const ActionOccurrencePage = () => {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [xpGained, setXpGained] = useState<number | null>(null);
 
   // Load artifacts when component mounts
   useEffect(() => {
@@ -1533,6 +1570,21 @@ const ActionOccurrencePage = () => {
       // #endregion
       
       setIsCompleted(true);
+      
+      // Fetch XP gained after completion
+      try {
+        const { data: occurrence } = await supabaseClient
+          .from('action_occurrences')
+          .select('xp_gained')
+          .eq('id', params.occurrenceId)
+          .single();
+        
+        if (occurrence?.xp_gained) {
+          setXpGained(occurrence.xp_gained);
+        }
+      } catch (error) {
+        console.error('Error fetching XP gained:', error);
+      }
       
       // Track action completed event
       trackEvent('action_completed', {
@@ -2114,7 +2166,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                     contentFit="cover"
                   />
                 ) : (
-                  <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+                <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
                 )}
               </View>
             )}
@@ -2201,6 +2253,15 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                   <Ionicons name="layers-outline" size={16} color={theme.colors.text.secondary} />
                   <Text style={styles.detailValue}>
                     {occurrenceData?.occurrence_no ? `${occurrenceData.occurrence_no} of ${actionData?.slice_count_target || params?.sliceCountTarget}` : `${actionData?.slice_count_target || params?.sliceCountTarget} repeats`}
+                  </Text>
+                </View>
+              )}
+              {(actionData?.primary_skill || params?.primarySkill) && (
+                <View style={styles.detailItem}>
+                  <Icon name="military_tech" size={16} color={theme.colors.text.secondary} />
+                  <Text style={styles.detailValue}>
+                    {actionData?.primary_skill || params?.primarySkill}
+                    {actionData?.secondary_skill || params?.secondarySkill ? ` / ${actionData?.secondary_skill || params?.secondarySkill}` : ''}
                   </Text>
                 </View>
               )}
