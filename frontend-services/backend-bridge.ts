@@ -813,6 +813,9 @@ export const generateDreamImage = async (figurineUrl: string, dreamTitle: string
 }
 
 export const generateAreaImage = async (figurineUrl: string, dreamTitle: string, areaTitle: string, areaContext: string, areaId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse }> => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:815',message:'generateAreaImage called',data:{hasFigurineUrl:!!figurineUrl,hasDreamTitle:!!dreamTitle,hasAreaTitle:!!areaTitle,hasAreaId:!!areaId,areaId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -821,6 +824,9 @@ export const generateAreaImage = async (figurineUrl: string, dreamTitle: string,
   console.log('🌐 [BACKEND-BRIDGE] Generating area image')
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:824',message:'About to fetch area image API',data:{url:`${API_BASE}/api/areas/generate-image`,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const res = await fetch(`${API_BASE}/api/areas/generate-image`, {
       method: 'POST',
       headers,
@@ -833,18 +839,30 @@ export const generateAreaImage = async (figurineUrl: string, dreamTitle: string,
       })
     })
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:836',message:'Area image API response received',data:{status:res.status,statusText:res.statusText,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     console.log('📡 [BACKEND-BRIDGE] Generate area image response status:', res.status)
 
     if (!res.ok) {
       const errorText = await res.text()
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:838',message:'Area image API error response',data:{status:res.status,errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       console.log('❌ [BACKEND-BRIDGE] Generate area image Error:', errorText)
       throw new Error(errorText)
     }
 
     const result = await res.json()
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:844',message:'Area image API success',data:{success:result.success,hasData:!!result.data,hasSignedUrl:!!result.data?.signed_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     console.log('✅ [BACKEND-BRIDGE] Generate area image Success:', result)
     return result
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:848',message:'Area image API network/parse error',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     console.log('💥 [BACKEND-BRIDGE] Generate area image Network/Parse Error:', error)
     throw error
   }

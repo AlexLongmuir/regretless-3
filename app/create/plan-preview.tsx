@@ -33,7 +33,13 @@ export default function PlanPreviewStep() {
   );
 
   const handleContinue = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:35',message:'handleContinue called',data:{dreamId,figurineUrlFromContext:figurineUrl,areasCount:areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (!dreamId) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:37',message:'handleContinue early return - no dreamId',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
@@ -42,6 +48,32 @@ export default function PlanPreviewStep() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No authentication token available');
+      }
+
+      // Load figurine URL from profile if not in context
+      let effectiveFigurineUrl = figurineUrl;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:48',message:'Before profile lookup',data:{figurineUrlFromContext:figurineUrl,effectiveFigurineUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      if (!effectiveFigurineUrl) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:51',message:'Profile lookup started',data:{hasUser:!!user,userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        if (user) {
+          const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:57',message:'Profile lookup result',data:{hasProfile:!!profile,hasFigurineUrl:!!profile?.figurine_url,figurineUrl:profile?.figurine_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          if (profile?.figurine_url) {
+            effectiveFigurineUrl = profile.figurine_url;
+            console.log('📸 [PLAN-PREVIEW] Loaded figurine URL from profile');
+          }
+        }
       }
 
       // Save areas and actions to database before scheduling
@@ -64,26 +96,64 @@ export default function PlanPreviewStep() {
 
       // Generate area images in background (fire-and-forget)
       // Update context when each image is generated
-      if (figurineUrl && areasResponse.areas.length > 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:82',message:'After upsertAreas - checking image generation',data:{hasEffectiveFigurineUrl:!!effectiveFigurineUrl,areasCount:areasResponse.areas.length,effectiveFigurineUrl,areasWithImages:areasResponse.areas.filter(a=>a.image_url).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      console.log('🎨 [PLAN-PREVIEW] Checking area image generation:', { 
+        hasFigurineUrl: !!effectiveFigurineUrl, 
+        areasCount: areasResponse.areas.length,
+        effectiveFigurineUrl 
+      });
+      
+      if (effectiveFigurineUrl && areasResponse.areas.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:90',message:'Image generation condition passed',data:{effectiveFigurineUrl,areasCount:areasResponse.areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        console.log('🎨 [PLAN-PREVIEW] Starting area image generation for', areasResponse.areas.length, 'areas');
         areasResponse.areas.forEach((area) => {
           if (!area.image_url) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:93',message:'Calling generateAreaImage',data:{areaId:area.id,areaTitle:area.title,hasEffectiveFigurineUrl:!!effectiveFigurineUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            console.log(`🎨 [PLAN-PREVIEW] Generating image for area: ${area.title} (${area.id})`);
             generateAreaImage(
-              figurineUrl,
+              effectiveFigurineUrl,
               title || 'Your Dream',
               area.title,
               '', // area context not available here
               area.id,
               session.access_token
             ).then((response) => {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:103',message:'generateAreaImage success',data:{areaId:area.id,areaTitle:area.title,success:response.success,hasSignedUrl:!!response.data?.signed_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              console.log(`✅ [PLAN-PREVIEW] Image generated for area ${area.title}:`, response);
               // Update context with generated image URL
               if (response.success && response.data?.signed_url) {
                 updateArea(area.id, { image_url: response.data.signed_url });
+                console.log(`✅ [PLAN-PREVIEW] Updated area ${area.title} with image URL`);
               }
             }).catch((error) => {
-              console.error(`Failed to generate image for area ${area.title}:`, error);
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:109',message:'generateAreaImage error',data:{areaId:area.id,areaTitle:area.title,error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
+              console.error(`❌ [PLAN-PREVIEW] Failed to generate image for area ${area.title}:`, error);
               // Silently fail - don't block user flow
             });
+          } else {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:114',message:'Area already has image, skipping',data:{areaId:area.id,areaTitle:area.title,imageUrl:area.image_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            console.log(`⏭️ [PLAN-PREVIEW] Area ${area.title} already has image, skipping`);
           }
+        });
+      } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:117',message:'Image generation condition failed',data:{hasEffectiveFigurineUrl:!!effectiveFigurineUrl,areasCount:areasResponse.areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        console.log('⚠️ [PLAN-PREVIEW] Skipping area image generation:', { 
+          hasFigurineUrl: !!effectiveFigurineUrl, 
+          areasCount: areasResponse.areas.length 
         });
       }
 

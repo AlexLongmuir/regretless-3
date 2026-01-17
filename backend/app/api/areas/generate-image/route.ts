@@ -32,9 +32,17 @@ async function base64ToBlob(base64: string, mimeType: string = 'image/png'): Pro
 }
 
 export async function POST(request: NextRequest) {
+  // #region agent log
+  const logEntry = {location:'areas/generate-image/route.ts:34',message:'POST request received',data:{hasAuthHeader:!!request.headers.get('authorization')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+  require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry) + '\n');
+  // #endregion
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // #region agent log
+      const logEntry2 = {location:'areas/generate-image/route.ts:38',message:'Auth header missing',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+      require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry2) + '\n');
+      // #endregion
       return NextResponse.json(
         { error: 'Authorization token required' },
         { status: 401 }
@@ -47,6 +55,10 @@ export async function POST(request: NextRequest) {
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      // #region agent log
+      const logEntry3 = {location:'areas/generate-image/route.ts:49',message:'User auth failed',data:{userError:userError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+      require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry3) + '\n');
+      // #endregion
       return NextResponse.json(
         { error: 'User not authenticated' },
         { status: 401 }
@@ -55,8 +67,16 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { figurine_url, dream_title, area_title, area_context, area_id } = body;
+    // #region agent log
+    const logEntry4 = {location:'areas/generate-image/route.ts:57',message:'Request body parsed',data:{hasFigurineUrl:!!figurine_url,hasDreamTitle:!!dream_title,hasAreaTitle:!!area_title,hasAreaId:!!area_id,area_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+    require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry4) + '\n');
+    // #endregion
 
     if (!figurine_url || !dream_title || !area_title || !area_id) {
+      // #region agent log
+      const logEntry5 = {location:'areas/generate-image/route.ts:59',message:'Missing required fields',data:{hasFigurineUrl:!!figurine_url,hasDreamTitle:!!dream_title,hasAreaTitle:!!area_title,hasAreaId:!!area_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+      require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry5) + '\n');
+      // #endregion
       return NextResponse.json(
         { error: 'figurine_url, dream_title, area_title, and area_id are required' },
         { status: 400 }
@@ -72,11 +92,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (areaError || !area) {
+      // #region agent log
+      const logEntry6 = {location:'areas/generate-image/route.ts:74',message:'Area not found',data:{area_id,areaError:areaError?.message,userId:user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+      require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry6) + '\n');
+      // #endregion
       return NextResponse.json(
         { error: 'Area not found' },
         { status: 404 }
       );
     }
+    // #region agent log
+    const logEntry7 = {location:'areas/generate-image/route.ts:79',message:'Area verified, starting image generation',data:{areaId:area.id,dreamId:area.dream_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'};
+    require('fs').appendFileSync('/Users/alex/regretless-3/.cursor/debug.log', JSON.stringify(logEntry7) + '\n');
+    // #endregion
 
     // Fetch the figurine image
     console.log('📥 Fetching figurine image...');

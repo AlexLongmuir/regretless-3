@@ -63,6 +63,7 @@ export default function ConfirmStep() {
 
       // Generate Actions sequentially per area to prevent truncation
       const allActions: any[] = []
+      const seenActionIds = new Set<string>() // Track seen action IDs to prevent duplicates
       let totalActionsGenerated = 0
       
       for (let i = 0; i < generatedAreas.length; i++) {
@@ -83,8 +84,19 @@ export default function ConfirmStep() {
           }, session.access_token)
 
           if (areaActions && areaActions.length > 0) {
-            allActions.push(...areaActions)
-            totalActionsGenerated += areaActions.length
+            // Filter out duplicate actions (backend may return all actions for the dream)
+            const newActions = areaActions.filter((action: any) => {
+              if (seenActionIds.has(action.id)) {
+                console.warn(`⚠️ Duplicate action detected: ${action.id} (${action.title}), skipping`);
+                return false;
+              }
+              seenActionIds.add(action.id);
+              return true;
+            });
+            
+            allActions.push(...newActions)
+            totalActionsGenerated += newActions.length
+            console.log(`✅ Generated ${newActions.length} new actions for area ${area.title} (${areaActions.length - newActions.length} duplicates filtered)`)
           } else {
             console.warn(`No actions generated for area: ${area.title}`)
           }
