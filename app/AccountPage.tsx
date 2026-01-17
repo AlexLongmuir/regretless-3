@@ -15,7 +15,7 @@ import { resetDailyWelcome } from '../hooks/useDailyWelcome';
 import { AchievementUnlockedSheet } from '../components/AchievementUnlockedSheet';
 import { AchievementsSheet } from '../components/AchievementsSheet';
 import { FigurineSelectorSheet } from '../components/FigurineSelectorSheet';
-import { checkNewAchievements, getAchievements } from '../frontend-services/backend-bridge';
+import { checkNewAchievements, getAchievements, getPrecreatedFigurines } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { AchievementUnlockResult, Achievement, UserAchievement } from '../backend/database/types';
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
@@ -48,7 +48,32 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
     initializeNotifications();
   }, []);
 
-  // Load user's figurine from profile
+  // Prefetch precreated figurines in background for faster loading when sheet opens
+  useEffect(() => {
+    const prefetchFigurines = async () => {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const response = await getPrecreatedFigurines(session?.access_token).catch(() => null);
+        
+        if (response?.success && response.data?.figurines) {
+          // Prefetch all figurine images in background - fire and forget
+          response.data.figurines.forEach((figurine: any) => {
+            if (figurine.signed_url) {
+              Image.prefetch(figurine.signed_url).catch(() => {
+                // Silently fail - images will load normally
+              });
+            }
+          });
+        }
+      } catch (error) {
+        // Silently fail - prefetching is not critical
+      }
+    };
+    
+    prefetchFigurines();
+  }, [user]);
+
+  // Load user's figurine from profile and prefetch image
   useEffect(() => {
     const loadUserFigurine = async () => {
       try {
@@ -62,6 +87,10 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
 
           if (!error && profile?.figurine_url) {
             setFigurineUrl(profile.figurine_url);
+            // Prefetch the image for faster loading
+            Image.prefetch(profile.figurine_url).catch(() => {
+              // Silently fail - image will load normally
+            });
           } else {
             setFigurineUrl(null);
           }
@@ -324,6 +353,7 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
               contentFit="cover"
               cachePolicy="memory-disk"
               transition={200}
+              priority="high"
             />
           ) : (
             <View style={styles.placeholderBackground}>
@@ -474,6 +504,12 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
         onClose={() => setShowFigurineSheet(false)}
         onSelect={(url) => {
           setFigurineUrl(url);
+          // Prefetch the new image for faster loading
+          if (url) {
+            Image.prefetch(url).catch(() => {
+              // Silently fail - image will load normally
+            });
+          }
           // Don't close the sheet - let user continue editing
         }}
       />

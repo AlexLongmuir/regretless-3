@@ -62,11 +62,11 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
   const [loading, setLoading] = useState(true);
   const [figurineUrl, setFigurineUrl] = useState<string | null>(null);
 
-  // Background image (reusing streak background for now, or could use a new one)
+  // Background image
   const getBackgroundImageUrl = () => {
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     if (!supabaseUrl) return null;
-    return `${supabaseUrl}/storage/v1/object/public/achievement-images/StreakBackground.png`;
+    return `${supabaseUrl}/storage/v1/object/public/achievement-images/SkillsBackground.png`;
   };
   const backgroundImageUrl = getBackgroundImageUrl();
 

@@ -175,7 +175,7 @@ export async function generateJson(opts: {
 }) {
   const modelId = opts.modelId ?? GEMINI_MODEL;
   const MAX_RETRIES = 2;
-  const MAX_OUTPUT_TOKENS_CAP = 8192;
+  const MAX_OUTPUT_TOKENS_CAP = 16384; // Increased for large action generation (8-16 actions)
   let currentMaxOutputTokens = opts.maxOutputTokens ?? 600;
   
   // Retry loop with exponential backoff on maxOutputTokens

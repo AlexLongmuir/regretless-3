@@ -23,9 +23,7 @@ import QuestionsStep from '../app/create/questions';
 import GoalFeasibilityStep from '../app/create/goal-feasibility';
 import TimelineFeasibilityStep from '../app/create/timeline-feasibility';
 import DreamConfirmStep from '../app/create/dream-confirm';
-import AreasStep from '../app/create/areas';
-import AreasConfirmStep from '../app/create/areas-confirm';
-import ActionsStep from '../app/create/actions';
+import PlanPreviewStep from '../app/create/plan-preview';
 import ActionsConfirmStep from '../app/create/actions-confirm';
 import ActionOccurrencePage from '../app/ActionOccurrencePage';
 
@@ -55,9 +53,7 @@ const CreateNavigator = () => (
     <CreateStack.Screen name="TimeCommitment" component={TimeCommitmentStep} />
     <CreateStack.Screen name="TimelineFeasibility" component={TimelineFeasibilityStep} />
     <CreateStack.Screen name="DreamConfirm" component={DreamConfirmStep} />
-    <CreateStack.Screen name="Areas" component={AreasStep} />
-    <CreateStack.Screen name="AreasConfirm" component={AreasConfirmStep} />
-    <CreateStack.Screen name="Actions" component={ActionsStep} />
+    <CreateStack.Screen name="PlanPreview" component={PlanPreviewStep} />
     <CreateStack.Screen name="ActionsConfirm" component={ActionsConfirmStep} />
     <CreateStack.Screen 
       name="ActionOccurrence" 

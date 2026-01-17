@@ -175,9 +175,9 @@ async function post(path: string, body: unknown, token?: string) {
   if (token) headers['Authorization'] = `Bearer ${token}`
   
   try {
-    // Add timeout to fetch request (60 seconds for AI generation)
+    // Add timeout to fetch request (120 seconds for AI generation - actions can take longer)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000)
+    const timeoutId = setTimeout(() => controller.abort(), 120000)
     
     const res = await fetch(url, {
       method: 'POST',
@@ -201,7 +201,7 @@ async function post(path: string, body: unknown, token?: string) {
     return result
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.log('⏱️ [BACKEND-BRIDGE] Request timeout after 60s')
+      console.log('⏱️ [BACKEND-BRIDGE] Request timeout after 120s')
       throw new Error('Request timeout - the server took too long to respond')
     }
     console.log('💥 [BACKEND-BRIDGE] Network/Parse Error:', error)

@@ -12,7 +12,7 @@ import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 export default function ActionsConfirmStep() {
   const { theme } = useTheme()
   const navigation = useNavigation<any>()
-  const { areas, actions, dreamId, title, baseline, obstacles, enjoyment, figurineUrl } = useCreateDream()
+  const { reset, areas, actions, dreamId, title, baseline, obstacles, enjoyment, figurineUrl } = useCreateDream()
   const [isActivating, setIsActivating] = useState(false)
 
   const handleViewDream = async () => {
@@ -85,12 +85,11 @@ export default function ActionsConfirmStep() {
 
   // Calculate completion stats
   const totalAreas = areas.length
-  const completedAreas = areas.filter(area => area.approved_at).length
   const totalActions = actions.length
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
-      <CreateScreenHeader step="actions-confirm" />
+      <CreateScreenHeader step="actions-confirm" onReset={reset} />
       
       <ScrollView 
         contentContainerStyle={{ 
@@ -129,7 +128,7 @@ export default function ActionsConfirmStep() {
           marginBottom: 16,
           textAlign: 'center'
         }}>
-          All Actions Completed!
+          Plan Complete!
         </Text>
 
         {/* Description */}
@@ -140,7 +139,7 @@ export default function ActionsConfirmStep() {
           lineHeight: 22,
           marginBottom: 24
         }}>
-          Fantastic! You've approved actions for all {completedAreas} areas and created {totalActions} total actions.
+          Fantastic! We've created {totalAreas} focus areas and {totalActions} actions for your dream.
         </Text>
 
 

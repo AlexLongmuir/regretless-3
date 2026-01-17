@@ -441,6 +441,10 @@ const icons = {
   fire: {
     library: 'MaterialIcons' as const,
     name: 'whatshot'
+  },
+  military_tech: {
+    library: 'MaterialIcons' as const,
+    name: 'workspace-premium'
   }
 };
 

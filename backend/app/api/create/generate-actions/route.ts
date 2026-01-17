@@ -102,21 +102,22 @@ CRITICAL RULES:
 Note: Only regenerate actions for the area listed above.`
     } else {
       // Initial generation
+      const areaInstruction = isSingleArea 
+        ? `Area to work within:\n${areasText}\n\nPlease create 2-4 actions for this area that are necessary and sufficient to achieve this goal.`
+        : `Areas to work within:\n${areasText}\n\nPlease create 2-4 actions per area that are necessary and sufficient to achieve this goal.`
+      
       prompt = `Create execution-focused actions for this dream:
 
 Dream Title: "${title}"${contextString}
 
-Areas to work within:
-${areasText}
-
-Please create 2-4 actions per area that are necessary and sufficient to achieve this goal.
+${areaInstruction}
 
 CRITICAL RULES:
 - Finite series: For big finite jobs (>120 min), set slice_count_target (3-12) and use est_minutes as per-slice duration. Do NOT set repeat_every_days.
 - Indefinite repeats: For ongoing habits, set repeat_every_days ∈ {1,2,3} and do NOT set slice_count_target.
 - Size guidelines: >120 min → make it a series; 60-120 min → consider series; <60 min → one-off action.
 - Titles: No time/cadence in titles. No brackets. Keep titles short and scope-clear.
-- Acceptance criteria format: Include acceptance_intro (one sentence setting intention), acceptance_criteria (2-3 structured objects, each with 'title' - short max 5 words, and 'description' - 1-2 sentences explaining what to do and how to verify it), and acceptance_outro (one sentence defining "done"). Example criteria: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
+- Acceptance criteria: Provide 2-3 structured objects, each with 'title' (short, max 5 words) and 'description' (1-2 sentences explaining what to do and how to verify it). Example: [{"title": "Draft 500 words", "description": "Write at least 500 new words focusing on getting content down rather than perfection."}]
 - Ensure the first 2-3 actions in the first area are 20-45 minutes for momentum.
 - Avoid overlapping actions across areas.
 - SKILL ASSIGNMENT: Assign a primary_skill (required) and secondary_skill (optional) from the approved list for each action.
@@ -130,7 +131,7 @@ Each action should be atomic, measurable, and bounded.`
       system: ACTIONS_SYSTEM,
       messages: [{ text: prompt }],
       schema: ACTIONS_SCHEMA,
-      maxOutputTokens: 10000,
+      maxOutputTokens: 16384, // Increased for generating 8-16 actions (2-4 per area × 4 areas)
       modelId: GEMINI_FLASH_MODEL, // Using Flash model (not lite)
       enableThinking: true,
       thinkingBudget: THINKING_BUDGETS.MAXIMUM // Maximum budget for complex action planning

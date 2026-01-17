@@ -36,7 +36,7 @@ export const SkillsButton: React.FC<SkillsButtonProps> = ({
 
   // Use dynamic tint based on theme - dark for dark mode, light for light mode
   const blurTint = isDark ? 'dark' : 'light';
-  const activeOpacity = isDark ? 0.7 : 0.8;
+  const activeOpacity = 0.7;
 
   // Use a fallback level of 1 if level is undefined or 0
   const displayLevel = level || 1;

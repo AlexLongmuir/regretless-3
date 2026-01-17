@@ -74,6 +74,15 @@ export const FigurineSelectorSheet: React.FC<FigurineSelectorSheetProps> = ({
           
           if (response.success && response.data?.figurines) {
             setPrecreatedFigurines(response.data.figurines);
+            // Prefetch all precreated figurine images in parallel - fire and forget for faster loading
+            response.data.figurines.forEach((figurine: Figurine) => {
+              if (figurine.signed_url) {
+                // Start prefetching immediately for each image - don't wait
+                Image.prefetch(figurine.signed_url).catch(() => {
+                  // Silently fail individual prefetches
+                });
+              }
+            });
           } else {
             setPrecreatedFigurines([]);
           }
@@ -91,11 +100,16 @@ export const FigurineSelectorSheet: React.FC<FigurineSelectorSheetProps> = ({
             .single();
 
           if (!error && profile?.figurine_url) {
-            setUserGeneratedFigurine({
+            const figurine = {
               id: 'current-figurine',
               name: 'Your Figurine',
               signed_url: profile.figurine_url,
               path: profile.figurine_url
+            };
+            setUserGeneratedFigurine(figurine);
+            // Prefetch the user's figurine image
+            Image.prefetch(profile.figurine_url).catch(() => {
+              // Silently fail - image will load normally
             });
           }
         }
@@ -292,6 +306,7 @@ export const FigurineSelectorSheet: React.FC<FigurineSelectorSheetProps> = ({
           style={styles.defaultFigurineImage}
           contentFit="cover"
           cachePolicy="memory-disk"
+          priority="normal"
         />
       </TouchableOpacity>
     );
@@ -368,6 +383,7 @@ export const FigurineSelectorSheet: React.FC<FigurineSelectorSheetProps> = ({
                     style={styles.figurineImage}
                     contentFit="cover"
                     cachePolicy="memory-disk"
+                    priority="high"
                   />
                 </Animated.View>
                 

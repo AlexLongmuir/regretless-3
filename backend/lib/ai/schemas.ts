@@ -152,8 +152,6 @@ export const ACTIONS_SCHEMA = {
               required: ["title", "description"]
             }
           },
-          acceptance_intro: { type: "string" },
-          acceptance_outro: { type: "string" },
           position: { type: "integer" }
         },
         required: ["area_id", "title", "est_minutes", "difficulty", "acceptance_criteria", "position", "primary_skill"]
