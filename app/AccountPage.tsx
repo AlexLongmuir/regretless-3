@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -12,13 +14,16 @@ import { trackEvent } from '../lib/mixpanel';
 import { resetDailyWelcome } from '../hooks/useDailyWelcome';
 import { AchievementUnlockedSheet } from '../components/AchievementUnlockedSheet';
 import { AchievementsSheet } from '../components/AchievementsSheet';
+import { FigurineSelectorSheet } from '../components/FigurineSelectorSheet';
 import { checkNewAchievements, getAchievements } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { AchievementUnlockResult, Achievement, UserAchievement } from '../backend/database/types';
+import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
 
 const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: React.RefObject<ScrollView | null> }) => {
   const { theme, mode, setMode, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme, isDark]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme, isDark, insets.top), [theme, isDark, insets.top]);
   const { user, signOut, loading } = useAuthContext();
   const { state, getDreamsWithStats, checkAchievements } = useData();
   const [dreamStats, setDreamStats] = useState({ created: 0, completed: 0 });
@@ -27,6 +32,13 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
   const [testAchievements, setTestAchievements] = useState<AchievementUnlockResult[]>([]);
   const [achievements, setAchievements] = useState<(Achievement & { user_progress?: UserAchievement | null })[]>([]);
   const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
+  const [showFigurineSheet, setShowFigurineSheet] = useState(false);
+  const [figurineUrl, setFigurineUrl] = useState<string | null>(null);
+
+  // Calculate image dimensions - rounded square
+  const screenWidth = Dimensions.get('window').width;
+  const contentWidth = screenWidth - (theme.spacing.md * 2); // Account for horizontal padding
+  const imageSize = Math.min(contentWidth * 0.7, 300); // Square image, 70% of content width or max 300px
 
   // Initialize notification service
   useEffect(() => {
@@ -35,6 +47,60 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
     };
     initializeNotifications();
   }, []);
+
+  // Load user's figurine from profile
+  useEffect(() => {
+    const loadUserFigurine = async () => {
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+
+          if (!error && profile?.figurine_url) {
+            setFigurineUrl(profile.figurine_url);
+          } else {
+            setFigurineUrl(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user figurine:', error);
+        setFigurineUrl(null);
+      }
+    };
+
+    loadUserFigurine();
+  }, [user]);
+
+  // Reload figurine when sheet closes (in case it was updated)
+  useEffect(() => {
+    if (!showFigurineSheet) {
+      const loadUserFigurine = async () => {
+        try {
+          const { data: { user } } = await supabaseClient.auth.getUser();
+          if (user) {
+            const { data: profile, error } = await supabaseClient
+              .from('profiles')
+              .select('figurine_url')
+              .eq('user_id', user.id)
+              .single();
+
+            if (!error && profile?.figurine_url) {
+              setFigurineUrl(profile.figurine_url);
+            } else {
+              setFigurineUrl(null);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading user figurine:', error);
+        }
+      };
+      loadUserFigurine();
+    }
+  }, [showFigurineSheet]);
 
   // Load dream statistics
   useEffect(() => {
@@ -235,35 +301,54 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
 
   return (
     <View style={styles.container}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Account</Text>
-        </View>
+      <ScrollView 
+        ref={scrollRef} 
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
+      >
+        {/* Figurine Image - rounded square */}
+        <TouchableOpacity 
+          onPress={() => {
+            trackEvent('account_profile_picture_pressed');
+            setShowFigurineSheet(true);
+          }}
+          activeOpacity={0.9}
+          style={[styles.imageBackground, { width: imageSize, height: imageSize }]}
+        >
+          {figurineUrl ? (
+            <Image
+              source={{ uri: figurineUrl }}
+              style={styles.backgroundImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          ) : (
+            <View style={styles.placeholderBackground}>
+              <View style={styles.placeholderIconContainer}>
+                <Text style={styles.placeholderIconText}>
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </Text>
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
 
-        {/* Profile Section */}
-        <View style={styles.profileSection}>
-          {/* Profile Picture */}
-          <View style={styles.profilePicture}>
-            <Text style={styles.profilePictureText}>
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </Text>
-          </View>
+        {/* User Info - left aligned below image */}
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>
+            {user?.email?.split('@')[0] || 'User'}
+          </Text>
+          
+          <Text style={styles.joinDate}>
+            Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '01/01/2020'}
+          </Text>
 
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>
-              {user?.email?.split('@')[0] || 'User'}
-            </Text>
-            
-            <Text style={styles.joinDate}>
-              Joined {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '01/01/2020'}
-            </Text>
-
-            <Text style={styles.stats}>
-              {dreamStats.created} Dreams Created • {dreamStats.completed} Completed
-            </Text>
-          </View>
+          <Text style={styles.stats}>
+            {dreamStats.created} Dreams Created • {dreamStats.completed} Completed
+          </Text>
         </View>
 
         {/* Settings List */}
@@ -383,56 +468,75 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
         onClose={() => setShowAchievementsSheet(false)}
         achievements={achievements}
       />
+
+      <FigurineSelectorSheet
+        visible={showFigurineSheet}
+        onClose={() => setShowFigurineSheet(false)}
+        onSelect={(url) => {
+          setFigurineUrl(url);
+          setShowFigurineSheet(false);
+        }}
+      />
     </View>
   );
 };
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark?: boolean, topInset: number = 0) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.page,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: theme.spacing.md,
-    paddingTop: 60,
-    paddingBottom: 100, // Extra padding for bottom navigation
+    paddingTop: topInset, // Padding to push content below safe area
+    paddingBottom: BOTTOM_NAV_PADDING,
   },
-  header: {
+  imageBackground: {
+    width: 300,
+    height: 300,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: theme.spacing.lg, // Match bottom padding
     marginBottom: theme.spacing.lg,
+    alignSelf: 'center', // Center align
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: theme.colors.text.primary,
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  profilePicture: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
+  placeholderBackground: {
+    width: '100%',
+    height: '100%',
     backgroundColor: theme.colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
   },
-  profilePictureText: {
+  placeholderIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.colors.primary[700],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderIconText: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: 40,
+    fontSize: 60,
     fontWeight: theme.typography.fontWeight.bold as any,
     color: theme.colors.surface[50],
   },
   userInfo: {
-    flex: 1,
+    marginBottom: theme.spacing.xl,
   },
   userName: {
     fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title1,
+    fontSize: 28,
     fontWeight: theme.typography.fontWeight.bold as any,
-    lineHeight: theme.typography.lineHeight.title1,
+    lineHeight: 34,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
     textAlign: 'left',

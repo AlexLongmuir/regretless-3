@@ -25,6 +25,7 @@ export { StreakButton } from './StreakButton'
 export { StreakSheet } from './StreakSheet'
 export { SkillsButton } from './SkillsButton'
 export { SkillsSheet } from './SkillsSheet'
+export { FigurineSelectorSheet } from './FigurineSelectorSheet'
 
 // Progress components
 export * from './progress'

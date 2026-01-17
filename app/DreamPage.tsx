@@ -17,7 +17,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { ProgressPhotosSection } from '../components/progress';
 import { useData } from '../contexts/DataContext';
-import { upsertDream, rescheduleActions, upsertAreas, getDefaultImages, uploadDreamImage, type DreamImage } from '../frontend-services/backend-bridge';
+import { upsertDream, rescheduleActions, upsertAreas, getDefaultImages, uploadDreamImage, generateAreas, type DreamImage } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Dream, Action, ActionOccurrence, Area, DreamWithStats } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
@@ -741,6 +741,12 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
     setShowCreateAreaModal(true);
   };
 
+  const handleRefineAreas = () => {
+    if (!dreamId) return;
+    setShowOptionsPopover(false);
+    navigation?.navigate('RefineFlow', { dreamId });
+  };
+
   const handleToggleReorder = () => {
     setIsReordering(!isReordering);
     setShowOptionsPopover(false);
@@ -878,6 +884,12 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       icon: 'add',
       title: 'Create Area',
       onPress: handleCreateArea
+    },
+    {
+      id: 'refine-areas',
+      icon: 'auto-awesome', // Material icon for AI/magic
+      title: 'Refine with AI',
+      onPress: handleRefineAreas
     },
     {
       id: 'reorder',
@@ -1461,6 +1473,7 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
+
       </View>
     </>
   );

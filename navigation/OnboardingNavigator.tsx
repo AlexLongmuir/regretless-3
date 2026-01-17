@@ -41,10 +41,7 @@ import MotivationStep from '../app/onboarding/motivation';
 import PotentialStep from '../app/onboarding/potential';
 import RatingStep from '../app/onboarding/rating';
 import GeneratingStep from '../app/onboarding/generating';
-import ProgressStep from '../app/onboarding/progress';
-import AreasConfirmStep from '../app/onboarding/areas-confirm';
-import ActionsGeneratingStep from '../app/onboarding/actions-generating';
-import ActionsConfirmStep from '../app/onboarding/actions-confirm';
+import PlanPreviewStep from '../app/onboarding/plan-preview';
 import FinalStep from '../app/onboarding/final';
 import ActionOccurrencePage from '../app/ActionOccurrencePage';
 import PaywallStep from '../app/onboarding/paywall';
@@ -251,29 +248,8 @@ const OnboardingNavigator = () => {
           }}
         />
         <OnboardingStack.Screen 
-          name="Progress" 
-          component={ProgressStep}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <OnboardingStack.Screen 
-          name="AreasConfirm" 
-          component={AreasConfirmStep}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <OnboardingStack.Screen 
-          name="ActionsGenerating" 
-          component={ActionsGeneratingStep}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <OnboardingStack.Screen 
-          name="ActionsConfirm" 
-          component={ActionsConfirmStep}
+          name="PlanPreview" 
+          component={PlanPreviewStep}
           options={{
             headerShown: false,
           }}

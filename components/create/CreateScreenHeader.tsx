@@ -2,17 +2,16 @@ import React, { useMemo } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { IconButton } from '../IconButton'
-import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
 
-export const CreateScreenHeader: React.FC<{ step?: string }> = ({ 
-  step = 'title' 
+export const CreateScreenHeader: React.FC<{ step?: string; onReset?: () => void }> = ({ 
+  step = 'title',
+  onReset
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation()
-  const { reset } = useCreateDream()
   
   const handleBack = () => {
     // If we're on the first step (Title), go back to main app
@@ -25,14 +24,16 @@ export const CreateScreenHeader: React.FC<{ step?: string }> = ({
   }
 
   const handleClose = () => {
-    // Reset the CreateDreamContext state
-    reset()
+    // Reset state if callback provided (create flow only)
+    if (onReset) {
+      onReset()
+    }
     
-    // Close the entire create flow and return to main app
-    // Since CreateFlow is a modal, navigate back from the parent navigator
+    // Close the entire flow and return to main app
+    // Since CreateFlow/RefineFlow is a modal, navigate back from the parent navigator
     const parentNavigation = navigation.getParent()
     if (parentNavigation && parentNavigation.canGoBack()) {
-      // Navigate back from the CreateFlow modal to return to main app
+      // Navigate back from the modal to return to main app
       parentNavigation.goBack()
     } else {
       // Fallback: try to navigate back from current navigator

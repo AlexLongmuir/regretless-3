@@ -46,6 +46,7 @@ import ContactUsPage from '../app/ContactUsPage';
 import TermsOfServicePage from '../app/TermsOfServicePage';
 import PrivacyPolicyPage from '../app/PrivacyPolicyPage';
 import CreateNavigator from './CreateNavigator';
+import RefineNavigator from './RefineNavigator';
 import OnboardingNavigator from './OnboardingNavigator';
 import PostPurchaseSignInStep from '../app/onboarding/post-purchase-signin';
 import SubscriptionLockoutPage from '../app/SubscriptionLockoutPage';
@@ -413,6 +414,11 @@ const MainNavigator = ({
         <MainStack.Screen 
           name="CreateFlow" 
           component={CreateNavigator}
+          options={{ presentation: 'fullScreenModal' }}
+        />
+        <MainStack.Screen 
+          name="RefineFlow" 
+          component={RefineNavigator}
           options={{ presentation: 'fullScreenModal' }}
         />
       </MainStack.Navigator>

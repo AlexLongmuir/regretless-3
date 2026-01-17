@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Modal, KeyboardAvoidingView, Platform, Keyboard, Dimensions, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,7 +13,7 @@ import { Input } from '../components/Input';
 import { AddActionModal } from '../components/ActionChipsList';
 import { useData } from '../contexts/DataContext';
 import { supabaseClient } from '../lib/supabaseClient';
-import { upsertActions } from '../frontend-services/backend-bridge';
+import { upsertActions, generateActions } from '../frontend-services/backend-bridge';
 import type { Dream, Action, ActionOccurrence, Area } from '../backend/database/types';
 import { SheetHeader } from '../components/SheetHeader';
 import { BOTTOM_NAV_PADDING } from '../utils/bottomNavigation';
@@ -402,6 +402,12 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
     }
   };
 
+  const handleRefineActions = () => {
+    if (!dreamId) return;
+    setShowOptionsPopover(false);
+    navigation?.navigate('RefineFlow', { dreamId });
+  };
+
   const handleSaveEdit = async () => {
     Keyboard.dismiss();
     
@@ -491,6 +497,12 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
         setShowOptionsPopover(false);
         setShowAddActionModal(true);
       }
+    },
+    {
+      id: 'refine-actions',
+      icon: 'auto-awesome', // Material icon for AI/magic
+      title: 'Refine with AI',
+      onPress: handleRefineActions
     },
     {
       id: 'edit',
@@ -651,6 +663,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
             </ScrollView>
           </KeyboardAvoidingView>
         </Modal>
+
 
         {/* Add Action Modal */}
         <AddActionModal

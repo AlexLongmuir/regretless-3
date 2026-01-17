@@ -1,28 +1,21 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
-import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useTheme } from '../../contexts/ThemeContext'
-import { trackEvent } from '../../lib/mixpanel'
 
-export default function ConfirmStep() {
+export default function RefineAreasConfirmStep() {
   const { theme } = useTheme()
   const navigation = useNavigation<any>()
-  const { reset } = useCreateDream()
 
-  useEffect(() => {
-    trackEvent('create_dream_flow_completed')
-  }, [])
-
-  const handleNext = () => {
-    navigation.navigate('Areas')
+  const handleContinue = () => {
+    navigation.navigate('Actions')
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
-      <CreateScreenHeader step="confirm" onReset={reset} />
+      <CreateScreenHeader step="areas-confirm" />
       
       <View style={{ 
         flex: 1, 
@@ -58,7 +51,7 @@ export default function ConfirmStep() {
           marginBottom: 16,
           textAlign: 'center'
         }}>
-          Dream Created!
+          Areas Updated!
         </Text>
 
         {/* Description */}
@@ -68,7 +61,7 @@ export default function ConfirmStep() {
           textAlign: 'center',
           lineHeight: 22
         }}>
-          Next, let's work on the areas we want to cover within the dream.
+          Now let's review the actions for each area.
         </Text>
       </View>
       
@@ -83,9 +76,9 @@ export default function ConfirmStep() {
         backgroundColor: theme.colors.background.page
       }}>
         <Button 
-          title="Next" 
+          title="Continue" 
           variant="black"
-          onPress={handleNext}
+          onPress={handleContinue}
           style={{ borderRadius: theme.radius.xl }}
         />
       </View>
