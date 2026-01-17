@@ -14,9 +14,22 @@ export default function RefineActionsConfirmStep() {
   const { theme } = useTheme()
   const navigation = useNavigation<any>()
   const route = useRoute()
-  const { dreamId } = route.params as { dreamId: string }
+  const { dreamId } = (route.params as { dreamId?: string }) || {}
   const { state, getDreamDetail } = useData()
   const [isScheduling, setIsScheduling] = useState(false)
+  
+  if (!dreamId) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16 }}>No dream ID provided</Text>
+        <Button 
+          title="Go Back" 
+          variant="secondary"
+          onPress={() => navigation.goBack()} 
+        />
+      </View>
+    )
+  }
 
   // Get dream data
   const dreamDetail = dreamId ? state.dreamDetail[dreamId] : undefined

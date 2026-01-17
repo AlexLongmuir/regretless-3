@@ -31,24 +31,46 @@ const RefineStack = createNativeStackNavigator();
  * Each screen represents a step in the flow, and users can navigate
  * forward and backward through the steps.
  */
-const RefineNavigator = () => (
-  <RefineStack.Navigator 
-    screenOptions={{ 
-      headerShown: false,
-      gestureEnabled: true,
-      animation: 'slide_from_right'
-    }}
-  >
-    <RefineStack.Screen name="Areas" component={RefineAreasStep} />
-    <RefineStack.Screen name="AreasConfirm" component={RefineAreasConfirmStep} />
-    <RefineStack.Screen name="Actions" component={RefineActionsStep} />
-    <RefineStack.Screen name="ActionsConfirm" component={RefineActionsConfirmStep} />
-    <RefineStack.Screen 
-      name="ActionOccurrence" 
-      component={ActionOccurrencePage}
-      options={{ presentation: 'modal' }}
-    />
-  </RefineStack.Navigator>
-);
+const RefineNavigator = ({ route }: any) => {
+  // Get dreamId from parent route params
+  const dreamId = route?.params?.dreamId;
+  
+  return (
+    <RefineStack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        gestureEnabled: true,
+        animation: 'slide_from_right'
+      }}
+      initialRouteName="Areas"
+    >
+      <RefineStack.Screen 
+        name="Areas" 
+        component={RefineAreasStep}
+        initialParams={{ dreamId }}
+      />
+      <RefineStack.Screen 
+        name="AreasConfirm" 
+        component={RefineAreasConfirmStep}
+        initialParams={{ dreamId }}
+      />
+      <RefineStack.Screen 
+        name="Actions" 
+        component={RefineActionsStep}
+        initialParams={{ dreamId }}
+      />
+      <RefineStack.Screen 
+        name="ActionsConfirm" 
+        component={RefineActionsConfirmStep}
+        initialParams={{ dreamId }}
+      />
+      <RefineStack.Screen 
+        name="ActionOccurrence" 
+        component={ActionOccurrencePage}
+        options={{ presentation: 'modal' }}
+      />
+    </RefineStack.Navigator>
+  );
+};
 
 export default RefineNavigator;

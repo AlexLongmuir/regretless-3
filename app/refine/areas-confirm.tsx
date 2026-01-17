@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -8,9 +8,11 @@ import { useTheme } from '../../contexts/ThemeContext'
 export default function RefineAreasConfirmStep() {
   const { theme } = useTheme()
   const navigation = useNavigation<any>()
+  const route = useRoute()
 
   const handleContinue = () => {
-    navigation.navigate('Actions')
+    const { dreamId } = (route.params as { dreamId?: string }) || {}
+    navigation.navigate('Actions', { dreamId })
   }
 
   return (

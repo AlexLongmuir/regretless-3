@@ -29,8 +29,21 @@ export default function RefineActionsStep() {
   const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const route = useRoute()
-  const { dreamId } = route.params as { dreamId: string }
+  const { dreamId } = (route.params as { dreamId?: string }) || {}
   const { state, getDreamDetail } = useData()
+  
+  if (!dreamId) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16 }}>No dream ID provided</Text>
+        <Button 
+          title="Go Back" 
+          variant="secondary"
+          onPress={() => navigation.goBack()} 
+        />
+      </View>
+    )
+  }
   
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -102,7 +115,7 @@ export default function RefineActionsStep() {
       setFeedback('') // Clear feedback when moving to next area
     } else {
       // All areas completed, navigate to confirmation
-      navigation.navigate('ActionsConfirm')
+      navigation.navigate('ActionsConfirm', { dreamId })
     }
   }
 

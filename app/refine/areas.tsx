@@ -25,8 +25,21 @@ export default function RefineAreasStep() {
   const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const route = useRoute()
-  const { dreamId } = route.params as { dreamId: string }
+  const { dreamId } = (route.params as { dreamId?: string }) || {}
   const { state, getDreamDetail } = useData()
+  
+  if (!dreamId) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16 }}>No dream ID provided</Text>
+        <Button 
+          title="Go Back" 
+          variant="secondary"
+          onPress={() => navigation.goBack()} 
+        />
+      </View>
+    )
+  }
   
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -87,7 +100,7 @@ export default function RefineAreasStep() {
       // Refresh dream detail
       await getDreamDetail(dreamId, { force: true })
       
-      navigation.navigate('AreasConfirm')
+      navigation.navigate('AreasConfirm', { dreamId })
     } catch (error) {
       console.error('Failed to save areas:', error)
     } finally {

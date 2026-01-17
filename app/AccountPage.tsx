@@ -474,7 +474,7 @@ const AccountPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: 
         onClose={() => setShowFigurineSheet(false)}
         onSelect={(url) => {
           setFigurineUrl(url);
-          setShowFigurineSheet(false);
+          // Don't close the sheet - let user continue editing
         }}
       />
     </View>
