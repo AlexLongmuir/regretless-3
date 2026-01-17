@@ -27,6 +27,7 @@ const testDream: Dream = {
 const testAreas: Area[] = [
   {
     id: 'area-1',
+    user_id: 'test-user-1',
     dream_id: 'test-dream-1',
     title: 'Practice',
     icon: '🎸',
@@ -38,6 +39,7 @@ const testAreas: Area[] = [
   },
   {
     id: 'area-2',
+    user_id: 'test-user-1',
     dream_id: 'test-dream-1',
     title: 'Theory',
     icon: '📚',
