@@ -14,7 +14,7 @@ import { AreaGrid } from '../../components/AreaChips';
 import { ActionChipsList } from '../../components/ActionChipsList';
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader';
 import { useCreateDream } from '../../contexts/CreateDreamContext';
-import { upsertAreas, upsertActions } from '../../frontend-services/backend-bridge';
+import { upsertAreas, upsertActions, generateAreaImage } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { trackEvent } from '../../lib/mixpanel';
 
@@ -22,7 +22,7 @@ export default function PlanPreviewStep() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<any>();
-  const { reset, areas, actions, image_url, dreamId } = useCreateDream();
+  const { reset, areas, actions, image_url, dreamId, figurineUrl, title, setAreas, updateArea } = useCreateDream();
   const [isSaving, setIsSaving] = useState(false);
 
   // Track step view when screen is focused
@@ -54,10 +54,38 @@ export default function PlanPreviewStep() {
         };
       });
 
-      await upsertAreas({
+      const areasResponse = await upsertAreas({
         dream_id: dreamId,
         areas: areasToSend
       }, session.access_token);
+
+      // Update context with saved areas (with real IDs from database)
+      setAreas(areasResponse.areas);
+
+      // Generate area images in background (fire-and-forget)
+      // Update context when each image is generated
+      if (figurineUrl && areasResponse.areas.length > 0) {
+        areasResponse.areas.forEach((area) => {
+          if (!area.image_url) {
+            generateAreaImage(
+              figurineUrl,
+              title || 'Your Dream',
+              area.title,
+              '', // area context not available here
+              area.id,
+              session.access_token
+            ).then((response) => {
+              // Update context with generated image URL
+              if (response.success && response.data?.signed_url) {
+                updateArea(area.id, { image_url: response.data.signed_url });
+              }
+            }).catch((error) => {
+              console.error(`Failed to generate image for area ${area.title}:`, error);
+              // Silently fail - don't block user flow
+            });
+          }
+        });
+      }
 
       const actionsToSend = actions.map((action, index) => {
         const { id, ...actionWithoutId } = action;

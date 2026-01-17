@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     if (feedback && original_areas && original_areas.length > 0) {
       // Feedback-based regeneration
       const originalAreasText = original_areas.map((area: any, index: number) => 
-        `${index + 1}. ${area.title} (${area.icon})`
+        `${index + 1}. ${area.title}`
       ).join('\n')
       
       prompt = `Regenerate execution-focused areas for this dream based on user feedback:
@@ -191,7 +191,7 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       user_id: user?.id || 'temp',
       dream_id: dream_id || 'temp',
       title: area.title,
-      icon: area.emoji, // Keep for backward compatibility
+      icon: null, // Icons no longer generated - using images instead
       image_url: null, // Will be populated after image generation
       position: index + 1,
       created_at: new Date().toISOString(),

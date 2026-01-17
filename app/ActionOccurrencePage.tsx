@@ -31,7 +31,6 @@ import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { Icon } from '../components/Icon';
 import type { SkillType } from '../backend/database/types';
-import { OptionsPopover } from '../components/OptionsPopover';
 
 const SKILL_EMOJIS: Record<SkillType, string> = {
   'Fitness': '🏃',
@@ -52,6 +51,7 @@ const SKILL_EMOJIS: Record<SkillType, string> = {
   'Career': '🚀',
   'Coding': '💻',
 };
+import { OptionsPopover } from '../components/OptionsPopover';
 import { useToast } from '../components/toast/ToastProvider';
 import { SheetHeader } from '../components/SheetHeader';
 import { useData } from '../contexts/DataContext';
@@ -615,7 +615,6 @@ interface SaveActionSheetProps {
   navigation?: any;
   checkDreamCompletion?: (dreamId: string) => Promise<boolean>;
   xpGained?: number | null;
-  calculateXP?: { totalXp: number; primaryXp: number; secondaryXp: number };
 }
 
 function SaveActionSheet({
@@ -641,10 +640,9 @@ function SaveActionSheet({
   navigation,
   checkDreamCompletion,
   xpGained,
-  calculateXP,
 }: SaveActionSheetProps) {
   const { theme, isDark } = useTheme();
-  const styles = useMemo(() => createSaveSheetStyles(theme), [theme]);
+  const styles = useMemo(() => createSaveSheetStyles(theme, isDark), [theme, isDark]);
   const scrollRef = useRef<ScrollView>(null);
   const descriptionSectionRef = useRef<View>(null);
   const descriptionSectionY = useRef<number>(0);
@@ -993,47 +991,86 @@ function SaveActionSheet({
                     </View>
                       )}
                   </View>
-                    
-                    {/* XP Gained - Primary and Secondary Skills */}
-                    {(actionData?.primary_skill || params?.primarySkill) && calculateXP && calculateXP.totalXp > 0 && (
-                      <View style={[styles.xpSection, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border.default }]}>
-                        <Text style={[styles.xpSectionTitle, { marginBottom: 8 }]}>XP Gained</Text>
-                        <View style={styles.xpBreakdown}>
-                          <View style={[styles.xpItem, { backgroundColor: theme.colors.primary[50], paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, marginBottom: 6 }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Icon name="military_tech" size={16} color={theme.colors.primary[600]} />
-                              <Text style={[styles.xpSkillName, { color: theme.colors.primary[700], fontWeight: '600' }]}>
-                                {actionData?.primary_skill || params?.primarySkill}
+                  </View>
+                </View>
+
+                {/* XP Gained Section */}
+                {xpGained !== null && xpGained > 0 && (() => {
+                  const primarySkill = actionData?.primary_skill || params?.primarySkill;
+                  const secondarySkill = actionData?.secondary_skill || params?.secondarySkill;
+                  
+                  // Calculate XP allocation (70/30 split)
+                  const primaryXp = Math.round(xpGained * 0.7);
+                  const secondaryXp = xpGained - primaryXp;
+                  
+                  const skillsGained: Array<{ skill: SkillType; xp: number; isPrimary: boolean }> = [];
+                  if (primarySkill) {
+                    skillsGained.push({ skill: primarySkill as SkillType, xp: primaryXp, isPrimary: true });
+                  }
+                  if (secondarySkill) {
+                    skillsGained.push({ skill: secondarySkill as SkillType, xp: secondaryXp, isPrimary: false });
+                  }
+                  
+                  if (skillsGained.length === 0) return null;
+                  
+                  return (
+                    <View style={styles.xpGainedSection}>
+                      <Text style={styles.xpSectionTitle}>Experience Gained</Text>
+                      <View style={styles.skillsXpContainer}>
+                        {skillsGained.map((skillGain, index) => (
+                          <View
+                            key={`${skillGain.skill}-${index}`}
+                            style={[
+                              styles.skillXpCard,
+                              skillGain.isPrimary && styles.skillXpCardPrimary,
+                              isDark && styles.skillXpCardDark
+                            ]}
+                          >
+                            <View style={styles.skillXpHeader}>
+                              <Text style={styles.skillXpEmoji}>
+                                {SKILL_EMOJIS[skillGain.skill] || '⭐'}
                               </Text>
-                            </View>
-                            <Text style={[styles.xpValue, { color: theme.colors.primary[700], fontWeight: '700', fontSize: 16 }]}>
-                              +{calculateXP.primaryXp} XP
-                            </Text>
-                          </View>
-                          {(actionData?.secondary_skill || params?.secondarySkill) && (
-                            <View style={[styles.xpItem, { backgroundColor: theme.colors.secondary[50], paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }]}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Icon name="military_tech" size={16} color={theme.colors.secondary[600]} />
-                                <Text style={[styles.xpSkillName, { color: theme.colors.secondary[700], fontWeight: '600' }]}>
-                                  {actionData?.secondary_skill || params?.secondarySkill}
+                              <View style={styles.skillXpInfo}>
+                                <Text style={styles.skillXpName} numberOfLines={1}>
+                                  {skillGain.skill}
                                 </Text>
+                                {skillGain.isPrimary && (
+                                  <Text style={styles.skillXpLabel}>Primary</Text>
+                                )}
                               </View>
-                              <Text style={[styles.xpValue, { color: theme.colors.secondary[700], fontWeight: '700', fontSize: 16 }]}>
-                                +{calculateXP.secondaryXp} XP
+                            </View>
+                            <View style={[
+                              styles.skillXpBadge,
+                              skillGain.isPrimary && styles.skillXpBadgePrimary
+                            ]}>
+                              <Text style={[
+                                styles.skillXpAmount,
+                                skillGain.isPrimary && styles.skillXpAmountPrimary
+                              ]}>
+                                +{skillGain.xp}
+                              </Text>
+                              <Text style={[
+                                styles.skillXpUnit,
+                                skillGain.isPrimary && styles.skillXpUnitPrimary
+                              ]}>
+                                XP
                               </Text>
                             </View>
-                          )}
-                          <View style={[styles.xpTotal, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border.default }]}>
-                            <Text style={[styles.xpTotalLabel, { color: theme.colors.text.secondary, fontWeight: '600' }]}>Total</Text>
-                            <Text style={[styles.xpTotalValue, { color: theme.colors.text.primary, fontWeight: '700', fontSize: 18 }]}>
-                              +{calculateXP.totalXp} XP
-                            </Text>
+                          </View>
+                        ))}
+                        <View style={styles.totalXpCard}>
+                          <View style={styles.totalXpContent}>
+                            <Icon name="military_tech" size={20} color={theme.colors.primary[600]} />
+                            <View style={styles.totalXpInfo}>
+                              <Text style={styles.totalXpLabel}>Total XP</Text>
+                              <Text style={styles.totalXpAmount}>+{xpGained}</Text>
+                            </View>
                           </View>
                         </View>
                       </View>
-                    )}
-                  </View>
-                </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Submitted Content */}
                 {((artifacts.length > 0) || note.trim()) && (
@@ -1082,7 +1119,7 @@ function SaveActionSheet({
   );
 }
 
-const createSaveSheetStyles = (theme: Theme) => StyleSheet.create({
+const createSaveSheetStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1283,41 +1320,127 @@ const createSaveSheetStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 12,
     marginRight: 12,
   },
-  xpSection: {
-    width: '100%',
+  xpGainedSection: {
+    marginTop: 24,
+    marginBottom: 16,
   },
   xpSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: theme.colors.text.primary,
+    marginBottom: 16,
   },
-  xpBreakdown: {
-    width: '100%',
+  skillsXpContainer: {
+    gap: 12,
   },
-  xpItem: {
+  skillXpCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  skillXpCardPrimary: {
+    backgroundColor: theme.colors.primary[50],
+    borderColor: theme.colors.primary[200],
+  },
+  skillXpCardDark: {
+    backgroundColor: theme.colors.background.card,
+  },
+  skillXpHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
+    flex: 1,
+    marginRight: 12,
   },
-  xpSkillName: {
-    fontSize: 14,
+  skillXpEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  skillXpInfo: {
     flex: 1,
   },
-  xpValue: {
-    fontSize: 16,
+  skillXpName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 2,
   },
-  xpTotal: {
+  skillXpLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.primary[600],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  skillXpBadge: {
+    backgroundColor: theme.colors.background.pressed,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 70,
+  },
+  skillXpBadgePrimary: {
+    backgroundColor: theme.colors.primary[600],
+  },
+  skillXpAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    lineHeight: 24,
+  },
+  skillXpAmountPrimary: {
+    color: '#FFFFFF',
+  },
+  skillXpUnit: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: -2,
+  },
+  skillXpUnitPrimary: {
+    color: 'rgba(255,255,255,0.9)',
+  },
+  totalXpCard: {
+    backgroundColor: isDark ? theme.colors.background.card : theme.colors.primary[50],
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: isDark ? theme.colors.border.default : theme.colors.primary[200],
+    marginTop: 4,
+  },
+  totalXpContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
   },
-  xpTotalLabel: {
-    fontSize: 14,
+  totalXpInfo: {
+    marginLeft: 12,
+    flex: 1,
   },
-  xpTotalValue: {
-    fontSize: 18,
+  totalXpLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  totalXpAmount: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.primary[600],
   },
 });
 
@@ -1405,47 +1528,6 @@ const ActionOccurrencePage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [xpGained, setXpGained] = useState<number | null>(null);
-
-  // Calculate XP based on est_minutes, difficulty, and defer_count
-  const calculateXP = useMemo(() => {
-    const estMinutes = actionData?.est_minutes || params?.estimatedTime || 15;
-    const difficulty = actionData?.difficulty || params?.difficulty || 'easy';
-    const deferCount = occurrenceData?.defer_count || 0;
-
-    // 1. Calculate multiplier based on difficulty
-    let multiplier = 1.0;
-    switch (difficulty) {
-      case 'easy':
-        multiplier = 1.0;
-        break;
-      case 'medium':
-        multiplier = 1.3;
-        break;
-      case 'hard':
-        multiplier = 1.7;
-        break;
-    }
-
-    // 2. Base XP = clamp(round(est_minutes * multiplier), min 5, max 60)
-    let baseXp = Math.round(estMinutes * multiplier);
-    baseXp = Math.max(5, Math.min(60, baseXp));
-
-    // 3. Penalty = min(10, 2 * defer_count)
-    const penalty = Math.min(10, 2 * deferCount);
-
-    // 4. Final Total XP = max(1, base_xp - penalty)
-    const totalXp = Math.max(1, baseXp - penalty);
-
-    // 5. Allocate to skills
-    const primaryXp = Math.round(totalXp * 0.7);
-    const secondaryXp = totalXp - primaryXp;
-
-    return {
-      totalXp,
-      primaryXp,
-      secondaryXp
-    };
-  }, [actionData?.est_minutes, actionData?.difficulty, params?.estimatedTime, params?.difficulty, occurrenceData?.defer_count]);
 
   // Load artifacts when component mounts
   useEffect(() => {
@@ -2381,28 +2463,6 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               )}
             </View>
             
-            {/* XP Breakdown */}
-            {(actionData?.primary_skill || params?.primarySkill) && calculateXP && calculateXP.totalXp > 0 && (
-              <View style={{ marginTop: 12 }}>
-                <View style={styles.detailRow}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailValue}>
-                      {SKILL_EMOJIS[(actionData?.primary_skill || params?.primarySkill) as SkillType]} {actionData?.primary_skill || params?.primarySkill}: +{calculateXP.primaryXp} XP
-                    </Text>
-                  </View>
-                </View>
-                {(actionData?.secondary_skill || params?.secondarySkill) && (
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailItem}>
-                      <Text style={styles.detailValue}>
-                        {SKILL_EMOJIS[(actionData?.secondary_skill || params?.secondarySkill) as SkillType]} {actionData?.secondary_skill || params?.secondarySkill}: +{calculateXP.secondaryXp} XP
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-            
           </View>
         </View>
 
@@ -2600,7 +2660,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           formatTime={formatTime}
           navigation={navigation}
           checkDreamCompletion={checkDreamCompletion}
-          calculateXP={calculateXP}
+          xpGained={xpGained}
         />
       )}
 
@@ -2634,7 +2694,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
           formatTime={formatTime}
           navigation={navigation}
           checkDreamCompletion={checkDreamCompletion}
-          calculateXP={calculateXP}
+          xpGained={xpGained}
         />
       )}
 

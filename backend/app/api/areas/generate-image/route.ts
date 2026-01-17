@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Generate area-specific image
     console.log('🎨 Generating area-specific image...');
-    const prompt = `Make a miniature, full-body, isometric, realistic figurine of this person facing straight on with their arms down by their sides on a white background, minimal, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
+    const prompt = `Create a scene featuring this miniature figurine that represents the area: "${area_title}". ${area_context ? `Context: ${area_context}.` : ''} Adapt the figurine's outfit and pose to match the area theme. Create an appropriate background that fits the area context on a dark blue background. Make it isometric, realistic, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
     
     let generatedImageData: string;
     try {
