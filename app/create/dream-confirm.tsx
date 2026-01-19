@@ -38,7 +38,25 @@ export default function ConfirmStep() {
         throw new Error('No authentication token available')
       }
 
-      // Generate Areas
+      // Load figurine URL from profile if not in context
+      let effectiveFigurineUrl = figurineUrl;
+      if (!effectiveFigurineUrl) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+          if (profile?.figurine_url) {
+            effectiveFigurineUrl = profile.figurine_url;
+            console.log('📸 [DREAM-CONFIRM] Loaded figurine URL from profile');
+          }
+        }
+      }
+
+      // Generate Areas (this will also generate images if figurine URL is available)
+      setStatusText('Creating your focus areas and generating images...')
       const generatedAreas = await generateAreas({
         dream_id: dreamId,
         title,
@@ -47,11 +65,20 @@ export default function ConfirmStep() {
         baseline: baseline || undefined,
         obstacles: obstacles || undefined,
         enjoyment: enjoyment || undefined,
-        figurine_url: figurineUrl || undefined
+        figurine_url: effectiveFigurineUrl || undefined
       }, session.access_token)
 
       if (!generatedAreas || generatedAreas.length === 0) {
         throw new Error('No areas generated')
+      }
+
+      // Log image generation status
+      const areasWithImages = generatedAreas.filter(a => a.image_url).length
+      if (effectiveFigurineUrl) {
+        console.log(`✅ Generated ${generatedAreas.length} areas (${areasWithImages} with images)`)
+        if (areasWithImages < generatedAreas.length) {
+          console.warn(`⚠️ Some areas are missing images: ${generatedAreas.length - areasWithImages} areas without images`)
+        }
       }
 
       setAreas(generatedAreas)

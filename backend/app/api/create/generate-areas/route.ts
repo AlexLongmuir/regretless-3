@@ -55,6 +55,23 @@ export async function POST(req: Request) {
   const startTime = Date.now()
   console.log('🚀 [GENERATE-AREAS] Request received at', new Date().toISOString())
   
+  // Get the request URL for constructing baseUrl
+  const requestUrl = req.url || ''
+  let baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
+  if (!baseUrl && requestUrl) {
+    try {
+      const url = new URL(requestUrl)
+      baseUrl = `${url.protocol}//${url.host}`
+    } catch (e) {
+      // If URL parsing fails, use Vercel URL or fallback
+      baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
+    }
+  }
+  if (!baseUrl) {
+    baseUrl = 'http://localhost:3000'
+  }
+  console.log('🌐 [GENERATE-AREAS] Determined baseUrl:', baseUrl)
+  
   try {
     const token = req.headers.get('authorization')?.replace('Bearer ','')
     const user = token ? await getUser(req) : null
@@ -255,11 +272,21 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
     }
 
     // Generate images for each area if figurine_url is provided (after areas are saved with real IDs)
+    console.log('🎨 [GENERATE-AREAS] Image generation check:', { 
+      hasFigurineUrl: !!figurine_url, 
+      areasCount: savedAreas?.length || 0,
+      figurineUrl: figurine_url ? 'present' : 'missing'
+    })
     if (figurine_url && savedAreas && savedAreas.length > 0) {
-      console.log('🎨 Generating images for areas...')
-      const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
+      console.log('🎨 [GENERATE-AREAS] Generating images for areas...')
+      console.log('🎨 [GENERATE-AREAS] Using baseUrl:', baseUrl)
       
       // Generate images in parallel for better performance
+      // Add timeout wrapper to prevent hanging
+      const timeout = (ms: number) => new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Image generation timeout after ${ms}ms`)), ms)
+      )
+      
       const imagePromises = savedAreas.map(async (area: any) => {
         // Skip if area already has an image_url
         if (area.image_url) {
@@ -268,20 +295,28 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
         }
         
         try {
-          const response = await fetch(`${baseUrl}/api/areas/generate-image`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              figurine_url,
-              dream_title: title,
-              area_title: area.title,
-              area_context: '', // Context not available here
-              area_id: area.id
-            })
-          })
+          console.log(`🎨 [GENERATE-AREAS] Starting image generation for area: ${area.title} (${area.id})`)
+          const imageUrl = `${baseUrl}/api/areas/generate-image`
+          console.log(`🎨 [GENERATE-AREAS] Calling: ${imageUrl}`)
+          
+          // Add 60 second timeout per image generation
+          const response = await Promise.race([
+            fetch(imageUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                figurine_url,
+                dream_title: title,
+                area_title: area.title,
+                area_context: '', // Context not available here
+                area_id: area.id
+              })
+            }),
+            timeout(60000) // 60 second timeout
+          ]) as Response
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}))
@@ -304,31 +339,49 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
         }
       })
 
+      console.log('🎨 [GENERATE-AREAS] Waiting for all image generation to complete...')
       const imageResults = await Promise.all(imagePromises)
+      
+      const successfulImages = imageResults.filter(r => r !== null)
+      console.log(`🎨 [GENERATE-AREAS] Image generation results: ${successfulImages.length}/${savedAreas.length} successful`)
       
       // Update areas with generated image URLs in database
       for (const result of imageResults) {
         if (result) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('areas')
             .update({ image_url: result.image_url })
             .eq('id', result.areaId)
             .eq('user_id', user!.id)
+          
+          if (updateError) {
+            console.error(`❌ Failed to update area ${result.areaId} with image URL:`, updateError)
+          } else {
+            console.log(`✅ Updated area ${result.areaId} with image URL`)
+          }
         }
       }
       
       console.log('✅ Area image generation complete')
       
       // Re-fetch areas to get updated image_urls
-      const { data: updatedAreas } = await supabase
+      const { data: updatedAreas, error: fetchError } = await supabase
         .from('areas')
         .select('*')
         .eq('dream_id', dream_id)
         .is('deleted_at', null)
         .order('position')
       
-      if (updatedAreas) {
-        console.log('✅ Returning areas with generated images')
+      if (fetchError) {
+        console.error('❌ Error fetching updated areas:', fetchError)
+        // Fall back to savedAreas if fetch fails
+        console.log('✅ Returning saved areas (fetch failed)')
+        return NextResponse.json(savedAreas ?? [])
+      }
+      
+      if (updatedAreas && updatedAreas.length > 0) {
+        const areasWithImages = updatedAreas.filter(a => a.image_url).length
+        console.log(`✅ Returning ${updatedAreas.length} areas (${areasWithImages} with images)`)
         return NextResponse.json(updatedAreas)
       }
     }
