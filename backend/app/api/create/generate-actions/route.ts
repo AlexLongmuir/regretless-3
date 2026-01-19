@@ -294,6 +294,7 @@ Each action should be atomic, measurable, and bounded.`
       .from('actions')
       .select('*')
       .eq('dream_id', dream_id)
+      .in('area_id', regeneratingAreaIds)
       .is('deleted_at', null)
       .order('area_id, position')
 
