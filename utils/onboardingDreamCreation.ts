@@ -104,8 +104,8 @@ export const createDreamFromOnboardingData = async (
 
     console.log('✅ [ONBOARDING] Areas saved:', areasResponse.areas.length);
 
-    // Generate images for areas if figurine URL is available and images weren't already generated
-    if (data.figurineUrl && areasResponse.areas.length > 0) {
+    // Generate images for areas if dream image URL is available and images weren't already generated
+    if (data.dreamImageUrl && areasResponse.areas.length > 0) {
       console.log('🎨 [ONBOARDING] Generating images for areas...');
       try {
         await Promise.all(
@@ -118,10 +118,8 @@ export const createDreamFromOnboardingData = async (
             
             try {
               await generateAreaImage(
-                data.figurineUrl!,
-                dreamTitle,
+                data.dreamImageUrl!,
                 area.title,
-                '', // area context not available here
                 area.id,
                 token
               );

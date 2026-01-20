@@ -1,14 +1,15 @@
-import React, { useState, useRef } from 'react'
-import { View, Text, TouchableOpacity, Alert, Modal, TextInput, ScrollView, Platform, Keyboard } from 'react-native'
+import React, { useMemo, useRef, useState } from 'react'
+import { Alert, Keyboard, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, StyleSheet } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Button } from './Button'
 import { Input } from './Input'
 import { useData } from '../contexts/DataContext'
-import { theme } from '../utils/theme'
 import { SheetHeader } from './SheetHeader'
 import { triggerHaptic } from '../utils/haptics'
+import { useTheme } from '../contexts/ThemeContext'
+import { Theme } from '../utils/theme'
 
 interface ActionCard {
   id: string
@@ -20,6 +21,7 @@ interface ActionCard {
   acceptance_criteria?: { title: string; description: string }[]
   acceptance_intro?: string
   acceptance_outro?: string
+  area_image?: string
   dream_image?: string
   // For action occurrences
   occurrence_no?: number
@@ -78,6 +80,9 @@ export function ActionChip({
   style,
   onPress
 }: ActionChipProps) {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
+
   const handleDelete = () => {
     Alert.alert(
       'Delete Action',
@@ -182,14 +187,8 @@ export function ActionChip({
       onPress={handleMainPress}
       activeOpacity={onPress ? 0.7 : 1}
       style={[
-        {
-          backgroundColor: getStatusBackgroundColor(),
-          borderRadius: 12,
-          position: 'relative',
-          overflow: 'hidden',
-          padding: 16,
-          marginBottom: 16
-        },
+        styles.actionCard,
+        { backgroundColor: getStatusBackgroundColor() },
         style
       ]}
     >
@@ -201,18 +200,7 @@ export function ActionChip({
             triggerHaptic();
             handleDelete();
           }}
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1
-          }}
+          style={styles.removeButton}
           activeOpacity={0.7}
         >
           <Ionicons name="close" size={12} color={theme.colors.icon.default} />
@@ -221,28 +209,14 @@ export function ActionChip({
       
       {/* Reorder Buttons */}
       {showReorderButtons && !action.hideEditButtons && (
-        <View style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          flexDirection: 'column',
-          gap: 4,
-          zIndex: 1
-        }}>
+        <View style={styles.reorderContainer}>
           {!isFirst && onMoveUp && (
             <TouchableOpacity
               onPress={() => {
                 triggerHaptic();
                 onMoveUp(action.id);
               }}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                backgroundColor: theme.colors.disabled.inactiveAlt,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
+              style={styles.reorderButton}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-up" size={12} color={theme.colors.icon.default} />
@@ -254,14 +228,7 @@ export function ActionChip({
                 triggerHaptic();
                 onMoveDown(action.id);
               }}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                backgroundColor: theme.colors.disabled.inactiveAlt,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
+              style={styles.reorderButton}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-down" size={12} color={theme.colors.icon.default} />
@@ -277,166 +244,89 @@ export function ActionChip({
             triggerHaptic();
             handleEdit();
           }}
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1
-          }}
+          style={styles.editButton}
           activeOpacity={0.7}
         >
           <Ionicons name="create-outline" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
 
-      <View style={{ flexDirection: 'row', minHeight: 80, alignItems: 'center' }}>
-        {/* Left Image Section */}
-        <View style={{ width: 80, position: 'relative', marginRight: 16, height: 80 }}>
-          {action.dream_image ? (
-            isEmoji(action.dream_image) ? (
-              <View
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: theme.colors.disabled.inactiveAlt,
-                  borderRadius: 8,
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Text style={{ fontSize: 32, textAlign: 'center' }}>
-                  {action.dream_image}
-                </Text>
-              </View>
-            ) : (
-              <Image
-                source={{ uri: action.dream_image }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: 8
-                }}
-                contentFit="cover"
-                transition={200}
-              />
-            )
+      {/* Left edge image (full height, flush) */}
+      <View style={styles.leftImage}>
+        {action.area_image || action.dream_image ? (
+          isEmoji((action.area_image || action.dream_image) as string) ? (
+            <View style={styles.emojiThumb}>
+              <Text style={styles.emojiThumbText}>
+                {action.area_image || action.dream_image}
+              </Text>
+            </View>
           ) : (
-            <View
-              style={{
-                width: '100%',
-                height: '100%',
-                backgroundColor: theme.colors.disabled.inactiveAlt,
-                borderRadius: 8,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-            >
-              <Ionicons name="flag" size={24} color={theme.colors.icon.tertiary} />
+            <Image
+              source={{ uri: (action.area_image || action.dream_image) as string }}
+              style={styles.thumbImage}
+              contentFit="cover"
+              transition={200}
+            />
+          )
+        ) : (
+          <View style={styles.placeholderThumb}>
+            <Ionicons name="flag" size={24} color={theme.colors.icon.tertiary} />
+          </View>
+        )}
+        
+        {/* Due Date Overlay */}
+        {action.due_on && (
+          <View style={styles.dueOverlay}>
+            <Text style={styles.dueDay}>
+              {formatDueDate(action.due_on).day}
+            </Text>
+            <Text style={styles.dueMonth}>
+              {formatDueDate(action.due_on).month}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Right Content Section (padded) */}
+      <View style={styles.rightContent}>
+        {/* Title */}
+        <Text style={styles.actionTitle}>
+          {action.title}
+        </Text>
+
+        {/* Metadata Row */}
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={12} color={theme.colors.icon.default} style={styles.metaIcon} />
+            <Text style={styles.metaText}>
+              {formatTime(action.est_minutes || 0)}
+            </Text>
+          </View>
+          
+          <View style={styles.metaItem}>
+            <DifficultyBars difficulty={action.difficulty || 'medium'} />
+            <Text style={styles.difficultyText}>
+              {(action.difficulty || 'medium').charAt(0).toUpperCase() + (action.difficulty || 'medium').slice(1)}
+            </Text>
+          </View>
+          
+          {action.repeat_every_days && (
+            <View style={styles.metaItem}>
+              <Ionicons name="refresh-outline" size={12} color={theme.colors.icon.default} style={styles.metaIcon} />
+              <Text style={styles.metaText}>
+                {action.repeat_every_days} days
+              </Text>
             </View>
           )}
           
-          {/* Due Date Overlay */}
-          {action.due_on && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 40,
-                  fontWeight: 'bold',
-                  color: 'white',
-                  textShadowColor: 'rgba(0, 0, 0, 0.5)',
-                  textShadowOffset: { width: 0, height: 0 },
-                  textShadowRadius: 6,
-                  lineHeight: 40
-                }}
-              >
-                {formatDueDate(action.due_on).day}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: 'bold',
-                  color: 'white',
-                  textShadowColor: 'rgba(0, 0, 0, 0.5)',
-                  textShadowOffset: { width: 0, height: 0 },
-                  textShadowRadius: 6,
-                  marginTop: -8
-                }}
-              >
-                {formatDueDate(action.due_on).month}
+          {action.slice_count_target && (
+            <View style={styles.metaItem}>
+              <Ionicons name="layers-outline" size={12} color={theme.colors.icon.default} style={styles.metaIcon} />
+              <Text style={styles.metaText}>
+                {action.occurrence_no ? `${action.occurrence_no} of ${action.slice_count_target}` : `${action.slice_count_target} repeats`}
               </Text>
             </View>
           )}
-        </View>
-
-        {/* Right Content Section */}
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          {/* Title */}
-          <Text style={{ 
-            fontSize: 14, 
-            fontWeight: 'bold',
-            color: theme.colors.text.primary,
-            marginBottom: 8,
-            lineHeight: 18,
-            flexShrink: 1
-          }}>
-            {action.title}
-          </Text>
-
-          {/* Metadata Row */}
-          <View style={{ flexDirection: 'row', marginBottom: 8, gap: 12, flexWrap: 'wrap' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="time-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
-              <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
-                {formatTime(action.est_minutes || 0)}
-              </Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <DifficultyBars difficulty={action.difficulty || 'medium'} />
-              <Text style={{ 
-                fontSize: 12, 
-                color: theme.colors.text.muted,
-                fontWeight: '400',
-                marginLeft: 6
-              }}>
-                {(action.difficulty || 'medium').charAt(0).toUpperCase() + (action.difficulty || 'medium').slice(1)}
-              </Text>
-            </View>
-            
-            {action.repeat_every_days && (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="refresh-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
-                <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
-                  {action.repeat_every_days} days
-                </Text>
-              </View>
-            )}
-            
-            {action.slice_count_target && (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="layers-outline" size={12} color={theme.colors.icon.default} style={{ marginRight: 4 }} />
-                <Text style={{ fontSize: 12, color: theme.colors.text.muted }}>
-                  {action.occurrence_no ? `${action.occurrence_no} of ${action.slice_count_target}` : `${action.slice_count_target} repeats`}
-                </Text>
-              </View>
-            )}
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -444,6 +334,9 @@ export function ActionChip({
 }
 
 export function AddActionChip({ onPress, style }: AddActionChipProps) {
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
+
   const handlePress = () => {
     triggerHaptic();
     onPress();
@@ -453,21 +346,12 @@ export function AddActionChip({ onPress, style }: AddActionChipProps) {
     <TouchableOpacity
       onPress={handlePress}
       style={[
-        {
-          marginBottom: 16,
-          justifyContent: 'flex-start',
-          alignItems: 'flex-start'
-        },
+        styles.addChip,
         style
       ]}
       activeOpacity={0.7}
     >
-      <Text style={{ 
-        fontSize: 14, 
-        fontWeight: '500',
-        color: theme.colors.text.muted,
-        textAlign: 'left'
-      }}>
+      <Text style={styles.addChipText}>
         + Add Action
       </Text>
     </TouchableOpacity>
@@ -483,6 +367,9 @@ interface EditActionModalProps {
 }
 
 function EditActionModal({ visible, action, onClose, onSave }: EditActionModalProps) {
+  const { theme, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
+
   const [formData, setFormData] = useState<ActionCard>({
     id: '',
     title: '',
@@ -541,7 +428,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+      <View style={styles.modalRoot}>
         {/* Header */}
         <SheetHeader
           title="Edit Action"
@@ -557,45 +444,33 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
         >
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
+            <Text style={styles.modalLabel}>Title</Text>
             <TextInput
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
-              placeholderTextColor={theme.colors.text.placeholder}
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16,
-                color: theme.colors.text.primary
-              }}
+              placeholderTextColor={theme.colors.text.tertiary}
+              style={styles.textInput}
             />
           </View>
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
+            <Text style={styles.modalLabel}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
-              placeholderTextColor={theme.colors.text.placeholder}
+              placeholderTextColor={theme.colors.text.tertiary}
               keyboardType="numeric"
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16,
-                color: theme.colors.text.primary
-              }}
+              style={styles.textInput}
             />
           </View>
 
           {/* Difficulty */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Difficulty</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={styles.modalLabel}>Difficulty</Text>
+            <View style={styles.pillRow}>
               {(['easy', 'medium', 'hard'] as const).map((diff) => (
                 <TouchableOpacity
                   key={diff}
@@ -603,18 +478,15 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                     triggerHaptic();
                     setFormData(prev => ({ ...prev, difficulty: diff }));
                   }}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
+                  style={[
+                    styles.pill,
+                    formData.difficulty === diff ? styles.pillActive : styles.pillInactive
+                  ]}
                 >
-                  <Text style={{ 
-                    color: formData.difficulty === diff ? theme.colors.text.inverse : theme.colors.text.primary,
-                    fontWeight: '600'
-                  }}>
+                  <Text style={[
+                    styles.pillText,
+                    formData.difficulty === diff ? styles.pillTextActive : styles.pillTextInactive
+                  ]}>
                     {diff.charAt(0).toUpperCase() + diff.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -625,8 +497,8 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
           {/* Repeat Every Days */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={styles.modalLabel}>Repeat Every</Text>
+            <View style={styles.pillRow}>
               {[
                 { value: undefined, label: 'None' },
                 { value: 1, label: '1 day' },
@@ -639,21 +511,15 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                     triggerHaptic();
                     setFormData(prev => ({ ...prev, repeat_every_days: option.value }));
                   }}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.border.default
-                  }}
+                  style={[
+                    styles.pill,
+                    formData.repeat_every_days === option.value ? styles.pillActive : styles.pillInactive
+                  ]}
                 >
-                  <Text style={{ 
-                    color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
-                    fontWeight: '600',
-                    fontSize: 14
-                  }}>
+                  <Text style={[
+                    styles.pillText,
+                    formData.repeat_every_days === option.value ? styles.pillTextActive : styles.pillTextInactive
+                  ]}>
                     {option.label}
                   </Text>
                 </TouchableOpacity>
@@ -663,22 +529,16 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
 
           {/* Slice Count Target */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps (optional)</Text>
+            <Text style={styles.modalLabel}>Total Steps (optional)</Text>
             <TextInput
               value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, slice_count_target: text ? parseInt(text) : undefined }))}
               placeholder="How many times will you do this?"
-              placeholderTextColor={theme.colors.text.placeholder}
+              placeholderTextColor={theme.colors.text.tertiary}
               keyboardType="numeric"
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16,
-                color: theme.colors.text.primary
-              }}
+              style={styles.textInput}
             />
-            <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+            <Text style={styles.helpText}>
               For actions you'll complete a specific number of times (e.g., "Do this 5 times"). Leave empty for one-off or repeating actions.
             </Text>
           </View>
@@ -686,31 +546,25 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
           {/* Acceptance Criteria */}
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
+              <Text style={styles.modalLabel}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={() => {
                 triggerHaptic();
                 addCriterion();
               }}>
-                <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
+                <Text style={styles.addBulletText}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
             
             {/* Intro */}
             <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Intro (optional)</Text>
+              <Text style={styles.subLabel}>Intro (optional)</Text>
               <TextInput
                 value={formData.acceptance_intro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
                 placeholder="One sentence setting intention..."
                 multiline
-                style={{
-                  backgroundColor: theme.colors.background.card,
-                  borderRadius: 8,
-                  padding: 12,
-                  fontSize: 16,
-                  color: theme.colors.text.primary,
-                  minHeight: 44
-                }}
+                placeholderTextColor={theme.colors.text.tertiary}
+                style={[styles.textInput, styles.multilineInput]}
               />
             </View>
 
@@ -718,7 +572,7 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
             {(formData.acceptance_criteria || []).map((criterion, index) => (
               <View key={index} style={{ marginBottom: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
+                  <Text style={styles.stepLabel}>
                     Step {index + 1}
                   </Text>
                   <TouchableOpacity onPress={() => {
@@ -733,56 +587,31 @@ function EditActionModal({ visible, action, onClose, onSave }: EditActionModalPr
                   value={criterion.title}
                   onChangeText={(text) => updateCriterion(index, 'title', text)}
                   placeholder="Short title (e.g. 'Read 10 pages')"
-                  placeholderTextColor={theme.colors.text.placeholder}
-                  style={{
-                    backgroundColor: theme.colors.background.card,
-                    borderRadius: 8,
-                    padding: 12,
-                    fontSize: 14,
-                    color: theme.colors.text.primary,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border.default
-                  }}
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  style={[styles.textInput, styles.criteriaInputTitle]}
                 />
                 
                 <TextInput
                   value={criterion.description}
                   onChangeText={(text) => updateCriterion(index, 'description', text)}
                   placeholder="Description (e.g. 'Focus on understanding key concepts...')"
-                  placeholderTextColor={theme.colors.text.placeholder}
+                  placeholderTextColor={theme.colors.text.tertiary}
                   multiline
-                  style={{
-                    backgroundColor: theme.colors.background.card,
-                    borderRadius: 8,
-                    padding: 12,
-                    fontSize: 14,
-                    color: theme.colors.text.primary,
-                    minHeight: 60,
-                    textAlignVertical: 'top',
-                    borderWidth: 1,
-                    borderColor: theme.colors.border.default
-                  }}
+                  style={[styles.textInput, styles.criteriaInputDescription]}
                 />
               </View>
             ))}
 
             {/* Outro */}
             <View style={{ marginTop: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Outro (optional)</Text>
+              <Text style={styles.subLabel}>Outro (optional)</Text>
               <TextInput
                 value={formData.acceptance_outro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
                 placeholder="One sentence defining 'done'..."
                 multiline
-                style={{
-                  backgroundColor: theme.colors.background.card,
-                  borderRadius: 8,
-                  padding: 12,
-                  fontSize: 16,
-                  color: theme.colors.text.primary,
-                  minHeight: 44
-                }}
+                placeholderTextColor={theme.colors.text.tertiary}
+                style={[styles.textInput, styles.multilineInput]}
               />
             </View>
           </View>
@@ -802,6 +631,9 @@ interface AddActionModalProps {
 }
 
 export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLinkToControls }: AddActionModalProps) {
+  const { theme, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
+
   const [formData, setFormData] = useState<ActionCard>({
     id: '',
     title: '',
@@ -913,7 +745,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: theme.colors.pageBackground }}>
+      <View style={styles.modalRoot}>
         {/* Header */}
         <SheetHeader
           title="Add Action"
@@ -932,8 +764,8 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
         >
           {showLinkToControls && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Link To</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              <Text style={styles.modalLabel}>Link To</Text>
+              <View style={[styles.pillRow, { marginBottom: 12 }]}>
                 {(['inbox','choose'] as const).map((opt) => (
                   <TouchableOpacity
                     key={opt}
@@ -941,9 +773,15 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                       triggerHaptic();
                       setLinkMode(opt);
                     }}
-                    style={{ flex: 1, padding: 12, backgroundColor: linkMode === opt ? theme.colors.border.selected : theme.colors.background.card, borderRadius: 8, alignItems: 'center' }}
+                    style={[
+                      styles.pill,
+                      linkMode === opt ? styles.pillActive : styles.pillInactive
+                    ]}
                   >
-                    <Text style={{ color: linkMode === opt ? theme.colors.text.inverse : theme.colors.text.primary, fontWeight: '600' }}>
+                    <Text style={[
+                      styles.pillText,
+                      linkMode === opt ? styles.pillTextActive : styles.pillTextInactive
+                    ]}>
                       {opt === 'inbox' ? 'Inbox' : 'Choose Goal'}
                     </Text>
                   </TouchableOpacity>
@@ -952,7 +790,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
 
               {linkMode === 'choose' && (
                 <>
-                  <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 6 }}>Dream</Text>
+                  <Text style={styles.smallSectionLabel}>Dream</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                     {(state.dreamsSummary?.dreams || []).map(d => (
                       <TouchableOpacity
@@ -965,24 +803,21 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                             await getDreamDetail(d.id, { force: true })
                           }
                         }}
-                        style={{
-                          paddingVertical: 10,
-                          paddingHorizontal: 12,
-                          backgroundColor: selectedDreamId === d.id ? theme.colors.border.selected : theme.colors.background.card,
-                          borderRadius: 8,
-                          marginRight: 8,
-                          borderWidth: 1,
-                          borderColor: selectedDreamId === d.id ? theme.colors.border.selected : theme.colors.border.default
-                        }}
+                        style={[
+                          styles.chip,
+                          selectedDreamId === d.id ? styles.chipActive : styles.chipInactive
+                        ]}
                       >
-                        <Text style={{ color: selectedDreamId === d.id ? theme.colors.text.inverse : theme.colors.text.primary }}>{(d as any).title}</Text>
+                        <Text style={selectedDreamId === d.id ? styles.chipTextActive : styles.chipTextInactive}>
+                          {(d as any).title}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
 
                   {selectedDreamId && (
                     <>
-                      <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 6 }}>Area</Text>
+                      <Text style={styles.smallSectionLabel}>Area</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         {areasForSelectedDream.map(a => (
                           <TouchableOpacity
@@ -991,17 +826,14 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                               triggerHaptic();
                               setSelectedAreaId(a.id);
                             }}
-                            style={{
-                              paddingVertical: 10,
-                              paddingHorizontal: 12,
-                              backgroundColor: selectedAreaId === a.id ? theme.colors.border.selected : theme.colors.background.card,
-                              borderRadius: 8,
-                              marginRight: 8,
-                              borderWidth: 1,
-                              borderColor: selectedAreaId === a.id ? theme.colors.border.selected : theme.colors.border.default
-                            }}
+                            style={[
+                              styles.chip,
+                              selectedAreaId === a.id ? styles.chipActive : styles.chipInactive
+                            ]}
                           >
-                            <Text style={{ color: selectedAreaId === a.id ? theme.colors.text.inverse : theme.colors.text.primary }}>{a.title}</Text>
+                            <Text style={selectedAreaId === a.id ? styles.chipTextActive : styles.chipTextInactive}>
+                              {a.title}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -1013,57 +845,41 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
           )}
           {/* Title */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Title</Text>
+            <Text style={styles.modalLabel}>Title</Text>
             <TextInput
               value={formData.title}
               onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
               placeholder="Enter action title"
-              placeholderTextColor={theme.colors.text.placeholder}
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16,
-                color: theme.colors.text.primary
-              }}
+              placeholderTextColor={theme.colors.text.tertiary}
+              style={styles.textInput}
             />
           </View>
 
           {/* Duration */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Duration (minutes)</Text>
+            <Text style={styles.modalLabel}>Duration (minutes)</Text>
             <TextInput
               value={formData.est_minutes > 0 ? formData.est_minutes.toString() : ''}
               onChangeText={(text) => setFormData(prev => ({ ...prev, est_minutes: text ? parseInt(text) : 0 }))}
               placeholder="Enter duration in minutes"
-              placeholderTextColor={theme.colors.text.placeholder}
+              placeholderTextColor={theme.colors.text.tertiary}
               keyboardType="numeric"
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12,
-                fontSize: 16,
-                color: theme.colors.text.primary
-              }}
+              style={styles.textInput}
             />
           </View>
 
           {/* Due Date */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Due Date</Text>
+            <Text style={styles.modalLabel}>Due Date</Text>
             <TouchableOpacity
               onPress={() => {
                 triggerHaptic();
                 Keyboard.dismiss();
                 setShowDatePicker(true);
               }}
-              style={{
-                backgroundColor: theme.colors.background.card,
-                borderRadius: 8,
-                padding: 12
-              }}
+              style={styles.textInput}
             >
-              <Text style={{ fontSize: 16, color: theme.colors.text.primary }}>
+              <Text style={styles.dateText}>
                 {dueDate.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
@@ -1083,7 +899,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   }}
                   minimumDate={new Date()}
                   maximumDate={dreamEndDate ? new Date(dreamEndDate) : undefined}
-                  themeVariant="light"
+                  themeVariant={isDark ? 'dark' : 'light'}
                 />
                 {Platform.OS === 'ios' && (
                   <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 }}>
@@ -1092,14 +908,9 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                         triggerHaptic();
                         setShowDatePicker(false);
                       }}
-                      style={{
-                        backgroundColor: '#000',
-                        paddingHorizontal: 20,
-                        paddingVertical: 10,
-                        borderRadius: 8
-                      }}
+                      style={styles.datePickerDoneButton}
                     >
-                      <Text style={{ color: 'white', fontWeight: '600' }}>Done</Text>
+                      <Text style={styles.datePickerDoneText}>Done</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1110,32 +921,25 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
           {/* Acceptance Criteria */}
           <View style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>Acceptance Criteria</Text>
+              <Text style={styles.modalLabel}>Acceptance Criteria</Text>
               <TouchableOpacity onPress={() => {
                 triggerHaptic();
                 addCriterion();
               }}>
-                <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>+ Add Bullet</Text>
+                <Text style={styles.addBulletText}>+ Add Bullet</Text>
               </TouchableOpacity>
             </View>
             
             {/* Intro */}
             <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Intro (optional)</Text>
+              <Text style={styles.subLabel}>Intro (optional)</Text>
               <TextInput
                 value={formData.acceptance_intro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_intro: text || undefined }))}
                 placeholder="One sentence setting intention..."
-                placeholderTextColor={theme.colors.text.placeholder}
                 multiline
-                style={{
-                  backgroundColor: theme.colors.background.card,
-                  borderRadius: 8,
-                  padding: 12,
-                  fontSize: 16,
-                  color: theme.colors.text.primary,
-                  minHeight: 44
-                }}
+                placeholderTextColor={theme.colors.text.tertiary}
+                style={[styles.textInput, styles.multilineInput]}
               />
             </View>
 
@@ -1143,7 +947,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
             {(formData.acceptance_criteria || []).map((criterion, index) => (
               <View key={index} style={{ marginBottom: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.text.primary, marginRight: 8 }}>
+                  <Text style={styles.stepLabel}>
                     Step {index + 1}
                   </Text>
                   <TouchableOpacity onPress={() => {
@@ -1158,65 +962,39 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   value={criterion.title}
                   onChangeText={(text) => updateCriterion(index, 'title', text)}
                   placeholder="Short title (e.g. 'Read 10 pages')"
-                  placeholderTextColor={theme.colors.text.placeholder}
-                  style={{
-                    backgroundColor: theme.colors.background.card,
-                    borderRadius: 8,
-                    padding: 12,
-                    fontSize: 14,
-                    color: theme.colors.text.primary,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border.default
-                  }}
+                  placeholderTextColor={theme.colors.text.tertiary}
+                  style={[styles.textInput, styles.criteriaInputTitle]}
                 />
                 
                 <TextInput
                   value={criterion.description}
                   onChangeText={(text) => updateCriterion(index, 'description', text)}
                   placeholder="Description (e.g. 'Focus on understanding key concepts...')"
-                  placeholderTextColor={theme.colors.text.placeholder}
+                  placeholderTextColor={theme.colors.text.tertiary}
                   multiline
-                  style={{
-                    backgroundColor: theme.colors.background.card,
-                    borderRadius: 8,
-                    padding: 12,
-                    fontSize: 14,
-                    color: theme.colors.text.primary,
-                    minHeight: 60,
-                    textAlignVertical: 'top',
-                    borderWidth: 1,
-                    borderColor: theme.colors.border.default
-                  }}
+                  style={[styles.textInput, styles.criteriaInputDescription]}
                 />
               </View>
             ))}
 
             {/* Outro */}
             <View style={{ marginTop: 12 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 4, color: theme.colors.text.muted }}>Outro (optional)</Text>
+              <Text style={styles.subLabel}>Outro (optional)</Text>
               <TextInput
                 value={formData.acceptance_outro || ''}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, acceptance_outro: text || undefined }))}
                 placeholder="One sentence defining 'done'..."
-                placeholderTextColor={theme.colors.text.placeholder}
                 multiline
-                style={{
-                  backgroundColor: theme.colors.background.card,
-                  borderRadius: 8,
-                  padding: 12,
-                  fontSize: 16,
-                  color: theme.colors.text.primary,
-                  minHeight: 44
-                }}
+                placeholderTextColor={theme.colors.text.tertiary}
+                style={[styles.textInput, styles.multilineInput]}
               />
             </View>
           </View>
 
           {/* Action Type */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Action Type</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={styles.modalLabel}>Action Type</Text>
+            <View style={styles.pillRow}>
               {[
                 { value: 'one-off' as const, label: 'One-off' },
                 { value: 'repeating' as const, label: 'Repeating' },
@@ -1231,19 +1009,15 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                       setFormData(prev => ({ ...prev, repeat_every_days: undefined, slice_count_target: undefined }));
                     }
                   }}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: actionType === option.value ? '#000' : 'white',
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
+                  style={[
+                    styles.pill,
+                    actionType === option.value ? styles.pillActive : styles.pillInactive
+                  ]}
                 >
-                  <Text style={{ 
-                    color: actionType === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
-                    fontWeight: '600',
-                    fontSize: 14
-                  }}>
+                  <Text style={[
+                    styles.pillText,
+                    actionType === option.value ? styles.pillTextActive : styles.pillTextInactive
+                  ]}>
                     {option.label}
                   </Text>
                 </TouchableOpacity>
@@ -1254,8 +1028,8 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
           {/* Repeat Every Days - shown only when repeating */}
           {actionType === 'repeating' && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Repeat Every</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Text style={styles.modalLabel}>Repeat Every</Text>
+              <View style={styles.pillRow}>
                 {[
                   { value: 1, label: '1 day' },
                   { value: 2, label: '2 days' },
@@ -1270,19 +1044,15 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                         repeat_every_days: option.value as 1 | 2 | 3
                       }));
                     }}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      backgroundColor: formData.repeat_every_days === option.value ? theme.colors.border.selected : theme.colors.background.card,
-                      borderRadius: 8,
-                      alignItems: 'center'
-                    }}
+                    style={[
+                      styles.pill,
+                      formData.repeat_every_days === option.value ? styles.pillActive : styles.pillInactive
+                    ]}
                   >
-                    <Text style={{ 
-                      color: formData.repeat_every_days === option.value ? theme.colors.text.inverse : theme.colors.text.primary,
-                      fontWeight: '600',
-                      fontSize: 14
-                    }}>
+                    <Text style={[
+                      styles.pillText,
+                      formData.repeat_every_days === option.value ? styles.pillTextActive : styles.pillTextInactive
+                    ]}>
                       {option.label}
                     </Text>
                   </TouchableOpacity>
@@ -1294,7 +1064,7 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
           {/* Total Steps - shown only when finite */}
           {actionType === 'finite' && (
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Total Steps</Text>
+              <Text style={styles.modalLabel}>Total Steps</Text>
               <TextInput
                 value={formData.slice_count_target ? formData.slice_count_target.toString() : ''}
                 onChangeText={(text) => {
@@ -1310,17 +1080,11 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                   }));
                 }}
                 placeholder="How many times will you do this?"
-                placeholderTextColor={theme.colors.text.placeholder}
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="numeric"
-                style={{
-                  backgroundColor: theme.colors.background.card,
-                  borderRadius: 8,
-                  padding: 12,
-                  fontSize: 16,
-                  color: theme.colors.text.primary
-                }}
+                style={styles.textInput}
               />
-              <Text style={{ fontSize: 12, color: theme.colors.text.muted, marginTop: 4 }}>
+              <Text style={styles.helpText}>
                 For actions you'll complete a specific number of times (e.g., "Do this 5 times")
               </Text>
             </View>
@@ -1328,8 +1092,8 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
 
           {/* Difficulty */}
           <View style={{ marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Difficulty</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text style={styles.modalLabel}>Difficulty</Text>
+            <View style={styles.pillRow}>
               {(['easy', 'medium', 'hard'] as const).map((diff) => (
                 <TouchableOpacity
                   key={diff}
@@ -1337,18 +1101,15 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
                     triggerHaptic();
                     setFormData(prev => ({ ...prev, difficulty: diff }));
                   }}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: formData.difficulty === diff ? theme.colors.border.selected : theme.colors.background.card,
-                    borderRadius: 8,
-                    alignItems: 'center'
-                  }}
+                  style={[
+                    styles.pill,
+                    formData.difficulty === diff ? styles.pillActive : styles.pillInactive
+                  ]}
                 >
-                  <Text style={{ 
-                    color: formData.difficulty === diff ? theme.colors.text.inverse : theme.colors.text.primary,
-                    fontWeight: '600'
-                  }}>
+                  <Text style={[
+                    styles.pillText,
+                    formData.difficulty === diff ? styles.pillTextActive : styles.pillTextInactive
+                  ]}>
                     {diff.charAt(0).toUpperCase() + diff.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -1360,6 +1121,289 @@ export function AddActionModal({ visible, onClose, onSave, dreamEndDate, showLin
     </Modal>
   )
 }
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  actionCard: {
+    borderRadius: 12,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 16,
+    height: 100,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+  },
+  reorderContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'column',
+    gap: 4,
+    zIndex: 1,
+  },
+  reorderButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+  },
+  editButton: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+  },
+  row: {
+    flexDirection: 'row',
+    minHeight: 100,
+    alignItems: 'center',
+  },
+  leftImage: {
+    width: 100,
+    alignSelf: 'stretch',
+    position: 'relative',
+  },
+  thumbImage: {
+    width: 100,
+    height: '100%',
+  },
+  emojiThumb: {
+    width: 100,
+    height: '100%',
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emojiThumbText: {
+    fontSize: 32,
+    textAlign: 'center',
+    color: theme.colors.text.primary,
+  },
+  placeholderThumb: {
+    width: 100,
+    height: '100%',
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dueOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dueDay: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: theme.colors.text.inverse,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+    lineHeight: 40,
+  },
+  dueMonth: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text.inverse,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
+    marginTop: -8,
+  },
+  rightContent: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+  },
+  actionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 8,
+    lineHeight: 18,
+    flexWrap: 'wrap',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    gap: 12,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaIcon: {
+    marginRight: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    color: theme.colors.text.muted,
+  },
+  difficultyText: {
+    fontSize: 12,
+    color: theme.colors.text.muted,
+    fontWeight: '400',
+    marginLeft: 6,
+  },
+  addChip: {
+    marginBottom: 16,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  addChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text.muted,
+    textAlign: 'left',
+  },
+  modalRoot: {
+    flex: 1,
+    backgroundColor: theme.colors.background.page,
+  },
+  modalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: theme.colors.text.primary,
+  },
+  smallSectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: theme.colors.text.primary,
+  },
+  subLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+    color: theme.colors.text.muted,
+  },
+  helpText: {
+    fontSize: 12,
+    color: theme.colors.text.muted,
+    marginTop: 4,
+  },
+  addBulletText: {
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  stepLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginRight: 8,
+  },
+  textInput: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: theme.colors.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    minHeight: 44,
+  },
+  dateText: {
+    fontSize: 16,
+    color: theme.colors.text.primary,
+  },
+  multilineInput: {
+    minHeight: 44,
+  },
+  criteriaInputTitle: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  criteriaInputDescription: {
+    fontSize: 14,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pill: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  pillActive: {
+    backgroundColor: theme.colors.border.selected,
+    borderColor: theme.colors.border.selected,
+  },
+  pillInactive: {
+    backgroundColor: theme.colors.background.card,
+    borderColor: theme.colors.border.default,
+  },
+  pillText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  pillTextActive: {
+    color: theme.colors.text.inverse,
+  },
+  pillTextInactive: {
+    color: theme.colors.text.primary,
+  },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 1,
+  },
+  chipActive: {
+    backgroundColor: theme.colors.border.selected,
+    borderColor: theme.colors.border.selected,
+  },
+  chipInactive: {
+    backgroundColor: theme.colors.background.card,
+    borderColor: theme.colors.border.default,
+  },
+  chipTextActive: {
+    color: theme.colors.text.inverse,
+  },
+  chipTextInactive: {
+    color: theme.colors.text.primary,
+  },
+  datePickerDoneButton: {
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  datePickerDoneText: {
+    color: theme.colors.text.inverse,
+    fontWeight: '600',
+  },
+})
 
 // Main ActionChipsList component
 export function ActionChipsList({ actions, onEdit, onRemove, onAdd, onReorder, onPress, style, dreamEndDate, showAddButton = true }: ActionChipsListProps) {

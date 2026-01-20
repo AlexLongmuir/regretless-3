@@ -5,8 +5,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../utils/theme';
 import { Button } from '../../components/Button';
@@ -17,12 +20,13 @@ import { useCreateDream } from '../../contexts/CreateDreamContext';
 import { upsertAreas, upsertActions, generateAreaImage } from '../../frontend-services/backend-bridge';
 import { supabaseClient } from '../../lib/supabaseClient';
 import { trackEvent } from '../../lib/mixpanel';
+import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation';
 
 export default function PlanPreviewStep() {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const navigation = useNavigation<any>();
-  const { reset, areas, actions, image_url, dreamId, figurineUrl, title, setAreas, updateArea } = useCreateDream();
+  const { reset, areas, actions, image_url, dreamId, title, setAreas, updateArea } = useCreateDream();
   const [isSaving, setIsSaving] = useState(false);
 
   // Track step view when screen is focused
@@ -33,13 +37,7 @@ export default function PlanPreviewStep() {
   );
 
   const handleContinue = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:35',message:'handleContinue called',data:{dreamId,figurineUrlFromContext:figurineUrl,areasCount:areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!dreamId) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:37',message:'handleContinue early return - no dreamId',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return;
     }
 
@@ -48,32 +46,6 @@ export default function PlanPreviewStep() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) {
         throw new Error('No authentication token available');
-      }
-
-      // Load figurine URL from profile if not in context
-      let effectiveFigurineUrl = figurineUrl;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:48',message:'Before profile lookup',data:{figurineUrlFromContext:figurineUrl,effectiveFigurineUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      if (!effectiveFigurineUrl) {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:51',message:'Profile lookup started',data:{hasUser:!!user,userId:user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        if (user) {
-          const { data: profile } = await supabaseClient
-            .from('profiles')
-            .select('figurine_url')
-            .eq('user_id', user.id)
-            .single();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:57',message:'Profile lookup result',data:{hasProfile:!!profile,hasFigurineUrl:!!profile?.figurine_url,figurineUrl:profile?.figurine_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-          if (profile?.figurine_url) {
-            effectiveFigurineUrl = profile.figurine_url;
-            console.log('📸 [PLAN-PREVIEW] Loaded figurine URL from profile');
-          }
-        }
       }
 
       // Save areas and actions to database before scheduling
@@ -94,39 +66,24 @@ export default function PlanPreviewStep() {
       // Update context with saved areas (with real IDs from database)
       setAreas(areasResponse.areas);
 
-      // Generate area images in background (fire-and-forget)
+      // Generate area images in background (fire-and-forget) if dream image is available
       // Update context when each image is generated
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:82',message:'After upsertAreas - checking image generation',data:{hasEffectiveFigurineUrl:!!effectiveFigurineUrl,areasCount:areasResponse.areas.length,effectiveFigurineUrl,areasWithImages:areasResponse.areas.filter(a=>a.image_url).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       console.log('🎨 [PLAN-PREVIEW] Checking area image generation:', { 
-        hasFigurineUrl: !!effectiveFigurineUrl, 
-        areasCount: areasResponse.areas.length,
-        effectiveFigurineUrl 
+        hasDreamImageUrl: !!image_url, 
+        areasCount: areasResponse.areas.length
       });
       
-      if (effectiveFigurineUrl && areasResponse.areas.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:90',message:'Image generation condition passed',data:{effectiveFigurineUrl,areasCount:areasResponse.areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
+      if (image_url && areasResponse.areas.length > 0) {
         console.log('🎨 [PLAN-PREVIEW] Starting area image generation for', areasResponse.areas.length, 'areas');
         areasResponse.areas.forEach((area) => {
           if (!area.image_url) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:93',message:'Calling generateAreaImage',data:{areaId:area.id,areaTitle:area.title,hasEffectiveFigurineUrl:!!effectiveFigurineUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             console.log(`🎨 [PLAN-PREVIEW] Generating image for area: ${area.title} (${area.id})`);
             generateAreaImage(
-              effectiveFigurineUrl,
-              title || 'Your Dream',
+              image_url,
               area.title,
-              '', // area context not available here
               area.id,
               session.access_token
             ).then((response) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:103',message:'generateAreaImage success',data:{areaId:area.id,areaTitle:area.title,success:response.success,hasSignedUrl:!!response.data?.signed_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-              // #endregion
               console.log(`✅ [PLAN-PREVIEW] Image generated for area ${area.title}:`, response);
               // Update context with generated image URL
               if (response.success && response.data?.signed_url) {
@@ -134,25 +91,16 @@ export default function PlanPreviewStep() {
                 console.log(`✅ [PLAN-PREVIEW] Updated area ${area.title} with image URL`);
               }
             }).catch((error) => {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:109',message:'generateAreaImage error',data:{areaId:area.id,areaTitle:area.title,error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-              // #endregion
               console.error(`❌ [PLAN-PREVIEW] Failed to generate image for area ${area.title}:`, error);
               // Silently fail - don't block user flow
             });
           } else {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:114',message:'Area already has image, skipping',data:{areaId:area.id,areaTitle:area.title,imageUrl:area.image_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             console.log(`⏭️ [PLAN-PREVIEW] Area ${area.title} already has image, skipping`);
           }
         });
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'plan-preview.tsx:117',message:'Image generation condition failed',data:{hasEffectiveFigurineUrl:!!effectiveFigurineUrl,areasCount:areasResponse.areas.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         console.log('⚠️ [PLAN-PREVIEW] Skipping area image generation:', { 
-          hasFigurineUrl: !!effectiveFigurineUrl, 
+          hasDreamImageUrl: !!image_url, 
           areasCount: areasResponse.areas.length 
         });
       }
@@ -230,88 +178,135 @@ export default function PlanPreviewStep() {
 
   return (
     <View style={styles.container}>
-      <CreateScreenHeader step="plan-preview" onReset={reset} />
-      
-      <ScrollView 
-        style={styles.content} 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.title}>
-          Dream created! Here's your plan
-        </Text>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <CreateScreenHeader step="plan-preview" onReset={reset} />
+        
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Dream Image */}
+          {image_url && (
+            <View style={styles.dreamImageContainer}>
+              <Image
+                source={{ uri: image_url }}
+                style={styles.dreamImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            </View>
+          )}
 
-        <Text style={styles.subtitle}>
-          We've organized your goal into {areas.length} focus areas and generated {actions.length} initial actions.
-        </Text>
+          <Text style={styles.title}>
+            Dream created! Here's your plan
+          </Text>
 
-        {/* Areas Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Focus Areas</Text>
-          <AreaGrid
-            areas={areaSuggestions}
-            onEdit={() => {}} 
-            onRemove={() => {}}
-            onAdd={() => {}}
-            showAddButton={false}
-            showEditButtons={false}
-            showRemoveButtons={false}
-            title=""
+          <Text style={styles.subtitle}>
+            {areas.length > 0 
+              ? `We've organized your goal into ${areas.length} focus area${areas.length > 1 ? 's' : ''}${actions.length > 0 ? ` and generated ${actions.length} initial action${actions.length > 1 ? 's' : ''}` : ''}.`
+              : 'Generating your plan...'
+            }
+          </Text>
+
+          {/* Areas Section */}
+          {areas.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Focus Areas</Text>
+              <AreaGrid
+                areas={areaSuggestions}
+                onEdit={() => {}} 
+                onRemove={() => {}}
+                onAdd={() => {}}
+                showAddButton={false}
+                showEditButtons={false}
+                showRemoveButtons={false}
+                title=""
+              />
+            </View>
+          ) : (
+            <View style={styles.loadingSection}>
+              <ActivityIndicator size="large" color={isDark ? theme.colors.text.primary : theme.colors.text.inverse} />
+              <Text style={styles.loadingText}>Generating focus areas...</Text>
+            </View>
+          )}
+
+          {/* Top Actions Section */}
+          {topActions.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Top Actions</Text>
+              <ActionChipsList
+                actions={topActions as any}
+                onEdit={() => {}}
+                onRemove={() => {}}
+                onAdd={() => {}}
+                showAddButton={false}
+              />
+            </View>
+          ) : areas.length > 0 && (
+            <View style={styles.loadingSection}>
+              <ActivityIndicator size="large" color={isDark ? theme.colors.text.primary : theme.colors.text.inverse} />
+              <Text style={styles.loadingText}>Generating actions...</Text>
+            </View>
+          )}
+
+        </ScrollView>
+        
+        <View style={styles.footer}>
+          <Button 
+            title="Continue"
+            variant="inverse"
+            onPress={handleContinue}
+            loading={isSaving}
+            disabled={areas.length === 0}
+            style={styles.button}
           />
         </View>
-
-        {/* Top Actions Section */}
-        {topActions.length > 0 && (
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Top Actions</Text>
-                <ActionChipsList
-                    actions={topActions as any}
-                    onEdit={() => {}}
-                    onRemove={() => {}}
-                    onAdd={() => {}}
-                    showAddButton={false}
-                />
-            </View>
-        )}
-
-      </ScrollView>
-      
-      <View style={styles.footer}>
-        <Button 
-          title="Continue"
-          variant="black"
-          onPress={handleContinue}
-          loading={isSaving}
-          style={styles.button}
-        />
-      </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.page,
+    backgroundColor: 'transparent',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
     paddingBottom: 100,
   },
+  dreamImageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.background.card,
+    marginBottom: theme.spacing.lg,
+  },
+  dreamImage: {
+    width: '100%',
+    height: '100%',
+  },
   title: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title2,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.text.primary,
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
     fontSize: 16,
-    color: theme.colors.text.secondary,
+    color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+    opacity: isDark ? 1 : 0.85,
     marginBottom: 24,
     lineHeight: 22,
   },
@@ -321,15 +316,28 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
     marginBottom: 12,
   },
+  loadingSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    marginBottom: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+    opacity: isDark ? 1 : 0.85,
+    marginTop: 16,
+  },
   footer: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: theme.colors.background.page,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+    backgroundColor: 'transparent',
   },
   button: {
     borderRadius: theme.radius.xl,
+    width: '100%',
   },
 });

@@ -1,13 +1,13 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { Modal, View, Text, StyleSheet, ScrollView, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { BlurView } from 'expo-blur';
 import { useTheme } from '../contexts/ThemeContext';
 import { Theme } from '../utils/theme';
 import { SheetHeader } from './SheetHeader';
 import { Icon } from './Icon';
+import { SegmentedControl } from './SegmentedControl';
 import { supabaseClient } from '../lib/supabaseClient';
 import { SkillType } from '../backend/database/types';
 
@@ -20,28 +20,38 @@ interface SkillData {
   skill: SkillType;
   xp: number;
   level: number;
-  emoji: string;
+  iconName: string;
   levelUpThisWeek: boolean;
 }
 
-const SKILL_EMOJIS: Record<SkillType, string> = {
-  'Fitness': '🏃',
-  'Strength': '💪',
-  'Nutrition': '🥗',
-  'Writing': '✍️',
-  'Learning': '📚',
-  'Languages': '🗣️',
-  'Music': '🎵',
-  'Creativity': '🎨',
-  'Business': '💼',
-  'Marketing': '📢',
-  'Sales': '💰',
-  'Mindfulness': '🧘',
-  'Communication': '💬',
-  'Finance': '💳',
-  'Travel': '✈️',
-  'Career': '🚀',
-  'Coding': '💻',
+interface BeforeAfterSkillData extends SkillData {
+  beforeXp: number;
+  beforeLevel: number;
+}
+
+interface ProjectedSkillData extends SkillData {
+  projectedXp: number;
+  projectedLevel: number;
+}
+
+const SKILL_ICONS: Record<SkillType, string> = {
+  'Fitness': 'directions_run',
+  'Strength': 'fitness_center',
+  'Nutrition': 'restaurant',
+  'Writing': 'edit',
+  'Learning': 'school',
+  'Languages': 'language',
+  'Music': 'music_note',
+  'Creativity': 'palette',
+  'Business': 'business',
+  'Marketing': 'campaign',
+  'Sales': 'attach_money',
+  'Mindfulness': 'self_improvement',
+  'Communication': 'chat',
+  'Finance': 'account_balance_wallet',
+  'Travel': 'flight',
+  'Career': 'work',
+  'Coding': 'code',
 };
 
 const ALL_SKILLS: SkillType[] = [
@@ -56,19 +66,65 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  const [selectedTab, setSelectedTab] = useState<'current' | 'beforeAfter' | 'end2025'>('current');
   const [skillsData, setSkillsData] = useState<SkillData[]>([]);
+  const [beforeAfterData, setBeforeAfterData] = useState<BeforeAfterSkillData[]>([]);
+  const [projectedData, setProjectedData] = useState<ProjectedSkillData[]>([]);
   const [overallLevel, setOverallLevel] = useState(1);
   const [totalXp, setTotalXp] = useState(0);
   const [loading, setLoading] = useState(true);
   const [figurineUrl, setFigurineUrl] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string>('User');
+  const [userCreatedAt, setUserCreatedAt] = useState<Date | null>(null);
+
+  const calculateXpForOccurrence = ({
+    estMinutes,
+    difficulty,
+    deferCount,
+  }: {
+    estMinutes?: number | null;
+    difficulty?: 'easy' | 'medium' | 'hard' | string | null;
+    deferCount?: number | null;
+  }) => {
+    // Mirrors `migrations/add_skills_and_xp.sql` calculate_xp_on_completion()
+    const minutes = estMinutes ?? 15;
+    const diff = (difficulty ?? 'easy') as string;
+
+    const multiplier =
+      diff === 'easy' ? 1.0 :
+      diff === 'medium' ? 1.3 :
+      diff === 'hard' ? 1.7 :
+      1.0;
+
+    let baseXp = Math.round(minutes * multiplier);
+    if (baseXp < 5) baseXp = 5;
+    if (baseXp > 60) baseXp = 60;
+
+    const penalty = Math.min(10, 2 * (deferCount ?? 0));
+    const finalXp = Math.max(1, baseXp - penalty);
+
+    const primaryXp = Math.round(finalXp * 0.7);
+    const secondaryXp = finalXp - primaryXp;
+
+    return { finalXp, primaryXp, secondaryXp };
+  };
 
   // Background image
   const getBackgroundImageUrl = () => {
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) return null;
+    const fallbackUrl =
+      'https://cqzutvspbsspgtmcdqyp.supabase.co/storage/v1/object/public/achievement-images/SkillsBackground.png';
+    if (!supabaseUrl) return fallbackUrl;
     return `${supabaseUrl}/storage/v1/object/public/achievement-images/SkillsBackground.png`;
   };
   const backgroundImageUrl = getBackgroundImageUrl();
+
+  // Prefetch background image
+  useEffect(() => {
+    if (backgroundImageUrl) {
+      Image.prefetch(backgroundImageUrl);
+    }
+  }, [backgroundImageUrl]);
 
   useEffect(() => {
     if (visible) {
@@ -81,16 +137,22 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       setLoading(true);
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.access_token) return;
+      setUserDisplayName(session.user.email?.split('@')[0] || 'User');
 
-      // Load user figurine
+      // Load user profile (figurine and creation date)
       const { data: profile, error: profileError } = await supabaseClient
         .from('profiles')
-        .select('figurine_url')
+        .select('figurine_url, created_at')
         .eq('user_id', session.user.id)
         .single();
 
-      if (!profileError && profile?.figurine_url) {
-        setFigurineUrl(profile.figurine_url);
+      if (!profileError && profile) {
+        if (profile.figurine_url) {
+          setFigurineUrl(profile.figurine_url);
+        }
+        if (profile.created_at) {
+          setUserCreatedAt(new Date(profile.created_at));
+        }
       }
 
       const { data: xpData, error } = await supabaseClient
@@ -167,7 +229,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
           skill,
           xp,
           level: currentLevel,
-          emoji: SKILL_EMOJIS[skill],
+          iconName: SKILL_ICONS[skill],
           levelUpThisWeek
         };
       });
@@ -186,10 +248,129 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       setTotalXp(total);
       setOverallLevel(Math.floor(Math.sqrt(total / 50)) + 1);
 
+      // Load Before/After data
+      await loadBeforeAfterData(session.user.id, processedData);
+
+      // Load Projected data
+      await loadProjectedData(session.user.id, processedData);
+
     } catch (error) {
       console.error('Error loading skills data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBeforeAfterData = async (userId: string, currentData: SkillData[]) => {
+    try {
+      // Day 1 baseline: Level 1 with 0 XP for every skill.
+      const beforeAfter: BeforeAfterSkillData[] = ALL_SKILLS.map(skill => {
+        const current = currentData.find(d => d.skill === skill) || currentData[0];
+        const beforeXp = 0;
+        const beforeLevel = 1;
+
+        return {
+          ...current,
+          beforeXp,
+          beforeLevel,
+        };
+      });
+
+      // Sort same as current
+      beforeAfter.sort((a, b) => {
+        if (b.level !== a.level) return b.level - a.level;
+        if (b.xp !== a.xp) return b.xp - a.xp;
+        return a.skill.localeCompare(b.skill);
+      });
+
+      setBeforeAfterData(beforeAfter);
+    } catch (error) {
+      console.error('Error loading before/after data:', error);
+    }
+  };
+
+  const loadProjectedData = async (userId: string, currentData: SkillData[]) => {
+    try {
+      // Final-tab projection: "If you finished everything currently scheduled in your existing (non-archived) dreams"
+      // 1) Try to scope to non-archived dreams. If this returns nothing (or errors), fall back to "all incomplete occurrences".
+      let dreamIds: string[] | null = null;
+      try {
+        const { data: dreams, error: dreamsError } = await supabaseClient
+          .from('dreams')
+          .select('id')
+          .eq('user_id', userId)
+          .is('archived_at', null);
+
+        if (!dreamsError && dreams) {
+          dreamIds = dreams.map((d: any) => d?.id).filter(Boolean);
+        }
+      } catch {
+        dreamIds = null;
+      }
+
+      const baseOccQuery = supabaseClient
+        .from('action_occurrences')
+        .select(`
+          id,
+          dream_id,
+          defer_count,
+          completed_at,
+          actions!inner(
+            primary_skill,
+            secondary_skill,
+            est_minutes,
+            difficulty
+          )
+        `)
+        .eq('user_id', userId)
+        .is('completed_at', null);
+
+      const { data: incompleteOccurrences, error: occError } =
+        dreamIds && dreamIds.length > 0
+          ? await baseOccQuery.in('dream_id', dreamIds)
+          : await baseOccQuery;
+
+      if (occError) throw occError;
+
+      const remainingXpBySkill = new Map<SkillType, number>();
+      (incompleteOccurrences || []).forEach((occ: any) => {
+        const action = Array.isArray(occ.actions) ? occ.actions[0] : occ.actions;
+        if (!action) return;
+
+        const { primaryXp, secondaryXp } = calculateXpForOccurrence({
+          estMinutes: action.est_minutes,
+          difficulty: action.difficulty,
+          deferCount: occ.defer_count,
+        });
+
+        if (action.primary_skill) {
+          const skill = action.primary_skill as SkillType;
+          remainingXpBySkill.set(skill, (remainingXpBySkill.get(skill) || 0) + primaryXp);
+        }
+        if (action.secondary_skill) {
+          const skill = action.secondary_skill as SkillType;
+          remainingXpBySkill.set(skill, (remainingXpBySkill.get(skill) || 0) + secondaryXp);
+        }
+      });
+
+      const projected: ProjectedSkillData[] = ALL_SKILLS.map(skill => {
+        const current = currentData.find(d => d.skill === skill) || currentData[0];
+        const projectedXp = Math.max(0, current.xp + (remainingXpBySkill.get(skill) || 0));
+        const projectedLevel = Math.floor(Math.sqrt(projectedXp / 50)) + 1;
+
+        return { ...current, projectedXp, projectedLevel };
+      });
+
+      // Sort same as current
+      projected.sort((a, b) => {
+        if (b.projectedLevel !== a.projectedLevel) return b.projectedLevel - a.projectedLevel;
+        if (b.projectedXp !== a.projectedXp) return b.projectedXp - a.projectedXp;
+        return a.skill.localeCompare(b.skill);
+      });
+
+      setProjectedData(projected);
+    } catch (error) {
+      console.error('Error loading projected data:', error);
     }
   };
 
@@ -220,6 +401,213 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
   };
 
   const overallProgress = getXpForNextLevel(totalXp);
+  const overallSegments = 25;
+  const filledSegments = Math.max(
+    0,
+    Math.min(overallSegments, Math.floor((overallProgress.percent / 100) * overallSegments))
+  );
+  const overallRemainingXp = Math.max(0, Math.round(overallProgress.total - overallProgress.progress));
+
+  // Figurine sizing (match AccountPage sizing approach)
+  const screenWidth = Dimensions.get('window').width;
+  const contentWidth = screenWidth - theme.spacing.lg * 2;
+  const figurineSize = Math.min(contentWidth * 0.7, 300);
+
+  // Get icon color based on level (white for all levels now)
+  const getIconColorForLevel = (level: number, hasXp: boolean): string => {
+    return theme.colors.icon.inverse;
+  };
+
+  // Calculate overall stats for each view
+  const getOverallStats = () => {
+    if (selectedTab === 'current') {
+      return { level: overallLevel, xp: totalXp };
+    } else if (selectedTab === 'beforeAfter') {
+      const beforeTotal = beforeAfterData.reduce((sum, item) => sum + item.beforeXp, 0);
+      const beforeLevel = Math.floor(Math.sqrt(beforeTotal / 50)) + 1;
+      return { level: overallLevel, xp: totalXp, beforeLevel, beforeXp: beforeTotal };
+    } else {
+      const projectedTotal = projectedData.reduce((sum, item) => sum + item.projectedXp, 0);
+      const projectedLevel = Math.floor(Math.sqrt(projectedTotal / 50)) + 1;
+      return { level: projectedLevel, xp: projectedTotal, isProjected: true };
+    }
+  };
+
+  const currentOverallStats = getOverallStats();
+  const currentOverallProgress = getXpForNextLevel(currentOverallStats.xp);
+  const currentOverallRemainingXp = Math.max(0, Math.round(currentOverallProgress.total - currentOverallProgress.progress));
+  const currentOverallXpDeltaText =
+    selectedTab === 'beforeAfter'
+      ? `${0} XP → ${currentOverallStats.xp.toLocaleString()} XP`
+      : '';
+
+  // Render skill row for current view
+  const renderCurrentSkillRow = (skillItem: SkillData) => {
+    const hasXp = skillItem.xp > 0;
+    return (
+      <View 
+        key={skillItem.skill} 
+        style={[
+          styles.skillRow,
+          !hasXp && styles.skillRowEmpty
+        ]}
+      >
+        <View style={styles.skillHeaderRow}>
+          <View style={styles.skillHeaderLeft}>
+            <View style={styles.skillIconContainer}>
+              <Icon
+                name={skillItem.iconName}
+                size={18}
+                color={getIconColorForLevel(skillItem.level, hasXp)}
+              />
+            </View>
+            <Text
+              style={[styles.skillName, !hasXp && styles.skillNameEmpty]}
+              numberOfLines={1}
+            >
+              {skillItem.skill}
+            </Text>
+          </View>
+
+          <View style={styles.skillHeaderRight}>
+            {skillItem.levelUpThisWeek && (
+              <Icon
+                name="arrow_upward"
+                size={16}
+                color={theme.colors.icon.inverse}
+                style={styles.levelUpIcon}
+              />
+            )}
+            <Text style={[styles.skillLevelText, !hasXp && styles.skillLevelTextEmpty]}>
+              {skillItem.level}
+            </Text>
+          </View>
+        </View>
+
+        {hasXp && (() => {
+          const skillProgress = getXpForNextLevel(skillItem.xp);
+          return (
+            <View style={styles.skillProgressWrap}>
+              <View style={styles.skillBarBg}>
+                <View style={[styles.skillBarFill, { width: `${skillProgress.percent}%` }]} />
+              </View>
+            </View>
+          );
+        })()}
+      </View>
+    );
+  };
+
+  // Render skill row for before/after view
+  const renderBeforeAfterSkillRow = (skillItem: BeforeAfterSkillData) => {
+    const hasXp = skillItem.xp > 0 || skillItem.beforeXp > 0;
+    const levelChanged = skillItem.level !== skillItem.beforeLevel;
+    return (
+      <View 
+        key={skillItem.skill} 
+        style={[
+          styles.skillRow,
+          !hasXp && styles.skillRowEmpty
+        ]}
+      >
+        <View style={styles.skillHeaderRow}>
+          <View style={styles.skillHeaderLeft}>
+            <View style={styles.skillIconContainer}>
+              <Icon
+                name={skillItem.iconName}
+                size={18}
+                color={getIconColorForLevel(skillItem.level, hasXp || skillItem.beforeXp > 0)}
+              />
+            </View>
+            <Text
+              style={[styles.skillName, !hasXp && styles.skillNameEmpty]}
+              numberOfLines={1}
+            >
+              {skillItem.skill}
+            </Text>
+          </View>
+
+          <View style={styles.skillHeaderRight}>
+            {levelChanged && (
+              <Icon
+                name="arrow_upward"
+                size={16}
+                color={theme.colors.icon.inverse}
+                style={styles.levelUpIcon}
+              />
+            )}
+            <View style={styles.beforeAfterLevelContainer}>
+              <Text style={[styles.skillLevelText, !skillItem.beforeXp && styles.skillLevelTextEmpty, styles.beforeLevel]}>
+                {skillItem.beforeLevel}
+              </Text>
+              <Text style={styles.beforeAfterArrow}>→</Text>
+              <Text style={[styles.skillLevelText, !skillItem.xp && styles.skillLevelTextEmpty]}>
+                {skillItem.level}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {hasXp && (
+          <View style={styles.beforeAfterXpContainer}>
+            <Text style={styles.beforeAfterXpText}>
+              {skillItem.beforeXp} XP → {skillItem.xp} XP
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Render skill row for projected view
+  const renderProjectedSkillRow = (skillItem: ProjectedSkillData) => {
+    const hasXp = skillItem.xp > 0 || skillItem.projectedXp > 0;
+    return (
+      <View 
+        key={skillItem.skill} 
+        style={[
+          styles.skillRow,
+          !hasXp && styles.skillRowEmpty,
+          styles.projectedRow
+        ]}
+      >
+        <View style={styles.skillHeaderRow}>
+          <View style={styles.skillHeaderLeft}>
+            <View style={styles.skillIconContainer}>
+              <Icon
+                name={skillItem.iconName}
+                size={18}
+                color={getIconColorForLevel(skillItem.projectedLevel, hasXp)}
+              />
+            </View>
+            <Text
+              style={[styles.skillName, !hasXp && styles.skillNameEmpty]}
+              numberOfLines={1}
+            >
+              {skillItem.skill}
+            </Text>
+          </View>
+
+          <View style={styles.skillHeaderRight}>
+            <Text style={[styles.skillLevelText, !hasXp && styles.skillLevelTextEmpty]}>
+              {skillItem.projectedLevel}
+            </Text>
+          </View>
+        </View>
+
+        {hasXp && (() => {
+          const skillProgress = getXpForNextLevel(skillItem.projectedXp);
+          return (
+            <View style={styles.skillProgressWrap}>
+              <View style={styles.skillBarBg}>
+                <View style={[styles.skillBarFill, { width: `${skillProgress.percent}%` }]} />
+              </View>
+            </View>
+          );
+        })()}
+      </View>
+    );
+  };
 
   return (
     <Modal 
@@ -237,121 +625,167 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
             contentFit="cover"
             cachePolicy="disk"
             transition={0}
+            priority="high"
           />
         )}
         
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <SheetHeader onClose={onClose} title="Skills & Levels" />
+          <SheetHeader onClose={onClose} title="Skills & Levels" titleColor={theme.colors.text.inverse} />
+          
+          <SegmentedControl
+            options={['Current', 'Day 1 → Now', 'Dream You']}
+            selectedIndex={selectedTab === 'current' ? 0 : selectedTab === 'beforeAfter' ? 1 : 2}
+            onSelect={(index) => {
+              if (index === 0) setSelectedTab('current');
+              else if (index === 1) setSelectedTab('beforeAfter');
+              else setSelectedTab('end2025');
+            }}
+          />
           
           <ScrollView 
             style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop:
+                  selectedTab === 'beforeAfter'
+                    ? theme.spacing.lg
+                    : figurineUrl
+                      ? Math.max(figurineSize / 2, theme.spacing.lg)
+                      : theme.spacing.lg,
+              }
+            ]}
             showsVerticalScrollIndicator={false}
           >
-            {/* Figurine Image */}
-            {figurineUrl && (
-              <View style={styles.figurineContainer}>
-                <Image
-                  source={{ uri: figurineUrl }}
-                  style={styles.figurineImage}
-                  contentFit="cover"
-                  cachePolicy="disk"
-                />
+            {selectedTab === 'beforeAfter' && (
+              <View style={styles.dayNowCard}>
+                <View style={styles.dayNowRow}>
+                  <View style={styles.dayNowSide}>
+                    <Text style={styles.dayNowLabel}>Day 1</Text>
+                    <View style={styles.dayNowImageWrapper}>
+                      <View style={styles.dayNowPlaceholder}>
+                        <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.dayNowSide}>
+                    <Text style={styles.dayNowLabel}>Now</Text>
+                    <View style={styles.dayNowImageWrapper}>
+                      {figurineUrl ? (
+                        <Image
+                          source={{ uri: figurineUrl }}
+                          style={styles.dayNowImage}
+                          contentFit="cover"
+                          cachePolicy="disk"
+                        />
+                      ) : (
+                        <View style={styles.dayNowPlaceholder}>
+                          <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
               </View>
             )}
 
-            {/* Overall Level Card */}
-            <View style={styles.overallCard}>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelNumber}>{overallLevel}</Text>
-                <Text style={styles.levelLabel}>LEVEL</Text>
-              </View>
-              
-              <View style={styles.overallStats}>
-                <Text style={styles.overallTitle}>Overall Progress</Text>
-                <Text style={styles.xpText}>{totalXp} Total XP</Text>
-                
-                <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: `${overallProgress.percent}%` }]} />
+            {/* Profile + Overall Progress Card (figurine overlaps) */}
+            <View style={styles.profileCard}>
+              {selectedTab !== 'beforeAfter' && figurineUrl && (
+                <View
+                  style={[
+                    styles.profileFigurineWrap,
+                    {
+                      width: figurineSize,
+                      height: figurineSize,
+                      marginLeft: -figurineSize / 2,
+                      top: -figurineSize / 2,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: figurineUrl }}
+                    style={[styles.figurineImage, { width: figurineSize, height: figurineSize }]}
+                    contentFit="cover"
+                    cachePolicy="disk"
+                  />
                 </View>
-                <Text style={styles.nextLevelText}>
-                  {Math.round(overallProgress.total - overallProgress.progress)} XP to Level {overallLevel + 1}
+              )}
+
+              <View
+                style={[
+                  styles.profileCardInner,
+                  {
+                    paddingTop:
+                      selectedTab === 'beforeAfter'
+                        ? theme.spacing.md
+                        : figurineUrl
+                          ? figurineSize / 2 + theme.spacing.md
+                          : theme.spacing.md,
+                  },
+                ]}
+              >
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {userDisplayName}
                 </Text>
+
+                <View style={styles.levelBadgeRow}>
+                  <View style={[
+                    styles.levelBadgePill,
+                    currentOverallStats.isProjected && styles.levelBadgePillProjected,
+                    currentOverallStats.level === 2 && styles.levelBadgePillLevel2
+                  ]}>
+                    {selectedTab === 'beforeAfter' && currentOverallStats.beforeLevel !== undefined ? (
+                      <Text style={[
+                        styles.levelBadgePillText,
+                        currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
+                      ]}>
+                        Level {currentOverallStats.beforeLevel} → {currentOverallStats.level}
+                      </Text>
+                    ) : (
+                      <Text style={[
+                        styles.levelBadgePillText,
+                        currentOverallStats.isProjected && styles.levelBadgePillTextProjected,
+                        currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
+                      ]}>
+                        {currentOverallStats.isProjected ? 'Dream You: ' : ''}Level {currentOverallStats.level}
+                      </Text>
+                    )}
+                  </View>
+                  {selectedTab !== 'beforeAfter' && (
+                    <Text style={styles.totalXpText}>
+                      {currentOverallStats.xp.toLocaleString()} XP earned
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.profileProgressWrap}>
+                  {selectedTab === 'beforeAfter' ? (
+                    <Text style={styles.overallXpDeltaText}>{currentOverallXpDeltaText}</Text>
+                  ) : (
+                    <>
+                      <View style={styles.skillBarBg}>
+                        <View style={[styles.skillBarFill, { width: `${currentOverallProgress.percent}%` }]} />
+                      </View>
+                      <Text style={styles.nextLevelText}>
+                        <Text style={styles.nextLevelXpBold}>{currentOverallRemainingXp} XP</Text> to Level {currentOverallStats.level + 1}
+                      </Text>
+                    </>
+                  )}
+                </View>
               </View>
             </View>
 
-            {/* Skills Grid */}
-            <Text style={styles.sectionTitle}>Your Skills</Text>
-            
             {loading ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>Loading skills...</Text>
               </View>
             ) : (
-              <View style={styles.skillsGrid}>
-                {skillsData.map((skillItem) => {
-                  const progress = getXpForNextLevel(skillItem.xp);
-                  const hasXp = skillItem.xp > 0;
-                  return (
-                    <View 
-                      key={skillItem.skill} 
-                      style={[
-                        styles.skillCard,
-                        !hasXp && styles.skillCardEmpty
-                      ]}
-                    >
-                      <View style={styles.skillHeader}>
-                        <View style={styles.skillNameRow}>
-                          <Text style={styles.skillEmoji}>{skillItem.emoji}</Text>
-                          <Text 
-                            style={[
-                              styles.skillName, 
-                              !hasXp && styles.skillNameEmpty
-                            ]} 
-                            numberOfLines={1}
-                          >
-                            {skillItem.skill}
-                          </Text>
-                        </View>
-                        <View style={styles.skillLevelRow}>
-                          {skillItem.levelUpThisWeek && (
-                            <Icon 
-                              name="arrow_upward" 
-                              size={14} 
-                              color={theme.colors.success[500]} 
-                              style={styles.levelUpIcon}
-                            />
-                          )}
-                          <View style={[
-                            styles.skillLevelBadge,
-                            !hasXp && styles.skillLevelBadgeEmpty
-                          ]}>
-                            <Text style={[
-                              styles.skillLevelText,
-                              !hasXp && styles.skillLevelTextEmpty
-                            ]}>
-                              {skillItem.level}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.skillProgressContainer}>
-                        <View style={styles.miniProgressBarBg}>
-                          {hasXp && (
-                            <View style={[styles.miniProgressBarFill, { width: `${progress.percent}%` }]} />
-                          )}
-                        </View>
-                        <Text style={[
-                          styles.skillXpText,
-                          !hasXp && styles.skillXpTextEmpty
-                        ]}>
-                          {skillItem.xp} XP
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
+              <View style={styles.skillsList}>
+                {selectedTab === 'current' && skillsData.map(renderCurrentSkillRow)}
+                {selectedTab === 'beforeAfter' && beforeAfterData.map(renderBeforeAfterSkillRow)}
+                {selectedTab === 'end2025' && projectedData.map(renderProjectedSkillRow)}
               </View>
             )}
             
@@ -368,7 +802,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
 const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: isDark ? theme.colors.background.page : '#F3F4F6',
+    backgroundColor: theme.colors.background.page,
   },
   backgroundImage: {
     position: 'absolute',
@@ -378,7 +812,7 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     bottom: 0,
     width: '100%',
     height: '100%',
-    opacity: 0.1,
+    opacity: 1,
   },
   safeArea: {
     flex: 1,
@@ -391,193 +825,262 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     paddingBottom: 40,
   },
   
-  // Figurine
-  figurineContainer: {
+  // Profile / Overall (new layout)
+  profileCard: {
+    width: '100%',
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.xl,
+    paddingTop: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+    overflow: 'visible',
+  },
+  profileFigurineWrap: {
+    position: 'absolute',
+    left: '50%',
+    zIndex: 2,
+  },
+  profileCardInner: {
+    width: '100%',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-    marginTop: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+  },
+  levelBadgeRow: {
+    width: '100%',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  levelBadgePill: {
+    backgroundColor: theme.colors.background.pressed,
+    borderRadius: 999,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  levelBadgePillLevel2: {
+    backgroundColor: theme.colors.success[700],
+    borderColor: theme.colors.success[800],
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+  },
+  levelBadgePillProjected: {
+    backgroundColor: theme.colors.success[700],
+    borderColor: theme.colors.success[800],
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+  },
+  levelBadgePillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.text.primary,
+  },
+  levelBadgePillTextLevel2: {
+    color: theme.colors.text.inverse,
+    fontSize: 26,
+  },
+  levelBadgePillTextProjected: {
+    color: theme.colors.text.inverse,
+    fontSize: 26,
+  },
+  totalXpText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+  },
+  profileProgressWrap: {
+    width: '100%',
+    gap: theme.spacing.md,
   },
   figurineImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: isDark ? theme.colors.border.default : 'rgba(0,0,0,0.1)',
-  },
-  
-  // Overall Card
-  overallCard: {
-    flexDirection: 'row',
-    backgroundColor: isDark ? theme.colors.background.card : '#FFFFFF',
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.xl,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: isDark ? theme.colors.border.default : 'rgba(0,0,0,0.05)',
-  },
-  levelBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.primary[600],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.lg,
-    shadowColor: theme.colors.primary[600],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  levelNumber: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    lineHeight: 36,
-  },
-  levelLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
-    letterSpacing: 1,
-  },
-  overallStats: {
-    flex: 1,
-  },
-  overallTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-    marginBottom: 4,
-  },
-  xpText: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
-    marginBottom: 12,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-    borderRadius: 4,
-    width: '100%',
+    borderRadius: theme.radius.lg,
     overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: theme.colors.primary[500],
-    borderRadius: 4,
+    borderWidth: 0,
   },
   nextLevelText: {
     fontSize: 12,
     color: theme.colors.text.tertiary,
-    textAlign: 'right',
+    textAlign: 'center',
+  },
+  nextLevelXpBold: {
+    fontWeight: '700',
+  },
+  overallXpDeltaText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
   },
 
-  // Skills Grid
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
+  // Skills list
+  skillsList: {
+    gap: 10,
   },
-  skillsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  skillCard: {
-    width: '48%', // Roughly 2 columns with gap
-    backgroundColor: isDark ? theme.colors.background.card : '#FFFFFF',
+  skillRow: {
+    width: '100%',
+    backgroundColor: 'transparent',
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: isDark ? theme.colors.border.default : 'rgba(0,0,0,0.05)',
+    borderWidth: 0,
   },
-  skillHeader: {
+  skillRowEmpty: {
+    opacity: 0.65,
+  },
+  skillHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+    marginBottom: 10,
   },
-  skillNameRow: {
+  skillHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8,
-    gap: 6,
+    gap: 8,
   },
-  skillEmoji: {
-    fontSize: 18,
+  skillIconContainer: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skillName: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: theme.colors.text.inverse,
     flex: 1,
   },
-  skillLevelRow: {
+  skillNameEmpty: {
+    color: theme.colors.text.inverse,
+    opacity: 0.5,
+  },
+  skillHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   levelUpIcon: {
     marginRight: 2,
   },
-  skillLevelBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.colors.background.pressed,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   skillLevelText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.text.primary,
+    color: theme.colors.text.inverse,
   },
-  skillProgressContainer: {
+  skillLevelTextEmpty: {
+    color: theme.colors.text.inverse,
+    opacity: 0.5,
+  },
+  skillProgressWrap: {
     width: '100%',
+    gap: theme.spacing.md,
   },
-  miniProgressBarBg: {
-    height: 4,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-    borderRadius: 2,
+  skillBarBg: {
+    height: 8,
+    backgroundColor: theme.colors.background.pressed,
+    borderRadius: 4,
     width: '100%',
     overflow: 'hidden',
-    marginBottom: 4,
   },
-  miniProgressBarFill: {
+  skillBarFill: {
     height: '100%',
-    backgroundColor: theme.colors.success[500],
-    borderRadius: 2,
+    backgroundColor: theme.colors.grey[600],
+    borderRadius: 4,
   },
   skillXpText: {
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.text.tertiary,
     textAlign: 'right',
   },
-  skillCardEmpty: {
-    opacity: 0.6,
-  },
-  skillNameEmpty: {
-    color: theme.colors.text.tertiary,
-  },
-  skillLevelBadgeEmpty: {
-    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-  },
-  skillLevelTextEmpty: {
-    color: theme.colors.text.tertiary,
-  },
   skillXpTextEmpty: {
     color: theme.colors.text.tertiary,
+  },
+  
+  // Before/After specific styles
+  beforeAfterLevelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  beforeLevel: {
+    opacity: 0.6,
+    color: theme.colors.text.inverse,
+  },
+  beforeAfterArrow: {
+    fontSize: 14,
+    color: theme.colors.text.inverse,
+    opacity: 0.7,
+    marginHorizontal: 2,
+  },
+  beforeAfterXpContainer: {
+    marginTop: 8,
+  },
+  beforeAfterXpText: {
+    fontSize: 12,
+    color: theme.colors.text.inverse,
+    opacity: 0.7,
+  },
+  
+  // Projected row style
+  projectedRow: {
+    opacity: 0.9,
+  },
+
+  // Day 1 -> Now (top card): Before/After images (no divider)
+  dayNowCard: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    marginBottom: theme.spacing.lg,
+  },
+  dayNowRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  dayNowSide: {
+    flex: 1,
+    gap: theme.spacing.sm,
+  },
+  dayNowLabel: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text.inverse,
+    textAlign: 'center',
+  },
+  dayNowImageWrapper: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.disabled.inactive,
+    borderWidth: 0,
+  },
+  dayNowImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dayNowPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.disabled.inactive,
   },
   
   // Empty State

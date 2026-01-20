@@ -13,13 +13,15 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { CreateFlowBackground } from '../components/create/CreateFlowBackground';
 
 // Import create flow screens
 import TitleStep from '../app/create/index';
 import CreateFigurineStep from '../app/create/create-figurine';
-import PersonalizeStep from '../app/create/personalize';
+import PersonalizeBaselineStep from '../app/create/personalize-baseline';
+import PersonalizeObstaclesStep from '../app/create/personalize-obstacles';
+import PersonalizeEnjoymentStep from '../app/create/personalize-enjoyment';
 import TimeCommitmentStep from '../app/create/time-commitment';
-import QuestionsStep from '../app/create/questions';
 import GoalFeasibilityStep from '../app/create/goal-feasibility';
 import TimelineFeasibilityStep from '../app/create/timeline-feasibility';
 import DreamConfirmStep from '../app/create/dream-confirm';
@@ -38,17 +40,20 @@ const CreateStack = createNativeStackNavigator();
  * forward and backward through the steps.
  */
 const CreateNavigator = () => (
-  <CreateStack.Navigator 
-    screenOptions={{ 
-      headerShown: false,
-      gestureEnabled: true,
-      animation: 'slide_from_right'
-    }}
-  >
+  <CreateFlowBackground>
+    <CreateStack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        gestureEnabled: true,
+        animation: 'slide_from_right',
+        contentStyle: { backgroundColor: 'transparent' }
+      }}
+    >
     <CreateStack.Screen name="Title" component={TitleStep} />
     <CreateStack.Screen name="CreateFigurine" component={CreateFigurineStep} />
-    <CreateStack.Screen name="Questions" component={QuestionsStep} />
-    <CreateStack.Screen name="Personalize" component={PersonalizeStep} />
+    <CreateStack.Screen name="PersonalizeBaseline" component={PersonalizeBaselineStep} />
+    <CreateStack.Screen name="PersonalizeObstacles" component={PersonalizeObstaclesStep} />
+    <CreateStack.Screen name="PersonalizeEnjoyment" component={PersonalizeEnjoymentStep} />
     <CreateStack.Screen name="GoalFeasibility" component={GoalFeasibilityStep} />
     <CreateStack.Screen name="TimeCommitment" component={TimeCommitmentStep} />
     <CreateStack.Screen name="TimelineFeasibility" component={TimelineFeasibilityStep} />
@@ -61,6 +66,7 @@ const CreateNavigator = () => (
       options={{ presentation: 'modal' }}
     />
   </CreateStack.Navigator>
+  </CreateFlowBackground>
 );
 
 export default CreateNavigator;

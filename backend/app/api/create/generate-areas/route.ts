@@ -271,13 +271,31 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
       return NextResponse.json({ error: 'Failed to retrieve saved areas' }, { status: 500 })
     }
 
-    // Generate images for each area if figurine_url is provided (after areas are saved with real IDs)
+    // Fetch the dream's image_url to use as reference for area images
+    let dream_image_url: string | null = null
+    if (dream_id && !isOnboarding) {
+      const { data: dream, error: dreamError } = await supabase
+        .from('dreams')
+        .select('image_url')
+        .eq('id', dream_id)
+        .eq('user_id', user!.id)
+        .single()
+      
+      if (!dreamError && dream?.image_url) {
+        dream_image_url = dream.image_url
+        console.log('🎨 [GENERATE-AREAS] Found dream image URL for area generation')
+      } else {
+        console.log('⚠️ [GENERATE-AREAS] Dream image not found, skipping area image generation')
+      }
+    }
+
+    // Generate images for each area if dream_image_url is available (after areas are saved with real IDs)
     console.log('🎨 [GENERATE-AREAS] Image generation check:', { 
-      hasFigurineUrl: !!figurine_url, 
+      hasDreamImageUrl: !!dream_image_url, 
       areasCount: savedAreas?.length || 0,
-      figurineUrl: figurine_url ? 'present' : 'missing'
+      dreamImageUrl: dream_image_url ? 'present' : 'missing'
     })
-    if (figurine_url && savedAreas && savedAreas.length > 0) {
+    if (dream_image_url && savedAreas && savedAreas.length > 0) {
       console.log('🎨 [GENERATE-AREAS] Generating images for areas...')
       console.log('🎨 [GENERATE-AREAS] Using baseUrl:', baseUrl)
       
@@ -308,10 +326,8 @@ Please create the appropriate number of orthogonal, stage-based areas (2-6) that
                 'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
-                figurine_url,
-                dream_title: title,
+                dream_image_url,
                 area_title: area.title,
-                area_context: '', // Context not available here
                 area_id: area.id
               })
             }),

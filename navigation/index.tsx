@@ -280,8 +280,8 @@ const TabNavigator = ({ navigation, route }: any) => {
           options={{
             title: 'Account',
             tabBarIcon: Platform.select({
-              ios: () => ({ sfSymbol: 'person' }),
-              android: () => MaterialIcons.getImageSourceSync('person', 24),
+              ios: () => ({ sfSymbol: 'person.fill' }),
+              android: () => MaterialIcons.getImageSourceSync('account-circle', 24),
             }),
           }}
           listeners={{
@@ -422,7 +422,8 @@ const MainNavigator = ({
           options={{ presentation: 'fullScreenModal' }}
         />
       </MainStack.Navigator>
-      <DailyWelcomeContainer />
+      {/* TEMP: disabled daily welcome message */}
+      {/* <DailyWelcomeContainer /> */}
       <AchievementListener />
     </View>
   );

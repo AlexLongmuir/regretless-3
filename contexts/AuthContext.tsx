@@ -64,9 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Log auth state changes for debugging (remove in production)
   React.useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:66',message:'Auth state updated',data:{isAuthenticated:auth.isAuthenticated,loading:auth.loading,userId:auth.user?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     console.log('AuthProvider - Auth state updated:', {
       isAuthenticated: auth.isAuthenticated,
       loading: auth.loading,
@@ -76,9 +73,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Mixpanel Identification
     if (auth.isAuthenticated && auth.user?.id) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AuthContext.tsx:75',message:'User authenticated',data:{userId:auth.user.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       identifyUser(auth.user.id);
       // Update Session Replay user identifier when user authenticates
       identifySessionReplay(auth.user.id);

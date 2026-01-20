@@ -99,6 +99,8 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
   const [showImageOptions, setShowImageOptions] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
   const [localAreas, setLocalAreas] = useState<Area[]>([]);
+  const [figurineUrl, setFigurineUrl] = useState<string | null>(null);
+  const [isLoadingFigurine, setIsLoadingFigurine] = useState(false);
   const optionsButtonRef = useRef<View>(null);
 
   // Get data directly from state - no intermediate state needed
@@ -115,6 +117,40 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
       setLocalAreas(areas);
     }
   }, [areas]);
+
+  // Load user's figurine from profile
+  useEffect(() => {
+    const loadUserFigurine = async () => {
+      try {
+        setIsLoadingFigurine(true);
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+
+          if (!error && profile?.figurine_url) {
+            setFigurineUrl(profile.figurine_url);
+            // Prefetch the image for faster loading
+            Image.prefetch(profile.figurine_url).catch(() => {
+              // Silently fail - image will load normally
+            });
+          } else {
+            setFigurineUrl(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user figurine:', error);
+        setFigurineUrl(null);
+      } finally {
+        setIsLoadingFigurine(false);
+      }
+    };
+
+    loadUserFigurine();
+  }, []);
 
   // Check if we're loading detail data (areas, history sections)
   // Main content can render with just dreamData, so we only need to wait for detailData
@@ -1051,6 +1087,59 @@ const DreamPage: React.FC<DreamPageProps> = ({ route, navigation }) => {
             />
           )}
 
+          {/* Before/After Section */}
+          {(figurineUrl || dreamData?.image_url) && (
+            <View style={styles.beforeAfterContainer}>
+              <View style={styles.beforeAfterHeader}>
+                <Text style={styles.beforeAfterTitle}>Your Journey</Text>
+              </View>
+              <View style={styles.beforeAfterImages}>
+                {/* Before (Figurine) */}
+                <View style={styles.beforeContainer}>
+                  <Text style={styles.beforeAfterLabel}>Before</Text>
+                  <View style={styles.beforeAfterImageWrapper}>
+                    {isLoadingFigurine ? (
+                      <View style={styles.beforeAfterImageSkeleton} />
+                    ) : figurineUrl ? (
+                      <Image
+                        source={{ uri: figurineUrl }}
+                        style={styles.beforeAfterImage}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                    ) : (
+                      <View style={styles.beforeAfterPlaceholder}>
+                        <Ionicons name="person-outline" size={32} color={theme.colors.text.tertiary} />
+                      </View>
+                    )}
+                  </View>
+                </View>
+                
+                {/* Divider */}
+                <View style={styles.beforeAfterDivider} />
+                
+                {/* After (Dream Image) */}
+                <View style={styles.afterContainer}>
+                  <Text style={styles.beforeAfterLabel}>After</Text>
+                  <View style={styles.beforeAfterImageWrapper}>
+                    {dreamData?.image_url ? (
+                      <Image
+                        source={{ uri: dreamData.image_url }}
+                        style={styles.beforeAfterImage}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                    ) : (
+                      <View style={styles.beforeAfterPlaceholder}>
+                        <Ionicons name="image-outline" size={32} color={theme.colors.text.tertiary} />
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* Progress Photos Section */}
           {isLoadingDetailData ? (
             <View style={styles.progressPhotosSkeleton}>
@@ -1776,6 +1865,64 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     aspectRatio: 1,
     backgroundColor: theme.colors.disabled.inactive,
     borderRadius: theme.radius.md,
+  },
+  beforeAfterContainer: {
+    marginBottom: theme.spacing.lg,
+  },
+  beforeAfterHeader: {
+    marginBottom: theme.spacing.md,
+  },
+  beforeAfterTitle: {
+    fontSize: theme.typography.fontSize.title3,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.text.primary,
+  },
+  beforeAfterImages: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+  },
+  beforeContainer: {
+    flex: 1,
+  },
+  afterContainer: {
+    flex: 1,
+  },
+  beforeAfterLabel: {
+    fontSize: theme.typography.fontSize.caption1,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+    textAlign: 'center',
+  },
+  beforeAfterImageWrapper: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.disabled.inactive,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  beforeAfterImage: {
+    width: '100%',
+    height: '100%',
+  },
+  beforeAfterPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.disabled.inactive,
+  },
+  beforeAfterDivider: {
+    width: 1,
+    backgroundColor: theme.colors.border.default,
+    marginVertical: 0,
+  },
+  beforeAfterImageSkeleton: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.colors.disabled.inactive,
   },
 });
 

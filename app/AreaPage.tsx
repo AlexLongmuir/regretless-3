@@ -127,6 +127,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
               repeat_every_days: action.repeat_every_days,
               slice_count_target: action.slice_count_target,
               acceptance_criteria: normalizedCriteria,
+              area_image: areaImageUrl,
               dream_image: dreamData.dream?.image_url,
               // Occurrence-specific fields
               occurrence_no: occurrence.occurrence_no,
@@ -521,7 +522,7 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={styles.container}>
         {/* Header Overlay */}
         <View style={styles.headerOverlay} pointerEvents="box-none">
@@ -545,14 +546,14 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           </SafeAreaView>
         </View>
 
-        {/* ScrollView with Emoji and Content */}
+        {/* ScrollView with Image and Content */}
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-          {/* Area Image/Emoji - scrolls with content */}
-          <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
+          {/* Background Image - scrolls with content */}
+          <View style={[styles.imageBackground, { height: emojiHeight, width: emojiWidth }]}>
             {areaImageUrl ? (
               <Image
                 source={{ uri: areaImageUrl }}
-                style={styles.areaImage}
+                style={styles.backgroundImage}
                 contentFit="cover"
               />
             ) : (
@@ -561,7 +562,10 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
           </View>
 
           {/* Dream Title */}
-          <Pressable onPress={() => navigation?.navigate?.('Dream', { dreamId })}>
+          <Pressable
+            onPress={() => navigation?.navigate?.('Dream', { dreamId })}
+            style={styles.titleRow}
+          >
             <Text style={styles.dreamTitle}>{dreamTitle}</Text>
           </Pressable>
 
@@ -706,7 +710,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: BOTTOM_NAV_PADDING,
   },
-  emojiBackground: {
+  imageBackground: {
     overflow: 'hidden',
     marginLeft: -theme.spacing.md,
     marginRight: -theme.spacing.md,
@@ -714,13 +718,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.background.page,
   },
-  areaImage: {
+  backgroundImage: {
     width: '100%',
     height: '100%',
   },
   areaEmoji: {
     fontSize: 200,
     textAlign: 'center',
+  },
+  titleRow: {
+    marginTop: theme.spacing.md,
   },
   dreamTitle: {
     fontSize: 14,

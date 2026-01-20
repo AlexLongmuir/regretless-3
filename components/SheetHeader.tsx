@@ -12,6 +12,7 @@ interface SheetHeaderProps {
   onDone?: () => void;
   doneDisabled?: boolean;
   doneLoading?: boolean;
+  titleColor?: string;
 }
 
 // Custom rounded X icon component - 50% thinner stroke, 25% bigger
@@ -47,6 +48,7 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
   onDone,
   doneDisabled = false,
   doneLoading = false,
+  titleColor,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -105,7 +107,7 @@ export const SheetHeader: React.FC<SheetHeaderProps> = ({
       {/* Center title */}
       {title && (
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, titleColor && { color: titleColor }]}>{title}</Text>
         </View>
       )}
       {!title && <View style={{ flex: 1 }} />}

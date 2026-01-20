@@ -8,10 +8,12 @@ import { Button } from '../../components/Button'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 
 export default function TimeCommitmentStep() {
   const { theme, isDark } = useTheme()
-  const styles = useMemo(() => createStyles(theme), [theme])
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark])
   const navigation = useNavigation<any>()
   const { 
     timeCommitment, 
@@ -86,11 +88,13 @@ export default function TimeCommitmentStep() {
 
   return (
     <View style={styles.container}>
-      <CreateScreenHeader step="time-commitment" />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.title}>
-          On average, how much time are you willing to spend a day working towards this dream?
-        </Text>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <CreateScreenHeader step="time-commitment" />
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+          <Text style={styles.title}>
+            On average, how much time are you willing to spend a day working towards this dream?
+          </Text>
 
         {/* Time Picker Display */}
         <View style={styles.timeDisplay}>
@@ -108,7 +112,7 @@ export default function TimeCommitmentStep() {
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={handleTimePickerChange}
               style={styles.timePicker}
-              themeVariant={isDark ? 'dark' : 'light'}
+              themeVariant={'dark'}
               minimumDate={(() => {
                 const minDate = new Date()
                 minDate.setHours(0, 10, 0, 0) // Minimum 10 minutes
@@ -125,42 +129,47 @@ export default function TimeCommitmentStep() {
           </View>
         )}
 
-        <Text style={styles.helpText}>
-          This helps us create a realistic action plan that fits your schedule.
-        </Text>
-      </ScrollView>
-      
-      {/* Footer with button */}
-      <View style={styles.footer}>
-        <Button 
-          title="Continue"
-          variant={"black" as any}
-          onPress={handleContinue}
-          style={styles.button}
-        />
-      </View>
+          <Text style={styles.helpText}>
+            This helps us create a realistic action plan that fits your schedule.
+          </Text>
+        </ScrollView>
+        
+        {/* Footer with button */}
+        <View style={styles.footer}>
+          <Button 
+            title="Continue"
+            variant="inverse"
+            onPress={handleContinue}
+            style={styles.button}
+          />
+        </View>
+      </SafeAreaView>
     </View>
   )
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.page,
+    backgroundColor: 'transparent',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing['4xl'],
   },
   title: {
-    fontSize: 18,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.text.primary,
-    marginBottom: 32,
-    lineHeight: 24,
+    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
+    marginBottom: theme.spacing.sm,
   },
   timeDisplay: {
     alignItems: 'center',
@@ -169,7 +178,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   timeText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.colors.text.primary,
+    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
   },
   timePickerContainer: {
     alignItems: 'center',
@@ -181,15 +190,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   helpText: {
     fontSize: 14,
-    color: theme.colors.text.secondary,
+    color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+    opacity: isDark ? 1 : 0.85,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   footer: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    backgroundColor: theme.colors.background.page,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+    backgroundColor: 'transparent',
   },
   button: {
     width: '100%',

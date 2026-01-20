@@ -8,7 +8,7 @@ import { triggerHaptic } from '../utils/haptics';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'black' | 'success';
+  variant?: 'primary' | 'secondary' | 'outline' | 'black' | 'success' | 'inverse';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -30,8 +30,14 @@ export const Button: React.FC<ButtonProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   
   const isDisabled = disabled || loading;
-  const textColor = variant === 'secondary' ? theme.colors.text.primary : theme.colors.text.inverse;
-  const indicatorColor = variant === 'secondary' ? theme.colors.text.primary : theme.colors.text.inverse;
+  const textColor =
+    variant === 'secondary' ? theme.colors.text.primary
+    : variant === 'inverse' ? theme.colors.black
+    : theme.colors.text.inverse;
+  const indicatorColor =
+    variant === 'secondary' ? theme.colors.text.primary
+    : variant === 'inverse' ? theme.colors.black
+    : theme.colors.text.inverse;
 
   const handlePress = () => {
     if (!isDisabled) {
@@ -124,6 +130,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   success: {
     backgroundColor: theme.colors.success[500],
   },
+  inverse: {
+    backgroundColor: theme.colors.white,
+    borderWidth: 0,
+  },
   disabled: {
     backgroundColor: theme.colors.disabled.inactive,
     borderColor: theme.colors.disabled.inactive,
@@ -144,10 +154,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.primary[600],
   },
   blackText: {
-    color: '#FFFFFF', // Always white for black button
+    color: theme.colors.text.inverse,
   },
   successText: {
-    color: '#FFFFFF', // Always white for success button
+    color: theme.colors.text.inverse,
+  },
+  inverseText: {
+    color: theme.colors.black,
   },
   disabledText: {
     color: theme.colors.disabled.text,

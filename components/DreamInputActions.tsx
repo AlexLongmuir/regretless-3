@@ -14,8 +14,8 @@ export const DreamInputActions: React.FC<DreamInputActionsProps> = ({
   onOpenDreamboard,
   title,
 }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   
   return (
     <View style={styles.container}>
@@ -34,7 +34,7 @@ export const DreamInputActions: React.FC<DreamInputActionsProps> = ({
   )
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   container: {
     flexDirection: 'column',
     gap: theme.spacing.sm,
@@ -44,7 +44,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: theme.colors.text.secondary,
+    color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+    opacity: isDark ? 1 : 0.8,
   },
   actions: {
     gap: theme.spacing.sm,

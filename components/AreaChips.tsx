@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { View, Text, TouchableOpacity, Alert } from 'react-native'
+import React, { useMemo, useState } from 'react'
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useTheme } from '../contexts/ThemeContext'
@@ -54,6 +54,7 @@ export function AreaChip({
   totalActions = 0
 }: AreaChipProps) {
   const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme])
   const handleDelete = () => {
     Alert.alert(
       'Delete Area',
@@ -97,17 +98,8 @@ export function AreaChip({
       onPress={clickable ? handlePress : undefined}
       activeOpacity={clickable ? 0.7 : 1}
       style={[
-        {
-          width: '100%',
-          backgroundColor: getBackgroundColor(),
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 12,
-          flexDirection: 'row',
-          alignItems: 'center',
-          position: 'relative',
-          minHeight: 80
-        },
+        styles.chipRoot,
+        { backgroundColor: getBackgroundColor() },
         style
       ]}
     >
@@ -118,17 +110,7 @@ export function AreaChip({
             triggerHaptic();
             onMoveUp();
           }}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
+          style={styles.moveButton}
           activeOpacity={0.7}
         >
           <Ionicons name="chevron-up" size={12} color={theme.colors.icon.default} />
@@ -142,17 +124,7 @@ export function AreaChip({
             triggerHaptic();
             onMoveDown();
           }}
-          style={{
-            position: 'absolute',
-            top: canMoveUp ? 36 : 8,
-            right: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
+          style={[styles.moveButton, { top: canMoveUp ? 36 : 8 }]}
           activeOpacity={0.7}
         >
           <Ionicons name="chevron-down" size={12} color={theme.colors.icon.default} />
@@ -166,17 +138,7 @@ export function AreaChip({
             triggerHaptic();
             handleDelete();
           }}
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
+          style={styles.removeButton}
         >
           <Text style={{ fontSize: 12 }}>✕</Text>
         </TouchableOpacity>
@@ -189,87 +151,47 @@ export function AreaChip({
             triggerHaptic();
             onEdit(id);
           }}
-          style={{
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: theme.colors.disabled.inactiveAlt,
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
+          style={styles.editButton}
           activeOpacity={0.7}
         >
           <Ionicons name="create-outline" size={12} color={theme.colors.icon.default} />
         </TouchableOpacity>
       )}
       
-      {/* Icon/Image on the left */}
-      <View style={{ marginRight: 16, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+      {/* Left edge image/emoji (full height, flush) */}
+      <View style={styles.leftMedia}>
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={{ width: 40, height: 40, borderRadius: 8 }}
-            contentFit="cover"
-          />
+          <Image source={{ uri: imageUrl }} style={styles.leftMediaImage} contentFit="cover" />
         ) : (
-        <Text style={{ fontSize: 40 }}>{emoji}</Text>
+          <View style={styles.leftMediaEmojiWrap}>
+            <Text style={styles.leftMediaEmoji}>{emoji}</Text>
+          </View>
         )}
       </View>
       
       {/* Title and Progress on the right */}
-      <View style={{ flex: 1 }}>
-        <Text style={{ 
-          fontSize: 16, 
-          fontWeight: 'bold',
-          color: theme.colors.text.primary,
-          marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0
-        }}>
+      <View style={styles.rightContent}>
+        <Text style={[styles.title, { marginBottom: showProgress && clickable && totalActions > 0 ? 8 : 0 }]}>
           {title}
         </Text>
         
         {/* Progress Indicator - only show when clickable and has actions */}
         {showProgress && clickable && totalActions > 0 && (
-          <View style={{ width: '100%' }}>
+          <View style={styles.progressWrap}>
             {/* Progress Text */}
-            <View style={{ 
-              flexDirection: 'row', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: 4
-            }}>
-              <Text style={{ 
-                fontSize: 12, 
-                fontWeight: '500',
-                color: theme.colors.text.muted
-              }}>
+            <View style={styles.progressRow}>
+              <Text style={styles.progressText}>
                 {completedActions} of {totalActions}
               </Text>
-              <Text style={{ 
-                fontSize: 12, 
-                fontWeight: 'bold',
-                color: theme.colors.text.muted
-              }}>
+              <Text style={styles.progressTextBold}>
                 {progressPercentage}%
               </Text>
             </View>
             
             {/* Progress Bar */}
-            <View style={{
-              height: 6,
-              backgroundColor: theme.colors.disabled.inactive,
-              borderRadius: 3,
-              overflow: 'hidden'
-            }}>
+            <View style={styles.progressBar}>
               <View 
-                style={{
-                  height: '100%',
-                  backgroundColor: theme.colors.status.completed,
-                  borderRadius: 3,
-                  width: `${progressPercentage}%`
-                }} 
+                style={[styles.progressFill, { width: `${progressPercentage}%` }]}
               />
             </View>
           </View>
@@ -327,7 +249,7 @@ export function AddAreaChipInGrid({ onPress, style }: AddAreaChipInGridProps) {
         marginBottom: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: 80,
+        minHeight: 100,
         borderWidth: 2,
         borderColor: theme.colors.border.default,
         borderStyle: 'dashed'
@@ -460,3 +382,112 @@ export function AreaGrid({ areas, onEdit, onRemove, onAdd, onReorder, onPress, c
     </View>
   )
 }
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  chipRoot: {
+    width: '100%',
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    position: 'relative',
+    height: 100,
+    overflow: 'hidden',
+  },
+  leftMedia: {
+    width: 100,
+    alignSelf: 'stretch',
+  },
+  leftMediaImage: {
+    width: 100,
+    height: '100%',
+  },
+  leftMediaEmojiWrap: {
+    width: 100,
+    height: '100%',
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leftMediaEmoji: {
+    fontSize: 40,
+    color: theme.colors.text.primary,
+  },
+  rightContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    flexWrap: 'wrap',
+  },
+  progressWrap: {
+    width: '100%',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.text.muted,
+  },
+  progressTextBold: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text.muted,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: theme.colors.disabled.inactive,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors.status.completed,
+    borderRadius: 3,
+  },
+  moveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  editButton: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.disabled.inactiveAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+})

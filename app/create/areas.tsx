@@ -259,7 +259,7 @@ export default function AreasStep() {
         <View style={styles.buttonContainer}>
           <Button 
             title="Refine with AI" 
-            variant="secondary"
+            variant="inverse"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               

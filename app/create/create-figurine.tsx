@@ -36,21 +36,31 @@ const CreateFigurineStep: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Get background image URL from Supabase storage
-  const getBackgroundImageUrl = () => {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) return null;
-    return `${supabaseUrl}/storage/v1/object/public/achievement-images/AchievementsBackground.png`;
-  };
-
-  const backgroundImageUrl = getBackgroundImageUrl();
-
-  // Prefetch background image
+  // Check if user already has a figurine and skip if they do
   useEffect(() => {
-    if (backgroundImageUrl) {
-      Image.prefetch(backgroundImageUrl);
-    }
-  }, [backgroundImageUrl]);
+    const checkExistingFigurine = async () => {
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('figurine_url')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (profile?.figurine_url) {
+            // User already has a figurine, skip this screen
+            navigation.navigate('PersonalizeBaseline');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for existing figurine:', error);
+      }
+    };
+
+    checkExistingFigurine();
+  }, [navigation]);
 
   // Load precreated figurines on component mount
   useEffect(() => {
@@ -242,7 +252,7 @@ const CreateFigurineStep: React.FC = () => {
     // Ensure figurine is saved to profile before continuing
     await handleFigurineSelect(userGeneratedFigurine.signed_url);
 
-    navigation.navigate('Personalize');
+    navigation.navigate('PersonalizeBaseline');
   };
 
   const renderDefaultFigurine = ({ item }: { item: Figurine }) => {
@@ -267,18 +277,6 @@ const CreateFigurineStep: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar style={isDark ? "light" : "dark"} />
-      {/* Background Image */}
-      {backgroundImageUrl && (
-        <Image 
-          source={{ uri: backgroundImageUrl }} 
-          style={styles.backgroundImage}
-          contentFit="cover"
-          cachePolicy="disk"
-          transition={0}
-          priority="high"
-        />
-      )}
-      
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <CreateScreenHeader step="create-figurine" />
         
@@ -321,7 +319,7 @@ const CreateFigurineStep: React.FC = () => {
                 style={styles.uploadButton}
               >
                 <View style={styles.uploadButtonContent}>
-                  <Ionicons name="camera-outline" size={20} color={isDark ? theme.colors.text.primary : '#F9FAFB'} />
+                  <Ionicons name="camera-outline" size={20} color={isDark ? theme.colors.text.primary : theme.colors.text.inverse} />
                   <Text style={styles.uploadText}>
                     Upload or Take Photo of Yourself
                   </Text>
@@ -359,14 +357,14 @@ const CreateFigurineStep: React.FC = () => {
             >
               {(isUploading || isGenerating) ? (
                 <View style={styles.uploadButtonContent}>
-                  <Ionicons name="hourglass-outline" size={20} color={isDark ? theme.colors.text.secondary : '#D1D5DB'} />
+                  <Ionicons name="hourglass-outline" size={20} color={isDark ? theme.colors.text.secondary : theme.colors.text.inverse} />
                   <Text style={[styles.uploadText, styles.uploadTextDisabled]}>
                     {isGenerating ? 'Generating...' : 'Uploading...'}
                   </Text>
                 </View>
               ) : (
                 <View style={styles.uploadButtonContent}>
-                  <Ionicons name="camera-outline" size={20} color={isDark ? theme.colors.text.primary : '#F9FAFB'} />
+                  <Ionicons name="camera-outline" size={20} color={isDark ? theme.colors.text.primary : theme.colors.text.inverse} />
                   <Text style={styles.uploadText}>
                     Upload or Take Photo of Yourself
                   </Text>
@@ -386,7 +384,7 @@ const CreateFigurineStep: React.FC = () => {
                 <Ionicons 
                   name={showDefaults ? "chevron-up" : "chevron-down"} 
                   size={20} 
-                  color={isDark ? theme.colors.text.secondary : '#D1D5DB'} 
+                  color={isDark ? theme.colors.text.secondary : theme.colors.text.inverse} 
                 />
               </TouchableOpacity>
               
@@ -415,7 +413,7 @@ const CreateFigurineStep: React.FC = () => {
       <View style={styles.footer}>
         <Button 
           title="Continue"
-          variant={userGeneratedFigurine ? "secondary" : "outline"}
+          variant={userGeneratedFigurine ? "inverse" : "outline"}
           onPress={handleContinue}
           disabled={!userGeneratedFigurine || isGenerating}
           style={[styles.button, userGeneratedFigurine && styles.lightButton]}
@@ -430,18 +428,8 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: isDark ? theme.colors.background.page : '#1A1A1A',
+      backgroundColor: 'transparent',
       position: 'relative',
-    },
-    backgroundImage: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100%',
-      height: '100%',
-      zIndex: 0,
     },
     safeArea: {
       flex: 1,
@@ -463,12 +451,13 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
     title: {
       fontSize: 32,
       fontWeight: 'bold',
-      color: isDark ? theme.colors.text.primary : '#F9FAFB',
+      color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
       marginBottom: theme.spacing.sm,
     },
     subtitle: {
       fontSize: 16,
-      color: isDark ? theme.colors.text.secondary : '#D1D5DB',
+      color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+      opacity: isDark ? 1 : 0.85,
       lineHeight: 22,
     },
     figurineContainer: {
@@ -504,7 +493,7 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
     },
     uploadText: {
       fontSize: 16,
-      color: isDark ? theme.colors.text.primary : '#F9FAFB',
+      color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
       fontWeight: '500',
     },
     uploadTextDisabled: {
@@ -539,7 +528,8 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
     },
     defaultsHeaderText: {
       fontSize: 14,
-      color: isDark ? theme.colors.text.secondary : '#D1D5DB',
+      color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+      opacity: isDark ? 1 : 0.85,
     },
     defaultsGridRow: {
       justifyContent: 'space-between',
@@ -562,8 +552,8 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
     },
     footer: {
       paddingHorizontal: theme.spacing.md,
-      paddingBottom: BOTTOM_NAV_PADDING,
-      backgroundColor: isDark ? theme.colors.background.page : '#1A1A1A',
+      paddingBottom: theme.spacing.lg,
+      backgroundColor: 'transparent',
       zIndex: 2,
     },
     button: {
@@ -571,7 +561,7 @@ const createStyles = (theme: Theme, isDark?: boolean) => {
       borderRadius: theme.radius.xl,
     },
     lightButton: {
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.colors.white,
       borderWidth: 0,
     },
   });

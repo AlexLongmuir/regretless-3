@@ -101,6 +101,7 @@ const TodayPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: Re
         is_done: occurrence.is_done,
         is_overdue: occurrence.is_overdue,
         occurrence_no: occurrence.occurrence_no,
+        area_image: action?.areas?.image_url,
         dream_image: action?.areas?.dreams?.image_url || '🎯', // Use dream image if available
         hideEditButtons: true
       };

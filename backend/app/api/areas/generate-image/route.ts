@@ -32,15 +32,9 @@ async function base64ToBlob(base64: string, mimeType: string = 'image/png'): Pro
 }
 
 export async function POST(request: NextRequest) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:34',message:'POST request received',data:{hasAuthHeader:!!request.headers.get('authorization')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_1'})}).catch(()=>{});
-  // #endregion
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:38',message:'Auth header missing',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_1'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'Authorization token required' },
         { status: 401 }
@@ -53,9 +47,6 @@ export async function POST(request: NextRequest) {
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:49',message:'User auth failed',data:{userError:userError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_1'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'User not authenticated' },
         { status: 401 }
@@ -63,17 +54,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { figurine_url, dream_title, area_title, area_context, area_id } = body;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:57',message:'Request body parsed',data:{hasFigurineUrl:!!figurine_url,hasDreamTitle:!!dream_title,hasAreaTitle:!!area_title,hasAreaId:!!area_id,area_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_2'})}).catch(()=>{});
-    // #endregion
+    const { dream_image_url, area_title, area_id } = body;
 
-    if (!figurine_url || !dream_title || !area_title || !area_id) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:59',message:'Missing required fields',data:{hasFigurineUrl:!!figurine_url,hasDreamTitle:!!dream_title,hasAreaTitle:!!area_title,hasAreaId:!!area_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_2'})}).catch(()=>{});
-      // #endregion
+    if (!dream_image_url || !area_title || !area_id) {
       return NextResponse.json(
-        { error: 'figurine_url, dream_title, area_title, and area_id are required' },
+        { error: 'dream_image_url, area_title, and area_id are required' },
         { status: 400 }
       );
     }
@@ -87,60 +72,39 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (areaError || !area) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:74',message:'Area not found',data:{area_id,areaError:areaError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_2'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'Area not found' },
         { status: 404 }
       );
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:79',message:'Area verified, starting generation',data:{area_id,dreamId:area.dream_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_3'})}).catch(()=>{});
-    // #endregion
 
-    // Fetch the figurine image
-    console.log('📥 Fetching figurine image...');
-    let figurineImage: { data: string; mimeType: string };
+    // Fetch the dream image
+    console.log('📥 Fetching dream image...');
+    let dreamImage: { data: string; mimeType: string };
     try {
-      figurineImage = await fetchImageAsBase64(figurine_url);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:113',message:'Figurine fetched OK',data:{mimeType:figurineImage?.mimeType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_3'})}).catch(()=>{});
-      // #endregion
+      dreamImage = await fetchImageAsBase64(dream_image_url);
     } catch (error) {
-      console.error('Error fetching figurine:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:116',message:'Figurine fetch failed',data:{error:(error as any)?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_3'})}).catch(()=>{});
-      // #endregion
+      console.error('Error fetching dream image:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch figurine image' },
+        { error: 'Failed to fetch dream image' },
         { status: 400 }
       );
     }
 
     // Generate area-specific image
     console.log('🎨 Generating area-specific image...');
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:122',message:'About to call generateImage',data:{areaTitle:area_title,hasAreaContext:!!area_context},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_4'})}).catch(()=>{});
-    // #endregion
-    const prompt = `Create a scene featuring this miniature figurine that represents the area: "${area_title}". ${area_context ? `Context: ${area_context}.` : ''} Adapt the figurine's outfit and pose to match the area theme. Create an appropriate background that fits the area context on a dark blue background. Make it isometric, realistic, 4K resolution, studio lighting, soft shadows, no text/logos. Make the person slightly more attractive and fashionable.`;
+    const prompt = `Tweak this dream image to represent the area: "${area_title}". Keep the same style, isometric perspective, and figurine, but adapt the scene and background to match this specific area.`;
     
     let generatedImageData: string;
     try {
       const result = await generateImage({
         prompt,
-        referenceImage: figurineImage
+        referenceImage: dreamImage
       });
       generatedImageData = result.imageData;
       console.log('✅ Area image generated successfully');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:132',message:'generateImage returned',data:{hasImageData:!!generatedImageData,approxLen:generatedImageData?generatedImageData.length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_4'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
       console.error('❌ Error generating area image:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:134',message:'generateImage threw',data:{error:(error as any)?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_4'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'Failed to generate area image. Please try again.' },
         { status: 500 }
@@ -156,9 +120,6 @@ export async function POST(request: NextRequest) {
     const storagePath = `${user.id}/${area.dream_id}/${area_id}/area-image-${fileId}.png`;
 
     // Upload generated image to Supabase Storage
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:149',message:'Uploading to storage',data:{bucket:'dream-images',storagePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_5'})}).catch(()=>{});
-    // #endregion
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('dream-images')
       .upload(storagePath, imageFile, {
@@ -168,9 +129,6 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       console.error('Error uploading area image:', uploadError);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:158',message:'Storage upload failed',data:{error:uploadError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_5'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'Failed to upload area image' },
         { status: 500 }
@@ -184,9 +142,6 @@ export async function POST(request: NextRequest) {
 
     if (signedUrlError) {
       console.error('Error creating signed URL:', signedUrlError);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'areas/generate-image/route.ts:170',message:'Signed URL creation failed',data:{error:signedUrlError.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'IMG_5'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json(
         { error: 'Failed to create signed URL' },
         { status: 500 }

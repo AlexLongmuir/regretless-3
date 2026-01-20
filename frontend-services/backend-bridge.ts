@@ -175,9 +175,9 @@ async function post(path: string, body: unknown, token?: string) {
   if (token) headers['Authorization'] = `Bearer ${token}`
   
   try {
-    // Add timeout to fetch request (120 seconds for AI generation - actions can take longer)
+    // Add timeout to fetch request (180 seconds for AI generation - actions can take longer)
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 120000)
+    const timeoutId = setTimeout(() => controller.abort(), 180000)
     
     const res = await fetch(url, {
       method: 'POST',
@@ -201,7 +201,7 @@ async function post(path: string, body: unknown, token?: string) {
     return result
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.log('⏱️ [BACKEND-BRIDGE] Request timeout after 120s')
+      console.log('⏱️ [BACKEND-BRIDGE] Request timeout after 180s')
       throw new Error('Request timeout - the server took too long to respond')
     }
     console.log('💥 [BACKEND-BRIDGE] Network/Parse Error:', error)
@@ -812,10 +812,7 @@ export const generateDreamImage = async (figurineUrl: string, dreamTitle: string
   }
 }
 
-export const generateAreaImage = async (figurineUrl: string, dreamTitle: string, areaTitle: string, areaContext: string, areaId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse }> => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:815',message:'generateAreaImage called',data:{hasFigurineUrl:!!figurineUrl,hasDreamTitle:!!dreamTitle,hasAreaTitle:!!areaTitle,hasAreaId:!!areaId,areaId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
+export const generateAreaImage = async (dreamImageUrl: string, areaTitle: string, areaId: string, token: string): Promise<{ success: boolean; data: DreamImageUploadResponse }> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
@@ -824,45 +821,28 @@ export const generateAreaImage = async (figurineUrl: string, dreamTitle: string,
   console.log('🌐 [BACKEND-BRIDGE] Generating area image')
 
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:824',message:'About to fetch area image API',data:{url:`${API_BASE}/api/areas/generate-image`,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     const res = await fetch(`${API_BASE}/api/areas/generate-image`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        figurine_url: figurineUrl,
-        dream_title: dreamTitle,
+        dream_image_url: dreamImageUrl,
         area_title: areaTitle,
-        area_context: areaContext,
         area_id: areaId
       })
     })
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:836',message:'Area image API response received',data:{status:res.status,statusText:res.statusText,ok:res.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     console.log('📡 [BACKEND-BRIDGE] Generate area image response status:', res.status)
 
     if (!res.ok) {
       const errorText = await res.text()
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:838',message:'Area image API error response',data:{status:res.status,errorText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       console.log('❌ [BACKEND-BRIDGE] Generate area image Error:', errorText)
       throw new Error(errorText)
     }
 
     const result = await res.json()
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:844',message:'Area image API success',data:{success:result.success,hasData:!!result.data,hasSignedUrl:!!result.data?.signed_url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     console.log('✅ [BACKEND-BRIDGE] Generate area image Success:', result)
     return result
   } catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:848',message:'Area image API network/parse error',data:{error:error?.message||String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     console.log('💥 [BACKEND-BRIDGE] Generate area image Network/Parse Error:', error)
     throw error
   }
@@ -1059,16 +1039,7 @@ export const getAchievements = async (token: string): Promise<{ success: boolean
  */
 export const checkNewAchievements = async (token: string): Promise<{ success: boolean; data: { new_achievements: AchievementUnlockResult[] }; message: string }> => {
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:874',message:'Calling RPC check_new_achievements',data:{hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-    // #endregion
-    
     const { data, error } = await supabaseClient.rpc('check_new_achievements')
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:877',message:'RPC response received',data:{hasData:!!data,hasError:!!error,errorCode:error?.code,errorMessage:error?.message,dataLength:data?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion
-    
     if (error) throw error
     
     // Map response to match expected interface (handling mapped column names)
@@ -1081,9 +1052,6 @@ export const checkNewAchievements = async (token: string): Promise<{ success: bo
     
     return { success: true, data: { new_achievements: mappedData }, message: 'Success' }
   } catch (error: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'backend-bridge.ts:882',message:'RPC call error',data:{errorCode:error?.code,errorMessage:error?.message,errorDetails:error?.details,errorHint:error?.hint},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-    // #endregion
     return { success: false, data: { new_achievements: [] }, message: error.message }
   }
 }

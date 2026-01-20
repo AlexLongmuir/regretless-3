@@ -1749,9 +1749,6 @@ const ActionOccurrencePage = () => {
       await completeOccurrence(params.occurrenceId, note.trim() || undefined, session.access_token);
       
       console.log('✅ [ACHIEVEMENT] Action completed via API, calling checkAchievements');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1223',message:'Action completed via API, calling checkAchievements',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch((e)=>{console.error('Log error:',e);});
-      // #endregion
       
       // Check for achievements after completing the action
       try {
@@ -1760,10 +1757,6 @@ const ActionOccurrencePage = () => {
       } catch (error) {
         console.error('❌ [ACHIEVEMENT] Error in checkAchievements:', error);
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1228',message:'checkAchievements completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch((e)=>{console.error('Log error:',e);});
-      // #endregion
       
       setIsCompleted(true);
       
@@ -1969,6 +1962,12 @@ const ActionOccurrencePage = () => {
     
     return null;
   }, [actionData, occurrenceData, params, state.dreamDetail]);
+
+  const areaImageUrl =
+    dreamAreaData?.areaImageUrl ||
+    params?.areaImageUrl ||
+    actionData?.areas?.image_url ||
+    null;
 
   const generateAIDiscussionPrompt = () => {
     const dreamTitle = dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream';
@@ -2254,118 +2253,120 @@ Focus on practical, immediately actionable advice that moves me closer to comple
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
-            {/* Header */}
-            <View style={styles.header}>
-        <IconButton
-          icon="close"
-          onPress={() => navigation.goBack()}
-          variant="secondary"
-          size="md"
-        />
-        {!isPreviewMode && (
-          <View style={styles.headerRight}>
-            {isDark ? (
-              // In dark mode, use solid View to eliminate fuzzy edges
-              <TouchableOpacity 
-                onPress={handleAIDiscussion}
-                style={{
-                  height: 40,
-                  borderRadius: 20,
-                  paddingHorizontal: 16,
-                  backgroundColor: theme.colors.background.card,
-                  borderWidth: 0.5,
-                  borderColor: theme.colors.border.default,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 8,
-                }}
-              >
-                <Text style={{ 
-                  fontSize: 14, 
-                  fontWeight: '600', 
-                  color: theme.colors.text.primary 
-                }}>
-                  Plan with AI
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              // In light mode, use BlurView for glass effect
-              <TouchableOpacity 
-                onPress={handleAIDiscussion}
-                style={{
-                  height: 40,
-                  borderRadius: 20,
-                  overflow: 'hidden',
-                  marginRight: 8,
-                }}
-              >
-                <BlurView 
-                  intensity={100} 
-                  tint="light" 
-                  style={{
-                    height: 40,
-                    paddingHorizontal: 16,
-                    backgroundColor: theme.colors.background.card + 'F0',
-                    borderWidth: 0.5,
-                    borderColor: theme.colors.border.default,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ 
-                    fontSize: 14, 
-                    fontWeight: '600', 
-                    color: theme.colors.text.primary 
-                  }}>
-                    Plan with AI
-                  </Text>
-                </BlurView>
-              </TouchableOpacity>
-            )}
-            
-            <View ref={menuButtonRef}>
-              <IconButton
-                icon="more_horiz"
-                onPress={() => {
-                  if (menuButtonRef.current) {
-                    menuButtonRef.current.measureInWindow((x, y, width, height) => {
-                      setMenuButtonLayout({ x, y, width, height });
-                      setShowOptionsPopover(true);
-                    });
-                  } else {
-                    setShowOptionsPopover(true);
-                  }
-                }}
-                variant="secondary"
-                size="md"
-                style={styles.menuButton}
-              />
-            </View>
-            
-          </View>
-        )}
-          </View>
+            {/* Header Overlay (match AreaPage layout) */}
+            <View style={styles.headerOverlay} pointerEvents="box-none">
+              <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+                <View style={styles.header}>
+                  <IconButton
+                    icon="close"
+                    onPress={() => navigation.goBack()}
+                    variant="secondary"
+                    size="md"
+                  />
+                  {!isPreviewMode && (
+                    <View style={styles.headerRight}>
+                      {/* Plan with AI */}
+                      {isDark ? (
+                        <TouchableOpacity 
+                          onPress={handleAIDiscussion}
+                          style={{
+                            height: 40,
+                            borderRadius: 20,
+                            paddingHorizontal: 16,
+                            backgroundColor: theme.colors.background.card,
+                            borderWidth: 0.5,
+                            borderColor: theme.colors.border.default,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: 8,
+                          }}
+                        >
+                          <Text style={{ 
+                            fontSize: 14, 
+                            fontWeight: '600', 
+                            color: theme.colors.text.primary 
+                          }}>
+                            Plan with AI
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity 
+                          onPress={handleAIDiscussion}
+                          style={{
+                            height: 40,
+                            borderRadius: 20,
+                            overflow: 'hidden',
+                            marginRight: 8,
+                          }}
+                        >
+                          <BlurView 
+                            intensity={100}
+                            tint={isDark ? 'dark' : 'light'}
+                            key={isDark ? 'dark' : 'light'}
+                            style={{
+                              height: 40,
+                              paddingHorizontal: 16,
+                              borderWidth: 0.5,
+                              borderColor: theme.colors.border.default,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Text style={{ 
+                              fontSize: 14, 
+                              fontWeight: '600', 
+                              color: theme.colors.text.primary 
+                            }}>
+                              Plan with AI
+                            </Text>
+                          </BlurView>
+                        </TouchableOpacity>
+                      )}
 
-          {/* ScrollView with Emoji and Content */}
-          <ScrollView 
-            style={styles.scrollView} 
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Area Image/Emoji - scrolls with content */}
-            {((dreamAreaData?.areaImageUrl || params?.areaImageUrl) || (dreamAreaData?.areaEmoji || params?.areaEmoji)) && (
-              <View style={[styles.emojiBackground, { height: emojiHeight, width: emojiWidth }]}>
-                {(dreamAreaData?.areaImageUrl || params?.areaImageUrl) ? (
+                      <View ref={menuButtonRef}>
+                        <IconButton
+                          icon="more_horiz"
+                          onPress={() => {
+                            if (menuButtonRef.current) {
+                              menuButtonRef.current.measureInWindow((x, y, width, height) => {
+                                setMenuButtonLayout({ x, y, width, height });
+                                setShowOptionsPopover(true);
+                              });
+                            } else {
+                              setShowOptionsPopover(true);
+                            }
+                          }}
+                          variant="secondary"
+                          size="md"
+                          style={styles.menuButton}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </SafeAreaView>
+            </View>
+
+            {/* ScrollView with top image (match AreaPage UI) */}
+            <ScrollView 
+              style={styles.scrollView} 
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Area figurine image - scrolls with content */}
+              <View style={[styles.imageBackground, { height: emojiHeight, width: emojiWidth }]}>
+                {areaImageUrl ? (
                   <Image
-                    source={{ uri: dreamAreaData?.areaImageUrl || params?.areaImageUrl }}
-                    style={styles.areaImage}
+                    source={{ uri: areaImageUrl }}
+                    style={styles.backgroundImage}
                     contentFit="cover"
                   />
                 ) : (
-                <Text style={styles.emojiText}>{dreamAreaData?.areaEmoji || params?.areaEmoji}</Text>
+                  <View style={styles.imagePlaceholder}>
+                    <Icon name="photo" size={28} color={theme.colors.icon.tertiary} />
+                  </View>
                 )}
               </View>
-            )}
 
             {/* Hero Section */}
             <View style={styles.heroSection}>
@@ -2762,20 +2763,24 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   scrollContent: {
     paddingBottom: 32,
   },
-  emojiBackground: {
+  imageBackground: {
     overflow: 'hidden',
     marginLeft: -theme.spacing.md,
     marginRight: -theme.spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background.page,
   },
-  areaImage: {
+  backgroundImage: {
     width: '100%',
     height: '100%',
   },
-  emojiText: {
-    fontSize: 100,
-    textAlign: 'center',
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background.imagePlaceholder,
   },
   heroSection: {
     paddingHorizontal: 24,

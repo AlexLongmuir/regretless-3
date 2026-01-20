@@ -320,7 +320,7 @@ export default function ActionsStep() {
         <Text style={{ fontSize: 18, color: theme.colors.text.primary, marginBottom: 16 }}>No areas found</Text>
         <Button 
           title="Go Back" 
-          variant="secondary"
+          variant="inverse"
           onPress={() => navigation.goBack()} 
         />
       </View>
@@ -336,7 +336,7 @@ export default function ActionsStep() {
         </Text>
         <Button 
           title="Go Back" 
-          variant="secondary"
+          variant="inverse"
           onPress={() => navigation.goBack()} 
         />
       </View>
@@ -428,7 +428,7 @@ export default function ActionsStep() {
           {/* AI Refine Button */}
           <Button 
             title="Refine with AI" 
-            variant="secondary"
+            variant="inverse"
             onPress={async () => {
               if (!dreamId || !title || !feedback.trim()) return
               

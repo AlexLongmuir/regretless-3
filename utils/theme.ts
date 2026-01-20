@@ -428,7 +428,7 @@ const icons = {
   },
   person: {
     library: 'MaterialIcons' as const,
-    name: 'person'
+    name: 'account-circle'
   },
   arrow_left: {
     library: 'MaterialIcons' as const,
@@ -445,6 +445,71 @@ const icons = {
   military_tech: {
     library: 'MaterialIcons' as const,
     name: 'workspace-premium'
+  },
+  // Skill icons
+  directions_run: {
+    library: 'MaterialIcons' as const,
+    name: 'directions-run'
+  },
+  fitness_center: {
+    library: 'MaterialIcons' as const,
+    name: 'fitness-center'
+  },
+  restaurant: {
+    library: 'MaterialIcons' as const,
+    name: 'restaurant'
+  },
+  school: {
+    library: 'MaterialIcons' as const,
+    name: 'school'
+  },
+  language: {
+    library: 'MaterialIcons' as const,
+    name: 'language'
+  },
+  music_note: {
+    library: 'MaterialIcons' as const,
+    name: 'music-note'
+  },
+  palette: {
+    library: 'MaterialIcons' as const,
+    name: 'palette'
+  },
+  business: {
+    library: 'MaterialIcons' as const,
+    name: 'business'
+  },
+  campaign: {
+    library: 'MaterialIcons' as const,
+    name: 'campaign'
+  },
+  attach_money: {
+    library: 'MaterialIcons' as const,
+    name: 'attach-money'
+  },
+  self_improvement: {
+    library: 'MaterialIcons' as const,
+    name: 'self-improvement'
+  },
+  chat: {
+    library: 'MaterialIcons' as const,
+    name: 'chat'
+  },
+  account_balance_wallet: {
+    library: 'MaterialIcons' as const,
+    name: 'account-balance-wallet'
+  },
+  flight: {
+    library: 'MaterialIcons' as const,
+    name: 'flight'
+  },
+  work: {
+    library: 'MaterialIcons' as const,
+    name: 'work'
+  },
+  code: {
+    library: 'MaterialIcons' as const,
+    name: 'code'
   }
 };
 

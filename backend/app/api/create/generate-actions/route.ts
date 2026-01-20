@@ -68,15 +68,20 @@ export async function POST(req: Request) {
     ).join('\n')
 
     // Build prompt based on whether this is initial generation or feedback-based regeneration
-    let prompt: string
+    // NOTE: We may reuse this builder for a retry if the model returns too few actions per area.
+    const buildPrompt = (options?: { forceMinPerArea?: boolean; attempt?: number }) => {
+      const forceMinPerArea = options?.forceMinPerArea ?? false
+      const attempt = options?.attempt ?? 1
+
+      let prompt: string
     
-    if (feedback && original_actions && original_actions.length > 0) {
+      if (feedback && original_actions && original_actions.length > 0) {
       // Feedback-based regeneration
       const originalActionsText = original_actions.map((action: any, index: number) => 
         `${index + 1}. ${action.title} (${action.est_minutes}min, ${action.difficulty})`
       ).join('\n')
       
-      prompt = `Regenerate actions for this dream based on user feedback:
+        prompt = `Regenerate actions for this dream based on user feedback:
 
 Dream Title: "${title}"${contextString}
 
@@ -88,7 +93,8 @@ ${originalActionsText}
 
 User feedback: "${feedback}"
 
-Please create 2-4 actions for this area that address the user's feedback. 
+Please create 2-4 actions for this area that address the user's feedback.
+${forceMinPerArea ? `\nCRITICAL (attempt ${attempt}): You MUST output AT LEAST 2 actions for this area. If you only have one idea, split it into two distinct, sequential actions.` : ''}
 
 CRITICAL RULES:
 - Finite series: For big finite jobs (>120 min), set slice_count_target (3-12) and use est_minutes as per-slice duration. Do NOT set repeat_every_days.
@@ -100,9 +106,9 @@ CRITICAL RULES:
 - SKILL ASSIGNMENT: Assign a primary_skill (required) and secondary_skill (optional) from the approved list for each action.
 
 Note: Only regenerate actions for the area listed above.`
-    } else {
+      } else {
       // Initial generation
-      prompt = `Create execution-focused actions for this dream:
+        prompt = `Create execution-focused actions for this dream:
 
 Dream Title: "${title}"${contextString}
 
@@ -110,6 +116,7 @@ Areas to work within:
 ${areasText}
 
 Please create 2-4 actions per area that are necessary and sufficient to achieve this goal.
+${forceMinPerArea ? `\nCRITICAL (attempt ${attempt}): You MUST output AT LEAST 2 actions for EACH area listed above. Do not output fewer than 2 for any area.` : ''}
 
 CRITICAL RULES:
 - Finite series: For big finite jobs (>120 min), set slice_count_target (3-12) and use est_minutes as per-slice duration. Do NOT set repeat_every_days.
@@ -122,19 +129,46 @@ CRITICAL RULES:
 - SKILL ASSIGNMENT: Assign a primary_skill (required) and secondary_skill (optional) from the approved list for each action.
 
 Each action should be atomic, measurable, and bounded.`
+      }
+
+      return prompt
     }
 
-    console.log('📝 Prompt being sent to AI:', prompt)
+    const minActionsPerArea = 2
+    const countByAreaId = (actions: any[]) => {
+      const counts = new Map<string, number>()
+      for (const a of actions) {
+        if (!a?.area_id) continue
+        counts.set(a.area_id, (counts.get(a.area_id) ?? 0) + 1)
+      }
+      return counts
+    }
 
-    const { data, usage } = await generateJson({
-      system: ACTIONS_SYSTEM,
-      messages: [{ text: prompt }],
-      schema: ACTIONS_SCHEMA,
-      maxOutputTokens: 16384, // Increased for generating 8-16 actions (2-4 per area × 4 areas)
-      modelId: GEMINI_FLASH_MODEL, // Using Flash model (not lite)
-      enableThinking: true,
-      thinkingBudget: THINKING_BUDGETS.MAXIMUM // Maximum budget for complex action planning
-    })
+    const getAreaIdsNeedingMore = (actions: any[]) => {
+      const counts = countByAreaId(actions)
+      const requestedAreaIds = areas.map((a: any) => a.id)
+      return requestedAreaIds.filter((id: string) => (counts.get(id) ?? 0) < minActionsPerArea)
+    }
+
+    const runGenerationAttempt = async (attempt: number, forceMinPerArea: boolean) => {
+      const prompt = buildPrompt({ attempt, forceMinPerArea })
+      console.log('📝 Prompt being sent to AI:', prompt)
+
+      const { data, usage } = await generateJson({
+        system: ACTIONS_SYSTEM,
+        messages: [{ text: prompt }],
+        schema: ACTIONS_SCHEMA,
+        maxOutputTokens: 16384, // Increased for generating 8-16 actions (2-4 per area × 4 areas)
+        modelId: GEMINI_FLASH_MODEL, // Using Flash model (not lite)
+        enableThinking: true,
+        thinkingBudget: THINKING_BUDGETS.MODERATE // Moderate budget for action planning
+      })
+
+      return { data, usage }
+    }
+
+    // Attempt 1: normal prompt
+    let { data, usage } = await runGenerationAttempt(1, false)
 
     console.log('🤖 AI Response:', JSON.stringify(data, null, 2))
 
@@ -157,6 +191,27 @@ Each action should be atomic, measurable, and bounded.`
     if (!data || !data.actions || !Array.isArray(data.actions) || data.actions.length === 0) {
       console.error('❌ AI returned invalid or empty actions data:', data)
       return NextResponse.json({ error: 'AI failed to generate actions' }, { status: 500 })
+    }
+
+    // If the model under-generated per-area, retry once with a stricter prompt.
+    // This specifically addresses the "only 1 action in first area" failure mode where mapping is correct but count is too low.
+    const areasNeedingMoreBeforeMap = getAreaIdsNeedingMore(
+      // We can't reliably use area IDs until mapping happens below, but if the model already used UUIDs,
+      // this will catch it early. We'll also validate again after mapping.
+      data.actions
+    )
+    if (areasNeedingMoreBeforeMap.length > 0) {
+      console.warn('⚠️ AI returned too few actions for some areas (pre-map). Retrying once...', {
+        minActionsPerArea,
+        areasNeedingMoreBeforeMap,
+        totalActions: data.actions.length
+      })
+      ;({ data, usage } = await runGenerationAttempt(2, true))
+      console.log('🤖 AI Response (retry):', JSON.stringify(data, null, 2))
+      if (!data || !data.actions || !Array.isArray(data.actions) || data.actions.length === 0) {
+        console.error('❌ AI retry returned invalid or empty actions data:', data)
+        return NextResponse.json({ error: 'AI failed to generate actions' }, { status: 500 })
+      }
     }
 
     // Create a mapping from area titles to area IDs
@@ -236,6 +291,22 @@ Each action should be atomic, measurable, and bounded.`
     })
 
     console.log('💾 Generated actions:', JSON.stringify(actions, null, 2))
+
+    // Enforce minimum actions per requested area AFTER mapping to real UUID area IDs.
+    const areasNeedingMore = getAreaIdsNeedingMore(actions)
+    if (areasNeedingMore.length > 0) {
+      console.error('❌ Not enough actions generated for one or more areas (post-map)', {
+        minActionsPerArea,
+        areasNeedingMore,
+        counts: Object.fromEntries(countByAreaId(actions)),
+        requestedAreaIds: areas.map((a: any) => a.id),
+        totalActions: actions.length
+      })
+      return NextResponse.json(
+        { error: 'AI generated too few actions for one or more areas. Please retry.' },
+        { status: 500 }
+      )
+    }
 
     // For onboarding, return the actions directly without saving to database
     if (isOnboarding) {

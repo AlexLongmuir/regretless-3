@@ -6,17 +6,20 @@ import { Button } from '../../components/Button'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
-import { generateAreas, generateActions } from '../../frontend-services/backend-bridge'
+import { generateAreas, generateActions, generateDreamImage } from '../../frontend-services/backend-bridge'
+import { Image as ExpoImage } from 'expo-image'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { StatusBar } from 'expo-status-bar'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { trackEvent } from '../../lib/mixpanel'
 
 export default function ConfirmStep() {
-  const { theme: themeFromContext } = useTheme()
-  const styles = useMemo(() => createStyles(themeFromContext), [themeFromContext])
+  const { theme: themeFromContext, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(themeFromContext, isDark), [themeFromContext, isDark])
   const navigation = useNavigation<any>()
-  const { reset, dreamId, title, start_date, end_date, baseline, obstacles, enjoyment, timeCommitment, figurineUrl, setAreas, setActions, areas, actions, areasAnalyzed, setAreasAnalyzed } = useCreateDream()
+  const { reset, dreamId, title, start_date, end_date, baseline, obstacles, enjoyment, timeCommitment, figurineUrl, image_url, setField, setAreas, setActions, areas, actions, areasAnalyzed, setAreasAnalyzed } = useCreateDream()
   
-  const [status, setStatus] = useState<'idle' | 'generating_areas' | 'generating_actions' | 'complete' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'generating_dream_image' | 'generating_areas' | 'generating_actions' | 'complete' | 'error'>('idle')
   const [statusText, setStatusText] = useState('Ready to create your plan')
 
   useEffect(() => {
@@ -30,9 +33,6 @@ export default function ConfirmStep() {
     }
 
     try {
-      setStatus('generating_areas')
-      setStatusText('Analyzing your dream and creating focus areas...')
-
       const { data: { session } } = await supabaseClient.auth.getSession()
       if (!session?.access_token) {
         throw new Error('No authentication token available')
@@ -54,6 +54,39 @@ export default function ConfirmStep() {
           }
         }
       }
+
+      // Generate dream image first if we have a figurine and don't already have an image
+      if (effectiveFigurineUrl && !image_url) {
+        setStatus('generating_dream_image')
+        setStatusText('Generating your personalized dream image...')
+        
+        try {
+          const dreamContext = [
+            baseline ? `Current baseline: ${baseline}` : '',
+            obstacles ? `Obstacles: ${obstacles}` : '',
+            enjoyment ? `Enjoyment: ${enjoyment}` : ''
+          ].filter(Boolean).join('. ');
+          
+          const dreamImageResponse = await generateDreamImage(
+            effectiveFigurineUrl,
+            title || 'My Dream',
+            dreamContext,
+            dreamId,
+            session.access_token
+          );
+          
+          if (dreamImageResponse.success && dreamImageResponse.data?.signed_url) {
+            setField('image_url', dreamImageResponse.data.signed_url);
+            console.log('✅ [DREAM-CONFIRM] Dream image generated successfully');
+          }
+        } catch (error) {
+          console.error('❌ [DREAM-CONFIRM] Failed to generate dream image:', error);
+          // Don't fail the whole process if image generation fails
+        }
+      }
+
+      setStatus('generating_areas')
+      setStatusText('Analyzing your dream and creating focus areas...')
 
       // Generate Areas (this will also generate images if figurine URL is available)
       setStatusText('Creating your focus areas and generating images...')
@@ -124,6 +157,9 @@ export default function ConfirmStep() {
             allActions.push(...newActions)
             totalActionsGenerated += newActions.length
             console.log(`✅ Generated ${newActions.length} new actions for area ${area.title} (${areaActions.length - newActions.length} duplicates filtered)`)
+            
+            // Update actions incrementally so UI can show progress
+            setActions([...allActions])
           } else {
             console.warn(`No actions generated for area: ${area.title}`)
           }
@@ -182,66 +218,76 @@ export default function ConfirmStep() {
 
   return (
     <View style={styles.container}>
-      <CreateScreenHeader step="confirm" onReset={reset} />
-      
-      <View style={styles.content}>
-        <Image 
-          source={require('../../assets/images/onboarding/20250916_0842_Swirling Abstract Energy_simple_compose_01k58qjb1ae89sraq48r9636ze.png')}
-          style={styles.onboardingImage}
-          contentFit="contain"
-        />
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <CreateScreenHeader step="confirm" onReset={reset} />
         
-        <Text style={styles.title}>Time to generate your custom plan!</Text>
-        
-        <View style={styles.statusContainer}>
-            {(status === 'generating_areas' || status === 'generating_actions') && (
-                <ActivityIndicator size="large" color={themeFromContext.colors.text.primary} style={{ marginBottom: 16 }} />
-            )}
-            <Text style={styles.statusText}>{statusText}</Text>
-        </View>
-        
-      </View>
-
-      <View style={styles.buttonContainer}>
-        {status === 'error' && (
-            <Button
-                title="Retry"
-                onPress={handleRetry}
-                variant="black"
-                style={styles.button}
+        <View style={styles.content}>
+          {/* Show dream image if available */}
+          {image_url && (
+            <ExpoImage 
+              source={{ uri: image_url }}
+              style={styles.dreamImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
-        )}
-      </View>
+          )}
+          
+          <Text style={styles.title}>Time to generate your custom plan!</Text>
+          
+          <View style={styles.statusContainer}>
+              {(status === 'generating_dream_image' || status === 'generating_areas' || status === 'generating_actions') && (
+                  <ActivityIndicator size="large" color={isDark ? themeFromContext.colors.text.primary : themeFromContext.colors.text.inverse} style={{ marginBottom: 16 }} />
+              )}
+              <Text style={styles.statusText}>{statusText}</Text>
+          </View>
+          
+        </View>
+
+        <View style={styles.buttonContainer}>
+          {status === 'error' && (
+              <Button
+                  title="Retry"
+                  onPress={handleRetry}
+                  variant="inverse"
+                  style={styles.button}
+              />
+          )}
+        </View>
+      </SafeAreaView>
     </View>
   )
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
+const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.page,
+    backgroundColor: 'transparent',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing['2xl'],
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  onboardingImage: {
+  dreamImage: {
     width: 260,
     height: 260,
     marginBottom: theme.spacing.lg,
-    borderRadius: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.background.card,
   },
   title: {
-    fontFamily: theme.typography.fontFamily.system,
-    fontSize: theme.typography.fontSize.title2,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    lineHeight: theme.typography.lineHeight.title2,
-    color: theme.colors.text.primary,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
     textAlign: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   statusContainer: {
       alignItems: 'center',
@@ -250,12 +296,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   statusText: {
       fontSize: 16,
-      color: theme.colors.text.secondary,
+      color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
+      opacity: isDark ? 1 : 0.85,
       textAlign: 'center',
       paddingHorizontal: 20,
   },
   buttonContainer: {
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing['2xl'],
   },
   button: {

@@ -68,9 +68,7 @@ export const CreateScreenHeader: React.FC<{ step?: string; onReset?: () => void 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     height: 52,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: 30,
-    marginTop: 44,
+    paddingHorizontal: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

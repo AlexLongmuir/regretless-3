@@ -120,6 +120,7 @@ export const ACTIONS_SCHEMA = {
   properties: {
     actions: {
       type: "array",
+      minItems: 2,
       items: {
         type: "object",
         properties: {
