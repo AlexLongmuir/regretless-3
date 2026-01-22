@@ -44,3 +44,26 @@ const createStyles = (theme: Theme) => StyleSheet.create({
 4. Include SQL setup examples if adding new tables
 5. Update RLS policies section if security changes are made
 6. Keep the schema documentation in sync with the actual database state
+
+## Supabase MCP Usage
+
+**CRITICAL**: When working with Supabase database operations:
+
+1. **Always use Supabase MCP tools** instead of direct SQL queries or client library calls when:
+   - Executing database queries or migrations
+   - Checking database schema (tables, columns, indexes)
+   - Applying migrations (use `mcp_supabase_apply_migration` for DDL operations)
+   - Executing SQL queries (use `mcp_supabase_execute_sql` for DML operations)
+   - Checking logs, advisors, or project configuration
+   - Working with Edge Functions
+   - Managing development branches
+
+2. **For DDL operations** (CREATE, ALTER, DROP): Always use `mcp_supabase_apply_migration` with a descriptive migration name in snake_case
+
+3. **For DML operations** (SELECT, INSERT, UPDATE, DELETE): Use `mcp_supabase_execute_sql` for queries that don't modify schema
+
+4. **Before making schema changes**: Use `mcp_supabase_list_tables` and `mcp_supabase_list_migrations` to understand current state
+
+5. **After making changes**: Use `mcp_supabase_get_advisors` to check for security vulnerabilities or performance issues
+
+6. **For documentation**: Use `mcp_supabase_search_docs` to find up-to-date Supabase documentation when needed

@@ -13,7 +13,9 @@ One row per Supabase auth user (FK to auth.users).
 | user_id | uuid | Primary key, references auth.users | NOT NULL, PRIMARY KEY |
 | username | text | User's username | NOT NULL, UNIQUE |
 | theme_mode | text | User's theme preference: 'light', 'dark', or 'system' | DEFAULT 'system', CHECK (theme_mode IN ('light', 'dark', 'system')) |
-| figurine_url | text | URL to user's generated figurine image, stored at user level for use across all dreams | |
+| figurine_url | text | URL to user's latest evolved figurine image, stored at user level for use across all dreams | |
+| original_figurine_url | text | URL to user's original figurine image (before any evolutions), preserved for "Day 1 → Now" view | |
+| current_evolution_level | integer | Highest evolution milestone level achieved (0 = no evolution, 5, 10, 20, 30, etc.) | DEFAULT 0 |
 | created_at | timestamptz | When profile was created | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | When profile was last modified | NOT NULL, DEFAULT now() |
 
@@ -272,6 +274,23 @@ RLS: Users can SELECT/UPDATE only their own rows. Service role can manage all ro
 
 Unique constraint: `(user_id, achievement_id)` to prevent duplicates.
 
+### user_evolutions
+Evolution history for user figurines. Tracks each evolution milestone (level 5, 10, 20, 30, etc.) with snapshot of skills and dreams at evolution time.
+
+| Column | Type | Description | Constraints |
+|--------|------|-------------|-------------|
+| id | uuid | Primary key | NOT NULL, PRIMARY KEY, DEFAULT gen_random_uuid() |
+| user_id | uuid | Reference to profiles table | NOT NULL, FOREIGN KEY REFERENCES profiles(user_id) ON DELETE CASCADE |
+| evolution_level | integer | The milestone level that triggered this evolution (5, 10, 20, 30, etc.) | NOT NULL |
+| figurine_url | text | URL to evolved figurine image | NOT NULL |
+| skill_levels_snapshot | jsonb | Snapshot of skill levels at evolution time (object with skill names as keys, level numbers as values) | NOT NULL, DEFAULT '{}'::jsonb |
+| dream_titles_snapshot | jsonb | Array of dream titles at evolution time | NOT NULL, DEFAULT '[]'::jsonb |
+| created_at | timestamptz | When evolution was created | NOT NULL, DEFAULT now() |
+
+RLS: Users can SELECT/INSERT only their own rows. Service role can manage all rows.
+
+Unique constraint: `(user_id, evolution_level)` to prevent duplicate evolutions at the same milestone.
+
 **SQL Setup:**
 ```sql
 CREATE TABLE notification_preferences (
@@ -461,7 +480,7 @@ GROUP BY d.user_id, d.id;
 ```
 
 ### v_user_levels
-User skill levels calculated from XP. Formula: Level = floor(sqrt(XP / 50)) + 1.
+User skill levels calculated from XP. Formula: Level = floor(sqrt(XP / 10)) + 1.
 
 ```sql
 CREATE VIEW v_user_levels AS
@@ -469,7 +488,7 @@ SELECT
   user_id,
   skill,
   xp,
-  floor(sqrt(xp::float / 50)) + 1 as level
+  floor(sqrt(xp::float / 10)) + 1 as level
 FROM user_xp;
 ```
 
@@ -481,7 +500,7 @@ CREATE VIEW v_user_overall_level AS
 SELECT 
   user_id,
   SUM(xp) as total_xp,
-  floor(sqrt(SUM(xp)::float / 50)) + 1 as overall_level
+  floor(sqrt(SUM(xp)::float / 10)) + 1 as overall_level
 FROM user_xp
 GROUP BY user_id;
 ```

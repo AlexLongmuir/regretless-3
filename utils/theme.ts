@@ -296,7 +296,7 @@ const icons = {
   },
   arrow_upward: {
     library: 'MaterialIcons' as const,
-    name: 'arrow_upward'
+    name: 'arrow-upward'
   },
   expand_more: {
     library: 'MaterialIcons' as const,

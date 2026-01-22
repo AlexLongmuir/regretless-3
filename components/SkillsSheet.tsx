@@ -10,6 +10,9 @@ import { Icon } from './Icon';
 import { SegmentedControl } from './SegmentedControl';
 import { supabaseClient } from '../lib/supabaseClient';
 import { SkillType } from '../backend/database/types';
+import { checkEvolutionAvailability, generateEvolution } from '../frontend-services/backend-bridge';
+import { EvolutionSheet } from './EvolutionSheet';
+import { Button } from './Button';
 
 interface SkillsSheetProps {
   visible: boolean;
@@ -74,8 +77,14 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
   const [totalXp, setTotalXp] = useState(0);
   const [loading, setLoading] = useState(true);
   const [figurineUrl, setFigurineUrl] = useState<string | null>(null);
+  const [originalFigurineUrl, setOriginalFigurineUrl] = useState<string | null>(null);
   const [userDisplayName, setUserDisplayName] = useState<string>('User');
   const [userCreatedAt, setUserCreatedAt] = useState<Date | null>(null);
+  const [evolutionAvailable, setEvolutionAvailable] = useState(false);
+  const [evolutionLevel, setEvolutionLevel] = useState<number | null>(null);
+  const [isEvolving, setIsEvolving] = useState(false);
+  const [showEvolutionSheet, setShowEvolutionSheet] = useState(false);
+  const [evolvedFigurineUrl, setEvolvedFigurineUrl] = useState<string | null>(null);
 
   const calculateXpForOccurrence = ({
     estMinutes,
@@ -142,7 +151,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       // Load user profile (figurine and creation date)
       const { data: profile, error: profileError } = await supabaseClient
         .from('profiles')
-        .select('figurine_url, created_at')
+        .select('figurine_url, original_figurine_url, created_at')
         .eq('user_id', session.user.id)
         .single();
 
@@ -150,9 +159,31 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
         if (profile.figurine_url) {
           setFigurineUrl(profile.figurine_url);
         }
+        if (profile.original_figurine_url) {
+          setOriginalFigurineUrl(profile.original_figurine_url);
+        } else if (profile.figurine_url) {
+          // If no original_figurine_url, use current figurine_url as original
+          setOriginalFigurineUrl(profile.figurine_url);
+        }
         if (profile.created_at) {
           setUserCreatedAt(new Date(profile.created_at));
         }
+      }
+
+      // Check evolution availability
+      try {
+        const evolutionCheck = await checkEvolutionAvailability(session.access_token);
+        if (evolutionCheck.success && evolutionCheck.data.available) {
+          setEvolutionAvailable(true);
+          setEvolutionLevel(evolutionCheck.data.evolution_level);
+        } else {
+          setEvolutionAvailable(false);
+          setEvolutionLevel(null);
+        }
+      } catch (error) {
+        console.error('Error checking evolution availability:', error);
+        setEvolutionAvailable(false);
+        setEvolutionLevel(null);
       }
 
       const { data: xpData, error } = await supabaseClient
@@ -217,12 +248,12 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       // Process all skills - include those with 0 XP
       const processedData: SkillData[] = ALL_SKILLS.map(skill => {
         const xp = xpMap.get(skill) || 0;
-        const currentLevel = Math.floor(Math.sqrt(xp / 50)) + 1;
+        const currentLevel = Math.floor(Math.sqrt(xp / 10)) + 1;
         
         // Check if level went up this week
         const weeklyXp = weeklyXpMap.get(skill) || 0;
         const previousXp = xp - weeklyXp;
-        const previousLevel = Math.floor(Math.sqrt(previousXp / 50)) + 1;
+        const previousLevel = Math.floor(Math.sqrt(previousXp / 10)) + 1;
         const levelUpThisWeek = currentLevel > previousLevel && weeklyXp > 0;
         
         return {
@@ -246,7 +277,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       // Calculate overall stats
       const total = processedData.reduce((sum, item) => sum + item.xp, 0);
       setTotalXp(total);
-      setOverallLevel(Math.floor(Math.sqrt(total / 50)) + 1);
+      setOverallLevel(Math.floor(Math.sqrt(total / 10)) + 1);
 
       // Load Before/After data
       await loadBeforeAfterData(session.user.id, processedData);
@@ -356,7 +387,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       const projected: ProjectedSkillData[] = ALL_SKILLS.map(skill => {
         const current = currentData.find(d => d.skill === skill) || currentData[0];
         const projectedXp = Math.max(0, current.xp + (remainingXpBySkill.get(skill) || 0));
-        const projectedLevel = Math.floor(Math.sqrt(projectedXp / 50)) + 1;
+        const projectedLevel = Math.floor(Math.sqrt(projectedXp / 10)) + 1;
 
         return { ...current, projectedXp, projectedLevel };
       });
@@ -376,18 +407,18 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
 
   // Helper to calculate XP needed for next level
   const getXpForNextLevel = (currentXp: number) => {
-    const currentLevel = Math.floor(Math.sqrt(currentXp / 50)) + 1;
+    const currentLevel = Math.floor(Math.sqrt(currentXp / 10)) + 1;
     const nextLevel = currentLevel + 1;
-    // Inverse of Level = sqrt(XP/50) + 1  =>  Level - 1 = sqrt(XP/50) => (Level-1)^2 = XP/50 => XP = 50 * (Level-1)^2
+    // Inverse of Level = sqrt(XP/10) + 1  =>  Level - 1 = sqrt(XP/10) => (Level-1)^2 = XP/10 => XP = 10 * (Level-1)^2
     // But we want XP for NEXT level. 
     // Wait, let's double check formula: Level 1 starts at 0 XP. 
-    // Level 2 starts when sqrt(XP/50) >= 1 => XP >= 50.
-    // Level 3 starts when sqrt(XP/50) >= 2 => XP >= 200.
-    // XP needed for level L is 50 * (L-1)^2.
-    // XP needed for next level (currentLevel + 1) is 50 * (currentLevel)^2.
+    // Level 2 starts when sqrt(XP/10) >= 1 => XP >= 10.
+    // Level 3 starts when sqrt(XP/10) >= 2 => XP >= 40.
+    // XP needed for level L is 10 * (L-1)^2.
+    // XP needed for next level (currentLevel + 1) is 10 * (currentLevel)^2.
     
-    const xpForNextLevel = 50 * Math.pow(currentLevel, 2);
-    const xpForCurrentLevel = 50 * Math.pow(currentLevel - 1, 2);
+    const xpForNextLevel = 10 * Math.pow(currentLevel, 2);
+    const xpForCurrentLevel = 10 * Math.pow(currentLevel - 1, 2);
     
     const progressInLevel = currentXp - xpForCurrentLevel;
     const totalForLevel = xpForNextLevel - xpForCurrentLevel;
@@ -418,17 +449,74 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
     return theme.colors.icon.inverse;
   };
 
+  const handleEvolve = async () => {
+    try {
+      setIsEvolving(true);
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No session token');
+        return;
+      }
+
+      // Get original figurine URL (fallback to current if not set)
+      const originalUrl = originalFigurineUrl || figurineUrl;
+      if (!originalUrl) {
+        console.error('No original figurine URL');
+        return;
+      }
+
+      // Build skill levels object
+      const skillLevels: Record<string, number> = {};
+      skillsData.forEach(skill => {
+        skillLevels[skill.skill] = skill.level;
+      });
+
+      // Get dream titles
+      const { data: dreams, error: dreamsError } = await supabaseClient
+        .from('dreams')
+        .select('title')
+        .eq('user_id', session.user.id)
+        .is('archived_at', null);
+
+      const dreamTitles = dreams && !dreamsError ? dreams.map(d => d.title) : [];
+
+      // Generate evolution
+      const result = await generateEvolution(session.access_token, {
+        evolution_level: evolutionLevel!,
+        original_figurine_url: originalUrl,
+        skill_levels: skillLevels,
+        dream_titles: dreamTitles,
+      });
+
+      if (result.success) {
+        setEvolvedFigurineUrl(result.data.figurine_url);
+        setFigurineUrl(result.data.figurine_url);
+        setEvolutionAvailable(false);
+        setEvolutionLevel(null);
+        setShowEvolutionSheet(true);
+        // Reload skills data to refresh
+        await loadSkillsData();
+      } else {
+        console.error('Evolution generation failed');
+      }
+    } catch (error) {
+      console.error('Error evolving:', error);
+    } finally {
+      setIsEvolving(false);
+    }
+  };
+
   // Calculate overall stats for each view
   const getOverallStats = () => {
     if (selectedTab === 'current') {
       return { level: overallLevel, xp: totalXp };
     } else if (selectedTab === 'beforeAfter') {
       const beforeTotal = beforeAfterData.reduce((sum, item) => sum + item.beforeXp, 0);
-      const beforeLevel = Math.floor(Math.sqrt(beforeTotal / 50)) + 1;
+      const beforeLevel = Math.floor(Math.sqrt(beforeTotal / 10)) + 1;
       return { level: overallLevel, xp: totalXp, beforeLevel, beforeXp: beforeTotal };
     } else {
       const projectedTotal = projectedData.reduce((sum, item) => sum + item.projectedXp, 0);
-      const projectedLevel = Math.floor(Math.sqrt(projectedTotal / 50)) + 1;
+      const projectedLevel = Math.floor(Math.sqrt(projectedTotal / 10)) + 1;
       return { level: projectedLevel, xp: projectedTotal, isProjected: true };
     }
   };
@@ -648,145 +736,276 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
               styles.scrollContent,
               {
                 paddingTop:
-                  selectedTab === 'beforeAfter'
-                    ? theme.spacing.lg
-                    : figurineUrl
+                  selectedTab === 'current' && figurineUrl
+                    ? Math.max(figurineSize / 2, theme.spacing.lg)
+                    : selectedTab === 'end2025' && figurineUrl
                       ? Math.max(figurineSize / 2, theme.spacing.lg)
                       : theme.spacing.lg,
               }
             ]}
             showsVerticalScrollIndicator={false}
           >
-            {selectedTab === 'beforeAfter' && (
-              <View style={styles.dayNowCard}>
-                <View style={styles.dayNowRow}>
-                  <View style={styles.dayNowSide}>
-                    <Text style={styles.dayNowLabel}>Day 1</Text>
-                    <View style={styles.dayNowImageWrapper}>
-                      <View style={styles.dayNowPlaceholder}>
-                        <Icon name="person" size={32} color={theme.colors.text.tertiary} />
-                      </View>
+            {/* Current Tab UI */}
+            {selectedTab === 'current' && (
+              <>
+                <View style={styles.profileCard}>
+                  {figurineUrl && (
+                    <View
+                      style={[
+                        styles.profileFigurineWrap,
+                        {
+                          width: figurineSize,
+                          height: figurineSize,
+                          marginLeft: -figurineSize / 2,
+                          top: -figurineSize / 2,
+                        },
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: figurineUrl }}
+                        style={[styles.figurineImage, { width: figurineSize, height: figurineSize }]}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                      />
                     </View>
-                  </View>
+                  )}
 
-                  <View style={styles.dayNowSide}>
-                    <Text style={styles.dayNowLabel}>Now</Text>
-                    <View style={styles.dayNowImageWrapper}>
-                      {figurineUrl ? (
-                        <Image
-                          source={{ uri: figurineUrl }}
-                          style={styles.dayNowImage}
-                          contentFit="cover"
-                          cachePolicy="disk"
-                        />
-                      ) : (
-                        <View style={styles.dayNowPlaceholder}>
-                          <Icon name="person" size={32} color={theme.colors.text.tertiary} />
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Profile + Overall Progress Card (figurine overlaps) */}
-            <View style={styles.profileCard}>
-              {selectedTab !== 'beforeAfter' && figurineUrl && (
-                <View
-                  style={[
-                    styles.profileFigurineWrap,
-                    {
-                      width: figurineSize,
-                      height: figurineSize,
-                      marginLeft: -figurineSize / 2,
-                      top: -figurineSize / 2,
-                    },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: figurineUrl }}
-                    style={[styles.figurineImage, { width: figurineSize, height: figurineSize }]}
-                    contentFit="cover"
-                    cachePolicy="disk"
-                  />
-                </View>
-              )}
-
-              <View
-                style={[
-                  styles.profileCardInner,
-                  {
-                    paddingTop:
-                      selectedTab === 'beforeAfter'
-                        ? theme.spacing.md
-                        : figurineUrl
+                  <View
+                    style={[
+                      styles.profileCardInner,
+                      {
+                        paddingTop: figurineUrl
                           ? figurineSize / 2 + theme.spacing.md
                           : theme.spacing.md,
-                  },
-                ]}
-              >
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {userDisplayName}
-                </Text>
-
-                <View style={styles.levelBadgeRow}>
-                  <View style={[
-                    styles.levelBadgePill,
-                    currentOverallStats.isProjected && styles.levelBadgePillProjected,
-                    currentOverallStats.level === 2 && styles.levelBadgePillLevel2
-                  ]}>
-                    {selectedTab === 'beforeAfter' && currentOverallStats.beforeLevel !== undefined ? (
-                      <Text style={[
-                        styles.levelBadgePillText,
-                        currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
-                      ]}>
-                        Level {currentOverallStats.beforeLevel} → {currentOverallStats.level}
-                      </Text>
-                    ) : (
-                      <Text style={[
-                        styles.levelBadgePillText,
-                        currentOverallStats.isProjected && styles.levelBadgePillTextProjected,
-                        currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
-                      ]}>
-                        {currentOverallStats.isProjected ? 'Dream You: ' : ''}Level {currentOverallStats.level}
-                      </Text>
-                    )}
-                  </View>
-                  {selectedTab !== 'beforeAfter' && (
-                    <Text style={styles.totalXpText}>
-                      {currentOverallStats.xp.toLocaleString()} XP earned
+                      },
+                    ]}
+                  >
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {userDisplayName}
                     </Text>
-                  )}
-                </View>
 
-                <View style={styles.profileProgressWrap}>
-                  {selectedTab === 'beforeAfter' ? (
-                    <Text style={styles.overallXpDeltaText}>{currentOverallXpDeltaText}</Text>
-                  ) : (
-                    <>
+                    <View style={styles.levelBadgeRow}>
+                      <View style={[
+                        styles.levelBadgePill,
+                        currentOverallStats.level === 2 && styles.levelBadgePillLevel2
+                      ]}>
+                        <Text style={[
+                          styles.levelBadgePillText,
+                          currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
+                        ]}>
+                          Level {currentOverallStats.level}
+                        </Text>
+                      </View>
+                      <Text style={styles.totalXpText}>
+                        {currentOverallStats.xp.toLocaleString()} XP earned
+                      </Text>
+                    </View>
+
+                    <View style={styles.profileProgressWrap}>
                       <View style={styles.skillBarBg}>
                         <View style={[styles.skillBarFill, { width: `${currentOverallProgress.percent}%` }]} />
                       </View>
                       <Text style={styles.nextLevelText}>
                         <Text style={styles.nextLevelXpBold}>{currentOverallRemainingXp} XP</Text> to Level {currentOverallStats.level + 1}
                       </Text>
-                    </>
-                  )}
-                </View>
-              </View>
-            </View>
+                    </View>
 
-            {loading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>Loading skills...</Text>
-              </View>
-            ) : (
-              <View style={styles.skillsList}>
-                {selectedTab === 'current' && skillsData.map(renderCurrentSkillRow)}
-                {selectedTab === 'beforeAfter' && beforeAfterData.map(renderBeforeAfterSkillRow)}
-                {selectedTab === 'end2025' && projectedData.map(renderProjectedSkillRow)}
-              </View>
+                    {evolutionAvailable && evolutionLevel && (
+                      <View style={styles.evolveButtonContainer}>
+                        <Button
+                          title={`Evolve to Level ${evolutionLevel}`}
+                          onPress={handleEvolve}
+                          variant="inverse"
+                          size="md"
+                          disabled={isEvolving}
+                          loading={isEvolving}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {loading ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>Loading skills...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.skillsList}>
+                    {skillsData.map(renderCurrentSkillRow)}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Day 1 → Now Tab UI */}
+            {selectedTab === 'beforeAfter' && (
+              <>
+                <View style={styles.dayNowCard}>
+                  <View style={styles.dayNowRow}>
+                    <View style={styles.dayNowSide}>
+                      <Text style={styles.dayNowLabel}>Day 1</Text>
+                      <View style={styles.dayNowImageWrapper}>
+                        {originalFigurineUrl ? (
+                          <Image
+                            source={{ uri: originalFigurineUrl }}
+                            style={styles.dayNowImage}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                          />
+                        ) : (
+                          <View style={styles.dayNowPlaceholder}>
+                            <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                          </View>
+                        )}
+                      </View>
+                    </View>
+
+                    <View style={styles.dayNowSide}>
+                      <Text style={styles.dayNowLabel}>Now</Text>
+                      <View style={styles.dayNowImageWrapper}>
+                        {figurineUrl ? (
+                          <Image
+                            source={{ uri: figurineUrl }}
+                            style={styles.dayNowImage}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                          />
+                        ) : (
+                          <View style={styles.dayNowPlaceholder}>
+                            <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.profileCard}>
+                  <View
+                    style={[
+                      styles.profileCardInner,
+                      {
+                        paddingTop: theme.spacing.md,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {userDisplayName}
+                    </Text>
+
+                    <View style={styles.levelBadgeRow}>
+                      <View style={[
+                        styles.levelBadgePill,
+                        currentOverallStats.level === 2 && styles.levelBadgePillLevel2
+                      ]}>
+                        {currentOverallStats.beforeLevel !== undefined && (
+                          <Text style={[
+                            styles.levelBadgePillText,
+                            currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
+                          ]}>
+                            Level {currentOverallStats.beforeLevel} → {currentOverallStats.level}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    <View style={styles.profileProgressWrap}>
+                      <Text style={styles.overallXpDeltaText}>{currentOverallXpDeltaText}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {loading ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>Loading skills...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.skillsList}>
+                    {beforeAfterData.map(renderBeforeAfterSkillRow)}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Dream You Tab UI */}
+            {selectedTab === 'end2025' && (
+              <>
+                <View style={styles.profileCard}>
+                  {figurineUrl && (
+                    <View
+                      style={[
+                        styles.profileFigurineWrap,
+                        {
+                          width: figurineSize,
+                          height: figurineSize,
+                          marginLeft: -figurineSize / 2,
+                          top: -figurineSize / 2,
+                        },
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: figurineUrl }}
+                        style={[styles.figurineImage, { width: figurineSize, height: figurineSize }]}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                      />
+                    </View>
+                  )}
+
+                  <View
+                    style={[
+                      styles.profileCardInner,
+                      {
+                        paddingTop: figurineUrl
+                          ? figurineSize / 2 + theme.spacing.md
+                          : theme.spacing.md,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {userDisplayName}
+                    </Text>
+
+                    <View style={styles.levelBadgeRow}>
+                      <View style={[
+                        styles.levelBadgePill,
+                        styles.levelBadgePillProjected,
+                        currentOverallStats.level === 2 && styles.levelBadgePillLevel2
+                      ]}>
+                        <Text style={[
+                          styles.levelBadgePillText,
+                          styles.levelBadgePillTextProjected,
+                          currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
+                        ]}>
+                          Dream You: Level {currentOverallStats.level}
+                        </Text>
+                      </View>
+                      <Text style={styles.totalXpText}>
+                        {currentOverallStats.xp.toLocaleString()} XP earned
+                      </Text>
+                    </View>
+
+                    <View style={styles.profileProgressWrap}>
+                      <View style={styles.skillBarBg}>
+                        <View style={[styles.skillBarFill, { width: `${currentOverallProgress.percent}%` }]} />
+                      </View>
+                      <Text style={styles.nextLevelText}>
+                        <Text style={styles.nextLevelXpBold}>{currentOverallRemainingXp} XP</Text> to Level {currentOverallStats.level + 1}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {loading ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>Loading skills...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.skillsList}>
+                    {projectedData.map(renderProjectedSkillRow)}
+                  </View>
+                )}
+              </>
             )}
             
             {/* Unlocked Skills List (if any skills with 0 XP are not shown above) */}
@@ -795,6 +1014,16 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
           </ScrollView>
         </SafeAreaView>
       </View>
+
+      <EvolutionSheet
+        visible={showEvolutionSheet}
+        evolutionLevel={evolutionLevel || 0}
+        figurineUrl={evolvedFigurineUrl || ''}
+        onClose={() => {
+          setShowEvolutionSheet(false);
+          setEvolvedFigurineUrl(null);
+        }}
+      />
     </Modal>
   );
 };
@@ -890,7 +1119,7 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   },
   levelBadgePillTextProjected: {
     color: theme.colors.text.inverse,
-    fontSize: 26,
+    fontSize: 22,
   },
   totalXpText: {
     fontSize: 18,
@@ -920,6 +1149,10 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text.secondary,
     textAlign: 'center',
+  },
+  evolveButtonContainer: {
+    width: '100%',
+    marginTop: theme.spacing.md,
   },
 
   // Skills list

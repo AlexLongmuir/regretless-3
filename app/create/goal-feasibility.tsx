@@ -9,9 +9,6 @@ import { runGoalFeasibility, upsertDream, TitleSuggestion } from '../../frontend
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { StatusBar } from 'expo-status-bar'
-import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 interface GoalSuggestion extends TitleSuggestion {
   id: string
@@ -26,8 +23,8 @@ interface LastAnalysisInputs {
 }
 
 export default function GoalFeasibilityStep() {
-  const { theme, isDark } = useTheme()
-  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark])
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const navigation = useNavigation<any>()
   const { 
     title, 
@@ -279,8 +276,7 @@ export default function GoalFeasibilityStep() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' }}>
-        <StatusBar style={isDark ? "light" : "dark"} />
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
           {/* Rocket Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>🚀</Text>
@@ -289,7 +285,7 @@ export default function GoalFeasibilityStep() {
           <Text style={{ 
             fontSize: 18, 
             fontWeight: 'bold', 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             lineHeight: 24
           }}>
@@ -299,8 +295,7 @@ export default function GoalFeasibilityStep() {
           {/* Description */}
           <Text style={{ 
             fontSize: 16, 
-            color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse, 
-            opacity: isDark ? 1 : 0.85,
+            color: theme.colors.text.primary, 
             textAlign: 'center',
             paddingHorizontal: 32,
             lineHeight: 22
@@ -311,7 +306,7 @@ export default function GoalFeasibilityStep() {
           {/* Loading indicator */}
           <ActivityIndicator 
             size="large" 
-            color={isDark ? theme.colors.primary[600] : theme.colors.text.inverse} 
+            color={theme.colors.primary[600]} 
             style={{ marginTop: 32 }} 
           />
         </View>
@@ -321,29 +316,28 @@ export default function GoalFeasibilityStep() {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: 'transparent' }}
+      style={{ flex: 1, backgroundColor: theme.colors.background.page }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
-        <CreateScreenHeader step="feasibility" />
-        
-        <ScrollView 
-          style={{ flex: 1 }} 
-          contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing['4xl'] }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Page Title */}
-          <Text style={{ 
-            fontSize: 32, 
-            fontWeight: 'bold', 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-            marginBottom: theme.spacing.sm
-          }}>
-            Let's Make Your Dream Even Better
-          </Text>
+      <CreateScreenHeader step="feasibility" />
+      
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Page Title */}
+        <Text style={{ 
+          fontSize: 18, 
+          fontWeight: 'bold', 
+          color: '#000', 
+          marginBottom: 24,
+          lineHeight: 24
+        }}>
+          Let's Make Your Dream Even Better
+        </Text>
 
         {/* Choose Your Goal Section */}
         <View style={{ marginBottom: 32 }}>
@@ -352,7 +346,7 @@ export default function GoalFeasibilityStep() {
           {summary && (
             <Text style={{ 
               fontSize: 16, 
-              color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
+              color: '#000', 
               marginBottom: 16,
               lineHeight: 22,
               fontStyle: 'italic'
@@ -363,8 +357,7 @@ export default function GoalFeasibilityStep() {
           
           <Text style={{ 
             fontSize: 14, 
-            color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse, 
-            opacity: isDark ? 1 : 0.85,
+            color: theme.colors.text.muted, 
             marginBottom: 12
           }}>
             Your dream
@@ -390,8 +383,7 @@ export default function GoalFeasibilityStep() {
             <View style={{ gap: 8, marginBottom: 16 }}>
               <Text style={{ 
                 fontSize: 14, 
-                color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse, 
-                opacity: isDark ? 1 : 0.85,
+                color: theme.colors.text.muted, 
                 marginBottom: 12
               }}>
                 Suggestions to make it even better (tap to try)
@@ -417,27 +409,26 @@ export default function GoalFeasibilityStep() {
             </View>
           )}
         </View>
-        </ScrollView>
-        
-        {/* Footer with button */}
-        <View style={styles.footer}>
-          <Button 
-            title="Continue to Time Commitment"
-            variant="inverse"
-            onPress={handleContinue}
-            style={styles.button}
-          />
-        </View>
-      </SafeAreaView>
+      </ScrollView>
+      
+      {/* Footer with button */}
+      <View style={styles.footer}>
+        <Button 
+          title="Continue to Time Commitment"
+          variant="black"
+          onPress={handleContinue}
+          style={styles.button}
+        />
+      </View>
     </KeyboardAvoidingView>
   )
 }
 
-const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   footer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: 'transparent',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

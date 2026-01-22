@@ -26,6 +26,11 @@ export const Icon: React.FC<IconProps> = ({
     return null;
   }
   
+  if (!iconConfig.name) {
+    console.warn(`Icon "${name}" has no icon name configured`);
+    return null;
+  }
+  
   if (iconConfig.library === 'MaterialIcons') {
     return (
       <MaterialIcons 
@@ -48,6 +53,7 @@ export const Icon: React.FC<IconProps> = ({
     );
   }
   
+  console.warn(`Icon "${name}" has unknown library: ${iconConfig.library}`);
   return null;
 };
 

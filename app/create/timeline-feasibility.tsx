@@ -9,9 +9,6 @@ import { runTimelineFeasibility, upsertDream } from '../../frontend-services/bac
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { StatusBar } from 'expo-status-bar'
-import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 export default function TimelineFeasibilityStep() {
   const { theme, isDark } = useTheme()
@@ -474,8 +471,7 @@ export default function TimelineFeasibilityStep() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' }}>
-        <StatusBar style={isDark ? "light" : "dark"} />
+      <View style={{ flex: 1, backgroundColor: theme.colors.background.page, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ alignItems: 'center' }}>
           {/* Clock Icon */}
           <Text style={{ fontSize: 80, marginBottom: 24 }}>⏰</Text>
@@ -484,7 +480,7 @@ export default function TimelineFeasibilityStep() {
           <Text style={{ 
             fontSize: 18, 
             fontWeight: 'bold', 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
+            color: theme.colors.text.primary, 
             marginBottom: 16,
             lineHeight: 24
           }}>
@@ -494,8 +490,7 @@ export default function TimelineFeasibilityStep() {
           {/* Description */}
           <Text style={{ 
             fontSize: 16, 
-            color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse, 
-            opacity: isDark ? 1 : 0.85,
+            color: theme.colors.text.primary, 
             textAlign: 'center',
             paddingHorizontal: 32,
             lineHeight: 22
@@ -506,7 +501,7 @@ export default function TimelineFeasibilityStep() {
           {/* Loading indicator */}
           <ActivityIndicator 
             size="large" 
-            color={isDark ? theme.colors.text.primary : theme.colors.text.inverse} 
+            color={theme.colors.text.primary} 
             style={{ marginTop: 32 }} 
           />
         </View>
@@ -515,45 +510,44 @@ export default function TimelineFeasibilityStep() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
-        <CreateScreenHeader step="feasibility" />
-        
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.lg, paddingBottom: theme.spacing['4xl'] }}>
-          {/* Page Title */}
-          <Text style={{ 
-            fontSize: 32, 
-            fontWeight: 'bold', 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-            marginBottom: theme.spacing.sm
-          }}>
-            Perfect Your Timeline
-          </Text>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
+      <CreateScreenHeader step="feasibility" />
+      
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
+        {/* Page Title */}
+        <Text style={{ 
+          fontSize: 18, 
+          fontWeight: 'bold', 
+          color: theme.colors.text.primary, 
+          marginBottom: 24,
+          lineHeight: 24
+        }}>
+          Perfect Your Timeline
+        </Text>
 
-          {/* Timeline Assessment Section */}
-          <View style={{ marginBottom: 32 }}>
+        {/* Timeline Assessment Section */}
+        <View style={{ marginBottom: 32 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            color: theme.colors.text.primary, 
+            marginBottom: 16,
+            fontWeight: '600'
+          }}>
+            Timeline Analysis
+          </Text>
+          
+          {/* AI Analysis */}
+          {assessment && (
             <Text style={{ 
               fontSize: 16, 
-              color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
+              color: theme.colors.text.primary, 
               marginBottom: 16,
-              fontWeight: '600'
+              lineHeight: 22
             }}>
-              Timeline Analysis
+              {assessment}
             </Text>
-            
-            {/* AI Analysis */}
-            {assessment && (
-              <Text style={{ 
-                fontSize: 16, 
-                color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-                marginBottom: 16,
-                lineHeight: 22
-              }}>
-                {assessment}
-              </Text>
-            )}
-          </View>
+          )}
+        </View>
 
         {/* Complete In Section - Separate Card */}
         {currentStartDate && currentEndDate && (
@@ -668,27 +662,26 @@ export default function TimelineFeasibilityStep() {
             </View>
           </View>
         </View>
-        </ScrollView>
-        
-        {/* Footer with button */}
-        <View style={styles.footer}>
-          <Button 
-            title="Create Goal"
-          variant="inverse"
-            onPress={handleContinue}
-            style={styles.button}
-          />
-        </View>
-      </SafeAreaView>
+      </ScrollView>
+      
+      {/* Footer with button */}
+      <View style={styles.footer}>
+        <Button 
+          title="Create Goal"
+          variant="black"
+          onPress={handleContinue}
+          style={styles.button}
+        />
+      </View>
     </View>
   )
 }
 
-const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   footer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: 'transparent',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

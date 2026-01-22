@@ -16,9 +16,6 @@ import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
 import { trackEvent } from '../../lib/mixpanel'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { StatusBar } from 'expo-status-bar'
-import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
 
 const dreamPresets = [
   { emoji: '💰', text: 'Launch my online business that generates £1,000 / month' },
@@ -35,8 +32,8 @@ const dreamPresets = [
 ];
 
 export default function TitleStep() {
-  const { theme, isDark } = useTheme()
-  const styles = useMemo(() => createStyles(theme, isDark), [theme, isDark])
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
   const { title, dreamId, start_date, end_date, image_url, setField, preloadedDefaultImages, setPreloadedDefaultImages } = useCreateDream()
   const navigation = useNavigation<any>()
   const toast = useToast()
@@ -124,29 +121,8 @@ export default function TitleStep() {
       return
     }
 
-    // Check if user has a figurine
-    let hasFigurine = false;
-    try {
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabaseClient
-          .from('profiles')
-          .select('figurine_url')
-          .eq('user_id', user.id)
-          .single();
-        
-        hasFigurine = !!profile?.figurine_url;
-      }
-    } catch (error) {
-      console.error('Error checking for figurine:', error);
-    }
-
     // Navigate immediately for smooth UX
-    if (hasFigurine) {
-      navigation.navigate('PersonalizeBaseline')
-    } else {
-      navigation.navigate('CreateFigurine')
-    }
+    navigation.navigate('Personalize')
     
     trackEvent('create_dream_title_entered', {
       length: title.length,
@@ -197,19 +173,17 @@ export default function TitleStep() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <CreateScreenHeader step="title" />
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.content} 
-          contentContainerStyle={styles.contentContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.title}>
-            What's the dream you want to achieve?
-          </Text>
+      <CreateScreenHeader step="title" />
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>
+          What's the dream you want to achieve?
+        </Text>
         
         <Input 
           placeholder="Start writing..." 
@@ -251,20 +225,19 @@ export default function TitleStep() {
           ))}
         </View>
         
-          {/* Add spacing area before button */}
-          <View style={styles.spacingArea} />
-        </ScrollView>
-        
-        {/* Footer with button */}
-        <View style={styles.footer}>
-          <Button 
-            title="Continue"
-            variant="inverse"
-            onPress={handleContinue}
-            style={styles.button}
-          />
-        </View>
-      </SafeAreaView>
+        {/* Add spacing area before button */}
+        <View style={styles.spacingArea} />
+      </ScrollView>
+      
+      {/* Footer with button */}
+      <View style={styles.footer}>
+        <Button 
+          title="Continue"
+          variant={"black" as any}
+          onPress={handleContinue}
+          style={styles.button}
+        />
+      </View>
 
       <CelebritySelector visible={showCelebs} onClose={() => setShowCelebs(false)} onGenerated={handleGenerated} onSelectTitle={(t) => handlePresetSelect(t)} />
       <DreamboardUpload visible={showDreamboard} onClose={() => setShowDreamboard(false)} onGenerated={handleGenerated} onSelectTitle={(t) => handlePresetSelect(t)} />
@@ -272,29 +245,27 @@ export default function TitleStep() {
   )
 }
 
-const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: theme.colors.background.page,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing['2xl'],
     paddingBottom: theme.spacing['4xl'],
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: isDark ? theme.colors.text.primary : theme.colors.text.inverse,
+    fontFamily: theme.typography.fontFamily.system,
+    fontSize: theme.typography.fontSize.title2,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    lineHeight: theme.typography.lineHeight.title2,
+    color: theme.colors.text.primary,
     textAlign: 'left',
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing['2xl'],
   },
   input: {
     width: '100%',
@@ -304,8 +275,7 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     fontFamily: theme.typography.fontFamily.system,
     fontSize: 12,
     fontWeight: theme.typography.fontWeight.regular as any,
-    color: isDark ? theme.colors.text.secondary : theme.colors.text.inverse,
-    opacity: isDark ? 1 : 0.8,
+    color: theme.colors.text.secondary,
     marginBottom: theme.spacing.md,
   },
   optionsContainer: {
@@ -315,9 +285,9 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     height: theme.spacing['4xl'],
   },
   footer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.lg,
-    backgroundColor: 'transparent',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    backgroundColor: theme.colors.background.page,
   },
   button: {
     width: '100%',

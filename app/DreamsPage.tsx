@@ -11,7 +11,7 @@ import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import type { Dream, DreamWithStats, Achievement, UserAchievement } from '../backend/database/types';
 import { trackEvent } from '../lib/mixpanel';
-import { getAchievements } from '../frontend-services/backend-bridge';
+import { getAchievements, checkEvolutionAvailability } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import { StreakSheet } from '../components/StreakSheet';
 import { SkillsButton } from '../components/SkillsButton';
@@ -34,6 +34,7 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   const [showStreakSheet, setShowStreakSheet] = useState(false);
   const [showSkillsSheet, setShowSkillsSheet] = useState(false);
   const [overallLevel, setOverallLevel] = useState(1);
+  const [hasEvolutionAvailable, setHasEvolutionAvailable] = useState(false);
   
   const dreams = state.dreamsSummary?.dreams || [];
   const dreamsWithStats = state.dreamsWithStats?.dreams || [];
@@ -128,7 +129,7 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     loadLongestStreak();
   }, [isAuthenticated, authLoading, user?.id]);
 
-  // Load overall level
+  // Load overall level and check evolution availability
   useEffect(() => {
     const loadOverallLevel = async () => {
       if (!isAuthenticated || authLoading || !user?.id) return;
@@ -144,6 +145,22 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
           setOverallLevel(1);
         } else {
           setOverallLevel(data?.overall_level || 1);
+        }
+
+        // Check evolution availability
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            const evolutionCheck = await checkEvolutionAvailability(session.access_token);
+            if (evolutionCheck.success && evolutionCheck.data.available) {
+              setHasEvolutionAvailable(true);
+            } else {
+              setHasEvolutionAvailable(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking evolution availability:', error);
+          setHasEvolutionAvailable(false);
         }
       } catch (error) {
         console.error('Error loading overall level:', error);
@@ -308,39 +325,48 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
       >
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <View style={styles.headerText}>
-              <View style={styles.titleContainer}>
-                <Image source={require('../assets/star.png')} style={styles.appIcon} />
-                <Text style={styles.title}>Dreamer</Text>
+            <View style={styles.headerTopRow}>
+              <View style={styles.headerText}>
+                <View style={styles.titleContainer}>
+                  <Image source={require('../assets/star.png')} style={styles.appIcon} />
+                  <Text style={styles.title}>Dreamer</Text>
+                </View>
+                <Text style={styles.subtitle}>
+                  Keep pushing forward. Every step counts.
+                </Text>
               </View>
-              <Text style={styles.subtitle}>
-                Keep pushing forward. Every step counts.
-              </Text>
-            </View>
-            <View style={styles.headerActions}>
-              <SkillsButton
-                level={overallLevel}
-                onPress={() => setShowSkillsSheet(true)}
-                variant="secondary"
-                size="md"
-              />
-              <StreakButton
-                streak={overallStreak}
-                onPress={() => setShowStreakSheet(true)}
-                variant="secondary"
-                size="md"
-              />
-              <AchievementsButton
-                onPress={() => setShowAchievementsSheet(true)}
-                count={achievements.filter(a => a.user_progress).length}
-                total={achievements.length}
-              />
               <IconButton
                 icon="add"
                 onPress={() => handleAddDream('header')}
                 variant="secondary"
                 size="md"
               />
+            </View>
+            <View style={styles.headerActions}>
+              <View style={styles.headerActionButton}>
+                <SkillsButton
+                  level={overallLevel}
+                  onPress={() => setShowSkillsSheet(true)}
+                  variant="secondary"
+                  size="md"
+                  hasEvolutionAvailable={hasEvolutionAvailable}
+                />
+              </View>
+              <View style={styles.headerActionButton}>
+                <StreakButton
+                  streak={overallStreak}
+                  onPress={() => setShowStreakSheet(true)}
+                  variant="secondary"
+                  size="md"
+                />
+              </View>
+              <View style={styles.headerActionButton}>
+                <AchievementsButton
+                  onPress={() => setShowAchievementsSheet(true)}
+                  count={achievements.filter(a => a.user_progress).length}
+                  total={achievements.length}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -406,14 +432,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   headerContent: {
+    flexDirection: 'column',
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: theme.spacing.md,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  headerActionButton: {
+    flex: 1,
   },
   headerText: {
     flex: 1,

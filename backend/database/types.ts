@@ -33,6 +33,8 @@ export interface Profile {
   username: string;
   theme_mode: 'light' | 'dark' | 'system';
   figurine_url?: string;
+  original_figurine_url?: string;
+  current_evolution_level?: number;
   created_at: string;
   updated_at: string;
 }
@@ -243,6 +245,16 @@ export interface UserXp {
   updated_at: string;
 }
 
+export interface UserEvolution {
+  id: string;
+  user_id: string;
+  evolution_level: number;
+  figurine_url: string;
+  skill_levels_snapshot: Record<string, number>;
+  dream_titles_snapshot: string[];
+  created_at: string;
+}
+
 // Function return types
 export type CurrentStreakResult = number;
 
@@ -324,6 +336,11 @@ export interface Database {
         Row: UserXp;
         Insert: Omit<UserXp, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<UserXp, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      user_evolutions: {
+        Row: UserEvolution;
+        Insert: Omit<UserEvolution, 'id' | 'created_at'>;
+        Update: Partial<Omit<UserEvolution, 'id' | 'created_at'>>;
       };
     };
     Views: {

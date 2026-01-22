@@ -4,15 +4,13 @@ import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button } from '../../components/Button'
 import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
-import { activateDream } from '../../frontend-services/backend-bridge'
+import { activateDream, generateDreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
 import { BOTTOM_NAV_PADDING } from '../../utils/bottomNavigation'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { StatusBar } from 'expo-status-bar'
 
 export default function ActionsConfirmStep() {
-  const { theme, isDark } = useTheme()
+  const { theme } = useTheme()
   const navigation = useNavigation<any>()
   const { reset, areas, actions, dreamId, title, baseline, obstacles, enjoyment, figurineUrl } = useCreateDream()
   const [isActivating, setIsActivating] = useState(false)
@@ -34,6 +32,29 @@ export default function ActionsConfirmStep() {
 
       // Activate the dream and schedule actions
       const result = await activateDream({ dream_id: dreamId }, session.access_token)
+      
+      // Generate dream image if figurine URL is available
+      if (result.success && figurineUrl) {
+        try {
+          const dreamContext = [
+            baseline ? `Current baseline: ${baseline}` : '',
+            obstacles ? `Obstacles: ${obstacles}` : '',
+            enjoyment ? `Enjoyment: ${enjoyment}` : ''
+          ].filter(Boolean).join('. ');
+          
+          await generateDreamImage(
+            figurineUrl,
+            title || 'My Dream',
+            dreamContext,
+            dreamId,
+            session.access_token
+          );
+          console.log('✅ Dream image generated successfully');
+        } catch (error) {
+          console.error('❌ Failed to generate dream image:', error);
+          // Don't fail the whole process if image generation fails
+        }
+      }
       
       // Check if activation and scheduling were successful
       if (result.success) {
@@ -67,88 +88,89 @@ export default function ActionsConfirmStep() {
   const totalActions = actions.length
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-      <StatusBar style={isDark ? "light" : "dark"} />
-      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }} edges={['top']}>
-        <CreateScreenHeader step="actions-confirm" onReset={reset} />
-        
-        <ScrollView 
-          contentContainerStyle={{ 
-            flexGrow: 1,
-            justifyContent: 'flex-start', 
-            alignItems: 'center',
-            paddingHorizontal: theme.spacing.md,
-            paddingTop: theme.spacing.lg
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Success Icon */}
-          <View style={{
-            width: 200,
-            height: 200,
-            borderRadius: 100,
-            backgroundColor: theme.colors.status.completed,
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: 24
-          }}>
-            <Text style={{ 
-              fontSize: 100, 
-              color: theme.colors.text.inverse,
-              fontWeight: 'bold'
-            }}>
-              ✓
-            </Text>
-          </View>
-
-          {/* Title */}
-          <Text style={{ 
-            fontSize: 32, 
-            fontWeight: 'bold', 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-            marginBottom: theme.spacing.sm,
-            textAlign: 'center'
-          }}>
-            Plan Complete!
-          </Text>
-
-          {/* Description */}
-          <Text style={{ 
-            fontSize: 16, 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-            textAlign: 'center',
-            lineHeight: 22,
-            marginBottom: 24
-          }}>
-            Fantastic! We've created {totalAreas} focus areas and {totalActions} actions for your dream.
-          </Text>
-
-
-          <Text style={{ 
-            fontSize: 16, 
-            color: isDark ? theme.colors.text.primary : theme.colors.text.inverse, 
-            textAlign: 'center',
-            lineHeight: 22
-          }}>
-            You're now ready to start working towards your dream!
-          </Text>
-        </ScrollView>
-        
-        {/* Sticky bottom buttons */}
-        <View style={{ 
-          paddingHorizontal: theme.spacing.md,
-          paddingBottom: theme.spacing.lg,
-          backgroundColor: 'transparent'
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
+      <CreateScreenHeader step="actions-confirm" onReset={reset} />
+      
+      <ScrollView 
+        contentContainerStyle={{ 
+          flexGrow: 1,
+          justifyContent: 'flex-start', 
+          alignItems: 'center',
+          paddingHorizontal: 32,
+          paddingTop: 16
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Success Icon */}
+        <View style={{
+          width: 200,
+          height: 200,
+          borderRadius: 100,
+          backgroundColor: theme.colors.status.completed,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: 24
         }}>
-          <Button 
-            title="View Dream" 
-            variant="inverse"
-            loading={isActivating}
-            onPress={handleViewDream}
-            style={{ borderRadius: theme.radius.xl, width: '100%' }}
-          />
+          <Text style={{ 
+            fontSize: 100, 
+            color: theme.colors.text.inverse,
+            fontWeight: 'bold'
+          }}>
+            ✓
+          </Text>
         </View>
-      </SafeAreaView>
+
+        {/* Title */}
+        <Text style={{ 
+          fontSize: 24, 
+          fontWeight: 'bold', 
+          color: theme.colors.text.primary, 
+          marginBottom: 16,
+          textAlign: 'center'
+        }}>
+          Plan Complete!
+        </Text>
+
+        {/* Description */}
+        <Text style={{ 
+          fontSize: 16, 
+          color: theme.colors.text.primary, 
+          textAlign: 'center',
+          lineHeight: 22,
+          marginBottom: 24
+        }}>
+          Fantastic! We've created {totalAreas} focus areas and {totalActions} actions for your dream.
+        </Text>
+
+
+        <Text style={{ 
+          fontSize: 16, 
+          color: theme.colors.text.primary, 
+          textAlign: 'center',
+          lineHeight: 22
+        }}>
+          You're now ready to start working towards your dream!
+        </Text>
+      </ScrollView>
+      
+      {/* Sticky bottom buttons */}
+      <View style={{ 
+        position: 'absolute', 
+        bottom: 0, 
+        left: 0, 
+        right: 0, 
+        padding: 16,
+        paddingBottom: BOTTOM_NAV_PADDING,
+        backgroundColor: theme.colors.background.page
+      }}>
+        <Button 
+          title="View Dream" 
+          variant="black"
+          loading={isActivating}
+          onPress={handleViewDream}
+          style={{ borderRadius: theme.radius.xl }}
+        />
+      </View>
     </View>
   )
 }

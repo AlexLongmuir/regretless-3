@@ -18,7 +18,7 @@ import { SkillsSheet } from '../components/SkillsSheet';
 import { useData } from '../contexts/DataContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import { trackEvent } from '../lib/mixpanel';
-import { getAchievements } from '../frontend-services/backend-bridge';
+import { getAchievements, checkEvolutionAvailability } from '../frontend-services/backend-bridge';
 import { supabaseClient } from '../lib/supabaseClient';
 import type { Achievement, UserAchievement } from '../backend/database/types';
 
@@ -32,6 +32,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   const [showStreakSheet, setShowStreakSheet] = useState(false);
   const [showSkillsSheet, setShowSkillsSheet] = useState(false);
   const [overallLevel, setOverallLevel] = useState(1);
+  const [hasEvolutionAvailable, setHasEvolutionAvailable] = useState(false);
   const { state, getDreamsWithStats, getProgress, onScreenFocus, isScreenshotMode } = useData();
   const { user, isAuthenticated, loading: authLoading } = useAuthContext();
 
@@ -84,7 +85,7 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     loadLongestStreak();
   }, [isAuthenticated, authLoading, user?.id]);
 
-  // Load overall level
+  // Load overall level and check evolution availability
   useEffect(() => {
     const loadOverallLevel = async () => {
       if (!isAuthenticated || authLoading || !user?.id) return;
@@ -100,6 +101,22 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           setOverallLevel(1);
         } else {
           setOverallLevel(data?.overall_level || 1);
+        }
+
+        // Check evolution availability
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.access_token) {
+            const evolutionCheck = await checkEvolutionAvailability(session.access_token);
+            if (evolutionCheck.success && evolutionCheck.data.available) {
+              setHasEvolutionAvailable(true);
+            } else {
+              setHasEvolutionAvailable(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking evolution availability:', error);
+          setHasEvolutionAvailable(false);
         }
       } catch (error) {
         console.error('Error loading overall level:', error);
@@ -200,23 +217,30 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
           <View style={styles.headerContent}>
             <Text style={styles.title}>Progress</Text>
             <View style={styles.headerActions}>
-              <SkillsButton
-                level={overallLevel}
-                onPress={() => setShowSkillsSheet(true)}
-                variant="secondary"
-                size="md"
-              />
-              <StreakButton
-                streak={overallStreak}
-                onPress={() => setShowStreakSheet(true)}
-                variant="secondary"
-                size="md"
-              />
-              <AchievementsButton
-                onPress={() => setShowAchievementsSheet(true)}
-                count={achievements.filter(a => a.user_progress).length}
-                total={achievements.length}
-              />
+              <View style={styles.headerActionButton}>
+                <SkillsButton
+                  level={overallLevel}
+                  onPress={() => setShowSkillsSheet(true)}
+                  variant="secondary"
+                  size="md"
+                  hasEvolutionAvailable={hasEvolutionAvailable}
+                />
+              </View>
+              <View style={styles.headerActionButton}>
+                <StreakButton
+                  streak={overallStreak}
+                  onPress={() => setShowStreakSheet(true)}
+                  variant="secondary"
+                  size="md"
+                />
+              </View>
+              <View style={styles.headerActionButton}>
+                <AchievementsButton
+                  onPress={() => setShowAchievementsSheet(true)}
+                  count={achievements.filter(a => a.user_progress).length}
+                  total={achievements.length}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -324,14 +348,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: theme.spacing.md,
+  },
+  headerActionButton: {
+    flex: 1,
   },
   title: {
     fontSize: 32,

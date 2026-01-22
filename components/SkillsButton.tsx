@@ -12,6 +12,7 @@ interface SkillsButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost';
   disabled?: boolean;
   style?: ViewStyle;
+  hasEvolutionAvailable?: boolean;
 }
 
 export const SkillsButton: React.FC<SkillsButtonProps> = ({
@@ -21,6 +22,7 @@ export const SkillsButton: React.FC<SkillsButtonProps> = ({
   variant = 'secondary',
   disabled = false,
   style,
+  hasEvolutionAvailable = false,
 }) => {
   const { theme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme, isDark]);
@@ -73,6 +75,7 @@ export const SkillsButton: React.FC<SkillsButtonProps> = ({
             { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
             disabled && styles.disabled,
             { backgroundColor: theme.colors.background.card },
+            hasEvolutionAvailable && styles.evolutionHighlight,
           ]}
         >
           {buttonContent}
@@ -100,6 +103,7 @@ export const SkillsButton: React.FC<SkillsButtonProps> = ({
             styles.glassButton,
             { height: buttonHeight, borderRadius, minWidth: buttonHeight + 20 },
             disabled && styles.disabled,
+            hasEvolutionAvailable && styles.evolutionHighlight,
           ]}
         >
         {buttonContent}
@@ -143,5 +147,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   disabled: {
     opacity: 0.6,
+  },
+  evolutionHighlight: {
+    borderWidth: 2,
+    borderColor: '#10B981', // green-500 equivalent
+    shadowColor: '#10B981',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });

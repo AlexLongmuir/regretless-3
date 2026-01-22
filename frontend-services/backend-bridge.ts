@@ -1070,3 +1070,121 @@ export const markAchievementsSeen = async (achievementIds: string[], token: stri
     return { success: false, message: error.message }
   }
 }
+
+// Evolution API
+
+export interface EvolutionCheckResponse {
+  available: boolean
+  evolution_level: number | null
+  current_level: number
+}
+
+export const checkEvolutionAvailability = async (token: string): Promise<{ success: boolean; data: EvolutionCheckResponse }> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+
+  console.log('🌐 [BACKEND-BRIDGE] Checking evolution availability')
+
+  try {
+    const res = await fetch(`${API_BASE}/api/evolutions/check`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Evolution check response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Evolution check Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Evolution check Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Evolution check Network/Parse Error:', error)
+    throw error
+  }
+}
+
+export interface GenerateEvolutionRequest {
+  evolution_level: number
+  original_figurine_url: string
+  skill_levels: Record<string, number>
+  dream_titles: string[]
+}
+
+export interface GenerateEvolutionResponse {
+  id: string
+  evolution_level: number
+  figurine_url: string
+  path: string
+}
+
+export const generateEvolution = async (
+  token: string,
+  request: GenerateEvolutionRequest
+): Promise<{ success: boolean; data: GenerateEvolutionResponse }> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+
+  console.log('🌐 [BACKEND-BRIDGE] Generating evolution')
+
+  try {
+    const res = await fetch(`${API_BASE}/api/evolutions/generate`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request)
+    })
+
+    console.log('📡 [BACKEND-BRIDGE] Evolution generate response status:', res.status)
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('❌ [BACKEND-BRIDGE] Evolution generate Error:', errorText)
+      throw new Error(errorText)
+    }
+
+    const result = await res.json()
+    console.log('✅ [BACKEND-BRIDGE] Evolution generate Success:', result)
+    return result
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Evolution generate Network/Parse Error:', error)
+    throw error
+  }
+}
+
+export interface EvolutionHistoryItem {
+  id: string
+  evolution_level: number
+  figurine_url: string
+  skill_levels_snapshot: Record<string, number>
+  dream_titles_snapshot: string[]
+  created_at: string
+}
+
+export const getEvolutionHistory = async (token: string): Promise<{ success: boolean; data: { evolutions: EvolutionHistoryItem[] } }> => {
+  // Using Supabase Client directly
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data: evolutions, error } = await supabaseClient
+      .from('user_evolutions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('evolution_level', { ascending: true })
+
+    if (error) throw error
+
+    return { success: true, data: { evolutions: evolutions || [] } }
+  } catch (error) {
+    console.log('💥 [BACKEND-BRIDGE] Get evolution history Error:', error)
+    return { success: false, data: { evolutions: [] } }
+  }
+}
