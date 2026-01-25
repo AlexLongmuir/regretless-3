@@ -3,7 +3,6 @@ import { View, Text, Alert, ScrollView } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { Button } from '../../components/Button'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { activateDream, generateDreamImage } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -89,8 +88,6 @@ export default function ActionsConfirmStep() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
-      <CreateScreenHeader step="actions-confirm" onReset={reset} />
-      
       <ScrollView 
         contentContainerStyle={{ 
           flexGrow: 1,

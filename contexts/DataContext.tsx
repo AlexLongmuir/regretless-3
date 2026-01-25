@@ -306,15 +306,34 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       return;
     }
     
-    console.log('getDreamsWithStats called:', { force, fetchedAt: state.dreamsWithStats?.fetchedAt, isStale: isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM) });
+    console.log('[STREAK] getDreamsWithStats called:', { force, fetchedAt: state.dreamsWithStats?.fetchedAt, isStale: isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM) });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:309',message:'getDreamsWithStats entry',data:{force,fetchedAt:state.dreamsWithStats?.fetchedAt,isStale:isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (!force && !isStale(state.dreamsWithStats?.fetchedAt, CACHE_TTL.MEDIUM)) {
-      console.log('getDreamsWithStats: Using cached data');
+      console.log('[STREAK] getDreamsWithStats: Using cached data');
+      const cachedStreaks = state.dreamsWithStats?.dreams?.map(d => ({ title: d.title, streak: d.current_streak || 0 })) || [];
+      console.log('[STREAK] Cached streak values:', cachedStreaks);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:312',message:'Using cached data',data:{cachedStreaks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       return;
     }
-    console.log('getDreamsWithStats: Fetching fresh data');
+    console.log('[STREAK] getDreamsWithStats: Fetching fresh data');
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:315',message:'About to fetchDreamsWithStats',data:{force},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     const payload = await fetchDreamsWithStats();
     if (payload) {
+      const freshStreaks = payload.dreams?.map(d => ({ title: d.title, streak: d.current_streak || 0 })) || [];
+      console.log('[STREAK] Fresh streak values fetched:', freshStreaks);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:318',message:'Before setState with fresh streaks',data:{freshStreaks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       setState(s => ({ ...s, dreamsWithStats: payload }));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:320',message:'After setState',data:{freshStreaks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       saveJSON(CACHE_KEYS.dreams, payload);
       lastFetchedAt.current = Math.max(lastFetchedAt.current, payload.fetchedAt);
     }
@@ -531,6 +550,9 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
   // Complete an action occurrence with optimistic update
   const completeOccurrence: Ctx['completeOccurrence'] = useCallback(async (occurrenceId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:537',message:'completeOccurrence called',data:{occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     // Optimistic remove from Today + mark complete in any open dreamDetail
     setState(s => {
       const next: State = { ...s, dreamDetail: { ...s.dreamDetail } };
@@ -561,6 +583,10 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       .from('action_occurrences')
       .update({ completed_at: new Date().toISOString() })
       .eq('id', occurrenceId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:564',message:'Database update completed',data:{occurrenceId,error:error?.message,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
       
     if (error) {
       console.error('Error completing occurrence:', error);
@@ -601,12 +627,23 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
         // Don't fail the whole operation if completion check fails
       }
       
+      // Refresh all data, and explicitly refresh streak data since completion affects streaks
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:608',message:'About to refresh and getDreamsWithStats',data:{occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       refresh();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:610',message:'About to call getDreamsWithStats with force',data:{occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      await getDreamsWithStats({ force: true });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DataContext.tsx:611',message:'getDreamsWithStats completed',data:{occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       // Check for achievements after completing an occurrence
       await checkAchievements();
     }
-  }, [refresh, checkDreamCompletion, checkAchievements]);
+  }, [refresh, getDreamsWithStats, checkDreamCompletion, checkAchievements]);
 
   // Unmark a completed action occurrence with optimistic update
   const unmarkOccurrence: Ctx['unmarkOccurrence'] = useCallback(async (occurrenceId: string) => {
@@ -637,12 +674,15 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     try {
       await unmarkOccurrenceAPI(occurrenceId, session.access_token);
       // Refresh to get updated occurrence data and potentially add back to Today if due today
+      // Also refresh streak data since unmarking affects streaks
       await refresh(true);
+      await getDreamsWithStats({ force: true });
     } catch (error) {
       console.error('Error unmarking occurrence:', error);
       await refresh(true);
+      await getDreamsWithStats({ force: true });
     }
-  }, [refresh]);
+  }, [refresh, getDreamsWithStats]);
 
   // Defer an action occurrence to tomorrow with optimistic update
   const deferOccurrence: Ctx['deferOccurrence'] = useCallback(async (occurrenceId: string, newDueDate?: string) => {
@@ -684,13 +724,16 @@ export const DataProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
     try {
       await deferOccurrenceAPI(occurrenceId, newDateStr, session.access_token);
+      // Refresh all data, and explicitly refresh streak data since deferring affects streaks
       refresh();
+      await getDreamsWithStats({ force: true });
     } catch (error) {
       console.error('Error deferring occurrence:', error);
       await refresh(true);
+      await getDreamsWithStats({ force: true });
       throw error;
     }
-  }, [refresh]);
+  }, [refresh, getDreamsWithStats]);
 
   // Delete a dream with optimistic removal from all caches
   const deleteDream: Ctx['deleteDream'] = useCallback(async (dreamId: string) => {

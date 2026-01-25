@@ -96,6 +96,7 @@ export const EvolutionSheet: React.FC<EvolutionSheetProps> = ({
                 onPress={onClose}
                 variant="inverse"
                 size="lg"
+                style={styles.continueButton}
               />
             </View>
           </View>
@@ -176,5 +177,8 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   buttonContainer: {
     width: '100%',
     paddingTop: theme.spacing.md,
+  },
+  continueButton: {
+    backgroundColor: theme.colors.white,
   },
 });

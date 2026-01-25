@@ -104,17 +104,39 @@ export const fetchDreamsWithStats = async (): Promise<DreamsWithStatsPayload | u
           .single();
 
         // Get current streak using the function (note: parameter order is p_user_id, p_dream_id)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dataFetchers.ts:107',message:'About to call current_streak RPC',data:{dreamId:dream.id,dreamTitle:dream.title},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         const { data: streakData, error: streakError } = await supabaseClient
           .rpc('current_streak', { 
             p_user_id: dream.user_id,
             p_dream_id: dream.id
           });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dataFetchers.ts:111',message:'current_streak RPC returned',data:{dreamId:dream.id,dreamTitle:dream.title,streakData,streakError:streakError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
 
         if (streakError) {
-          console.error(`Error getting streak for dream ${dream.id}:`, streakError);
+          console.error(`[STREAK] Error getting streak for dream ${dream.id}:`, streakError);
         } else {
-          console.log(`Dream ${dream.title} streak:`, streakData);
+          console.log(`[STREAK] Dream "${dream.title}" streak data:`, streakData, 'type:', typeof streakData);
         }
+
+        // Extract streak value - handle different return formats
+        // Supabase RPC returns scalar values directly, but handle edge cases
+        let streakValue = 0;
+        if (streakError) {
+          streakValue = 0;
+        } else if (typeof streakData === 'number') {
+          streakValue = streakData;
+        } else if (Array.isArray(streakData) && streakData.length > 0) {
+          streakValue = typeof streakData[0] === 'number' ? streakData[0] : 0;
+        } else if (streakData !== null && streakData !== undefined) {
+          // Try to extract if it's an object with a value property
+          streakValue = (streakData as any)?.value ?? (streakData as any) ?? 0;
+        }
+        
+        console.log(`[STREAK] Extracted streak value for "${dream.title}":`, streakValue);
 
         // Get area and action counts
         const { data: areasData } = await supabaseClient
@@ -172,7 +194,7 @@ export const fetchDreamsWithStats = async (): Promise<DreamsWithStatsPayload | u
         return {
           ...dream,
           overdue_count: overdueData?.overdue_count || 0,
-          current_streak: streakData || 0,
+          current_streak: streakValue,
           total_areas: areasData?.length || 0,
           total_actions: actionsData?.length || 0,
           completed_today: todayData?.length || 0,

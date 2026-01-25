@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
 import { useToast } from '../../components/toast/ToastProvider'
 import { Input } from '../../components/Input'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { EmojiListRow } from '../../components'
 import { DreamInputActions } from '../../components/DreamInputActions'
@@ -173,7 +172,6 @@ export default function TitleStep() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <CreateScreenHeader step="title" />
       <ScrollView 
         ref={scrollViewRef}
         style={styles.content} 

@@ -1449,13 +1449,13 @@ const ActionOccurrencePage = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
-  const { deferOccurrence, unmarkOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode, checkAchievements, checkDreamCompletion } = useData();
+  const { deferOccurrence, unmarkOccurrence, state, updateAction: updateActionInContext, deleteActionOccurrence: deleteActionOccurrenceInContext, isScreenshotMode, checkAchievements, checkDreamCompletion, getDreamsWithStats } = useData();
   const { show: showToast } = useToast();
   
-  // Calculate emoji dimensions
+  // Calculate emoji dimensions - match AreaPage size
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
-  const emojiHeight = screenHeight * 0.225;
+  const emojiHeight = screenHeight * 0.45;
   // Calculate emoji width to extend to screen edges (accounting for content padding)
   const emojiWidth = screenWidth + (theme.spacing.md * 2);
   const params = route.params as {
@@ -1746,7 +1746,24 @@ const ActionOccurrencePage = () => {
       }
 
       // Complete the occurrence first
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1749',message:'About to call completeOccurrence API',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       await completeOccurrence(params.occurrenceId, note.trim() || undefined, session.access_token);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1750',message:'completeOccurrence API returned',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      // Refresh streak data after completing action - wait a bit for DB transaction to commit
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1753',message:'About to refresh streak data',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      // Small delay to ensure database transaction has committed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await getDreamsWithStats({ force: true });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ActionOccurrencePage.tsx:1756',message:'Streak data refreshed',data:{occurrenceId:params.occurrenceId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       console.log('✅ [ACHIEVEMENT] Action completed via API, calling checkAchievements');
       
@@ -1963,11 +1980,37 @@ const ActionOccurrencePage = () => {
     return null;
   }, [actionData, occurrenceData, params, state.dreamDetail]);
 
-  const areaImageUrl =
-    dreamAreaData?.areaImageUrl ||
-    params?.areaImageUrl ||
-    actionData?.areas?.image_url ||
-    null;
+  // Get areaImageUrl with proper fallback, ensuring it's a non-empty string
+  // Priority: params (direct from navigation) > dreamAreaData > actionData
+  const areaImageUrl = (() => {
+    // Check params first (most direct source from navigation)
+    if (params?.areaImageUrl && typeof params.areaImageUrl === 'string' && params.areaImageUrl.trim() !== '') {
+      return params.areaImageUrl.trim();
+    }
+    
+    // Then check dreamAreaData (which might have it from params or other sources)
+    if (dreamAreaData?.areaImageUrl && typeof dreamAreaData.areaImageUrl === 'string' && dreamAreaData.areaImageUrl.trim() !== '') {
+      return dreamAreaData.areaImageUrl.trim();
+    }
+    
+    // Finally check actionData (from database relationships)
+    if (actionData?.areas?.image_url && typeof actionData.areas.image_url === 'string' && actionData.areas.image_url.trim() !== '') {
+      return actionData.areas.image_url.trim();
+    }
+    
+    return null;
+  })();
+  
+  // Debug log to help diagnose the issue
+  if (__DEV__) {
+    console.log('[ActionOccurrencePage] areaImageUrl resolution:', {
+      paramsAreaImageUrl: params?.areaImageUrl,
+      dreamAreaDataAreaImageUrl: dreamAreaData?.areaImageUrl,
+      actionDataAreasImageUrl: actionData?.areas?.image_url,
+      finalAreaImageUrl: areaImageUrl,
+      paramsKeys: params ? Object.keys(params) : 'no params'
+    });
+  }
 
   const generateAIDiscussionPrompt = () => {
     const dreamTitle = dreamAreaData?.dreamTitle || params?.dreamTitle || 'My Dream';
@@ -2353,7 +2396,7 @@ Focus on practical, immediately actionable advice that moves me closer to comple
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Area figurine image - scrolls with content */}
+              {/* Area figurine image with overlaid text - scrolls with content */}
               <View style={[styles.imageBackground, { height: emojiHeight, width: emojiWidth }]}>
                 {areaImageUrl ? (
                   <Image
@@ -2366,106 +2409,105 @@ Focus on practical, immediately actionable advice that moves me closer to comple
                     <Icon name="photo" size={28} color={theme.colors.icon.tertiary} />
                   </View>
                 )}
+                
+                {/* Overlay text content on image */}
+                <View style={styles.imageOverlay}>
+                  <View style={styles.overlayContent}>
+                    {/* Dream Title */}
+                    {dreamAreaData?.dreamTitle && (
+                      <Pressable onPress={() => {
+                        const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                        if (dreamId) {
+                          (navigation as any).navigate('Tabs', {
+                            screen: 'Dreams',
+                            params: {
+                              screen: 'Dream',
+                              params: { dreamId }
+                            }
+                          });
+                        }
+                      }}>
+                        <Text style={styles.overlayDreamTitle}>{dreamAreaData.dreamTitle}</Text>
+                      </Pressable>
+                    )}
+                    
+                    {/* Area Title */}
+                    {dreamAreaData?.areaName && (
+                      <Pressable onPress={() => {
+                        const areaId = actionData?.areas?.id || actionData?.area_id;
+                        const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
+                        if (areaId && dreamId) {
+                          (navigation as any).navigate('Tabs', {
+                            screen: 'Dreams',
+                            params: {
+                              screen: 'Area',
+                              params: { 
+                                areaId, 
+                                areaTitle: dreamAreaData.areaName,
+                                areaEmoji: dreamAreaData.areaEmoji,
+                                dreamId,
+                                dreamTitle: dreamAreaData.dreamTitle
+                              }
+                            }
+                          });
+                        }
+                      }}>
+                        <Text style={styles.overlayAreaTitle}>{dreamAreaData.areaName}</Text>
+                      </Pressable>
+                    )}
+                    
+                    {/* Action Title */}
+                    <Text style={styles.overlayActionTitle}>{actionData?.title || params?.actionTitle || 'Action'}</Text>
+                    
+                    {/* Due Date or Completed Date */}
+                    {!isPreviewMode && (
+                      <View style={styles.overlayDueDateRow}>
+                        <Text style={styles.overlayDetailLabel}>
+                          {isCompleted 
+                            ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
+                            : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
+                          }
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {/* Details Row */}
+                    <View style={styles.overlayDetailRow}>
+                      <View style={styles.overlayDetailItem}>
+                        <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.overlayDetailValue}>
+                          {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
+                        </Text>
+                      </View>
+                      <View style={styles.overlayDetailItem}>
+                        <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
+                        <Text style={styles.overlayDetailValue}>
+                          {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
+                        </Text>
+                      </View>
+                      {(actionData?.slice_count_target || params?.sliceCountTarget) && (
+                        <View style={styles.overlayDetailItem}>
+                          <Ionicons name="layers-outline" size={16} color="#FFFFFF" />
+                          <Text style={styles.overlayDetailValue}>
+                            {occurrenceData?.occurrence_no ? `${occurrenceData.occurrence_no} of ${actionData?.slice_count_target || params?.sliceCountTarget}` : `${actionData?.slice_count_target || params?.sliceCountTarget} repeats`}
+                          </Text>
+                        </View>
+                      )}
+                      {(actionData?.primary_skill || params?.primarySkill) && (
+                        <View style={styles.overlayDetailItem}>
+                          <Icon name="military_tech" size={16} color="#FFFFFF" />
+                          <Text style={styles.overlayDetailValue}>
+                            {actionData?.primary_skill || params?.primarySkill}
+                            {actionData?.secondary_skill || params?.secondarySkill ? ` / ${actionData?.secondary_skill || params?.secondarySkill}` : ''}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
               </View>
 
-            {/* Hero Section */}
-            <View style={styles.heroSection}>
-              <View style={styles.heroContent}>
-                {/* Icon and Title Row */}
-                <View style={styles.iconTitleRow}>
-                  <View style={styles.titleColumn}>
-                {dreamAreaData?.dreamTitle && (
-                  <Pressable onPress={() => {
-                    // Navigate to dream page - we need to get the dream ID from the action data
-                    const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
-                    if (dreamId) {
-                      (navigation as any).navigate('Tabs', {
-                        screen: 'Dreams',
-                        params: {
-                          screen: 'Dream',
-                          params: { dreamId }
-                        }
-                      });
-                    }
-                  }}>
-                    <Text style={styles.dreamTitle}>{dreamAreaData.dreamTitle}</Text>
-                  </Pressable>
-                )}
-                {dreamAreaData?.areaName && (
-                  <Pressable onPress={() => {
-                    // Navigate to area page - we need to get the area ID from the action data
-                    const areaId = actionData?.areas?.id || actionData?.area_id;
-                    const dreamId = actionData?.areas?.dreams?.id || actionData?.dream_id;
-                    if (areaId && dreamId) {
-                      (navigation as any).navigate('Tabs', {
-                        screen: 'Dreams',
-                        params: {
-                          screen: 'Area',
-                          params: { 
-                            areaId, 
-                            areaTitle: dreamAreaData.areaName,
-                            areaEmoji: dreamAreaData.areaEmoji,
-                            dreamId,
-                            dreamTitle: dreamAreaData.dreamTitle
-                          }
-                        }
-                      });
-                    }
-                  }}>
-                    <Text style={styles.areaTitle}>{dreamAreaData.areaName}</Text>
-                  </Pressable>
-                )}
-              </View>
-            </View>
-            <Text style={styles.actionTitle}>{actionData?.title || params?.actionTitle || 'Action'}</Text>
-            
-            {/* Due Date or Completed Date */}
-            {!isPreviewMode && (
-              <View style={styles.dueDateRow}>
-                <Text style={styles.detailLabel}>
-                  {isCompleted 
-                    ? `Completed ${occurrenceData?.completed_at ? formatDate(occurrenceData.completed_at) : 'recently'}`
-                    : `Due ${currentDueDate ? formatDate(currentDueDate) : 'No date'}`
-                  }
-                </Text>
-              </View>
-            )}
-            
-            {/* Details Row */}
-            <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
-                <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
-                <Text style={styles.detailValue}>
-                  {actionData?.est_minutes ? formatTime(actionData.est_minutes) : (params?.estimatedTime ? formatTime(params.estimatedTime) : 'No time')}
-                </Text>
-              </View>
-              <View style={styles.detailItem}>
-                <DifficultyBars difficulty={actionData?.difficulty || params?.difficulty || 'easy'} />
-                <Text style={styles.detailValue}>
-                  {(actionData?.difficulty || params?.difficulty || 'easy').charAt(0).toUpperCase() + (actionData?.difficulty || params?.difficulty || 'easy').slice(1)}
-                </Text>
-              </View>
-              {(actionData?.slice_count_target || params?.sliceCountTarget) && (
-                <View style={styles.detailItem}>
-                  <Ionicons name="layers-outline" size={16} color={theme.colors.text.secondary} />
-                  <Text style={styles.detailValue}>
-                    {occurrenceData?.occurrence_no ? `${occurrenceData.occurrence_no} of ${actionData?.slice_count_target || params?.sliceCountTarget}` : `${actionData?.slice_count_target || params?.sliceCountTarget} repeats`}
-                  </Text>
-                </View>
-              )}
-              {(actionData?.primary_skill || params?.primarySkill) && (
-                <View style={styles.detailItem}>
-                  <Icon name="military_tech" size={16} color={theme.colors.text.secondary} />
-                  <Text style={styles.detailValue}>
-                    {actionData?.primary_skill || params?.primarySkill}
-                    {actionData?.secondary_skill || params?.secondarySkill ? ` / ${actionData?.secondary_skill || params?.secondarySkill}` : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
-            
-          </View>
-        </View>
+            {/* Hero Section - removed, content now overlays image */}
 
         {/* Acceptance Criteria Section */}
         <View style={styles.acceptanceSection}>
@@ -2782,6 +2824,81 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: theme.colors.background.imagePlaceholder,
   },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: theme.spacing.lg,
+  },
+  overlayContent: {
+    width: '100%',
+  },
+  overlayDreamTitle: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    textAlign: 'left',
+    marginBottom: theme.spacing.xs,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    fontWeight: '400',
+  },
+  overlayAreaTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'left',
+    marginBottom: theme.spacing.md,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  overlayActionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'left',
+    marginBottom: theme.spacing.sm,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  overlayDueDateRow: {
+    marginBottom: theme.spacing.sm,
+  },
+  overlayDetailLabel: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  overlayDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: theme.spacing.xs,
+  },
+  overlayDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  overlayDetailValue: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
   heroSection: {
     paddingHorizontal: 24,
     paddingTop: theme.spacing.md,
@@ -2888,8 +3005,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     lineHeight: 20,
   },
   acceptanceSection: {
-    padding: 24,
-    paddingTop: 4,
+    padding: 16,
+    paddingTop: 16,
     marginBottom: 8,
   },
   sectionTitle: {

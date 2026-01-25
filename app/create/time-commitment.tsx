@@ -3,7 +3,6 @@ import { View, Text, ScrollView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Theme } from '../../utils/theme'
@@ -86,7 +85,6 @@ export default function TimeCommitmentStep() {
 
   return (
     <View style={styles.container}>
-      <CreateScreenHeader step="time-commitment" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.title}>
           On average, how much time are you willing to spend a day working towards this dream?

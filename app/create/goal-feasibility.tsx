@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { Input } from '../../components/Input'
 import { runGoalFeasibility, upsertDream, TitleSuggestion } from '../../frontend-services/backend-bridge'
@@ -320,8 +319,6 @@ export default function GoalFeasibilityStep() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <CreateScreenHeader step="feasibility" />
-      
       <ScrollView 
         style={{ flex: 1 }} 
         contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}

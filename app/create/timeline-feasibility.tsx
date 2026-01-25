@@ -3,7 +3,6 @@ import { View, Text, ScrollView, ActivityIndicator, StyleSheet, TextInput, Platf
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useCreateDream } from '../../contexts/CreateDreamContext'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { runTimelineFeasibility, upsertDream } from '../../frontend-services/backend-bridge'
 import { supabaseClient } from '../../lib/supabaseClient'
@@ -511,8 +510,6 @@ export default function TimelineFeasibilityStep() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
-      <CreateScreenHeader step="feasibility" />
-      
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: theme.spacing['4xl'] }}>
         {/* Page Title */}
         <Text style={{ 

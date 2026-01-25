@@ -82,6 +82,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
   const [userCreatedAt, setUserCreatedAt] = useState<Date | null>(null);
   const [evolutionAvailable, setEvolutionAvailable] = useState(false);
   const [evolutionLevel, setEvolutionLevel] = useState<number | null>(null);
+  const [evolutionLevelToShow, setEvolutionLevelToShow] = useState<number>(0);
   const [isEvolving, setIsEvolving] = useState(false);
   const [showEvolutionSheet, setShowEvolutionSheet] = useState(false);
   const [evolvedFigurineUrl, setEvolvedFigurineUrl] = useState<string | null>(null);
@@ -489,9 +490,13 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
       });
 
       if (result.success) {
+        // Store evolution level before clearing it (for display in sheet)
+        const levelToShow = evolutionLevel!;
         setEvolvedFigurineUrl(result.data.figurine_url);
         setFigurineUrl(result.data.figurine_url);
         setEvolutionAvailable(false);
+        // Store the level in a separate state for display
+        setEvolutionLevelToShow(levelToShow);
         setEvolutionLevel(null);
         setShowEvolutionSheet(true);
         // Reload skills data to refresh
@@ -524,10 +529,6 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
   const currentOverallStats = getOverallStats();
   const currentOverallProgress = getXpForNextLevel(currentOverallStats.xp);
   const currentOverallRemainingXp = Math.max(0, Math.round(currentOverallProgress.total - currentOverallProgress.progress));
-  const currentOverallXpDeltaText =
-    selectedTab === 'beforeAfter'
-      ? `${0} XP → ${currentOverallStats.xp.toLocaleString()} XP`
-      : '';
 
   // Render skill row for current view
   const renderCurrentSkillRow = (skillItem: SkillData) => {
@@ -738,9 +739,7 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
                 paddingTop:
                   selectedTab === 'current' && figurineUrl
                     ? Math.max(figurineSize / 2, theme.spacing.lg)
-                    : selectedTab === 'end2025' && figurineUrl
-                      ? Math.max(figurineSize / 2, theme.spacing.lg)
-                      : theme.spacing.lg,
+                    : theme.spacing.lg,
               }
             ]}
             showsVerticalScrollIndicator={false}
@@ -840,77 +839,52 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
             {/* Day 1 → Now Tab UI */}
             {selectedTab === 'beforeAfter' && (
               <>
-                <View style={styles.dayNowCard}>
-                  <View style={styles.dayNowRow}>
-                    <View style={styles.dayNowSide}>
-                      <Text style={styles.dayNowLabel}>Day 1</Text>
-                      <View style={styles.dayNowImageWrapper}>
+                <View style={styles.twoContainerRow}>
+                  <View style={styles.twoColumnSide}>
+                    <View style={styles.sideHeader}>
+                      <Text style={styles.sideHeaderLabel}>Day 1</Text>
+                      <View style={styles.sideCardImageWrapper}>
                         {originalFigurineUrl ? (
                           <Image
                             source={{ uri: originalFigurineUrl }}
-                            style={styles.dayNowImage}
+                            style={styles.sideCardImage}
                             contentFit="cover"
                             cachePolicy="disk"
                           />
                         ) : (
-                          <View style={styles.dayNowPlaceholder}>
+                          <View style={styles.sideCardPlaceholder}>
                             <Icon name="person" size={32} color={theme.colors.text.tertiary} />
                           </View>
                         )}
                       </View>
                     </View>
+                    <View style={styles.sideCard}>
+                      <Text style={styles.sideCardLevel}>Level 1</Text>
+                      <Text style={styles.sideCardXp}>0 XP</Text>
+                    </View>
+                  </View>
 
-                    <View style={styles.dayNowSide}>
-                      <Text style={styles.dayNowLabel}>Now</Text>
-                      <View style={styles.dayNowImageWrapper}>
+                  <View style={styles.twoColumnSide}>
+                    <View style={styles.sideHeader}>
+                      <Text style={styles.sideHeaderLabel}>Now</Text>
+                      <View style={styles.sideCardImageWrapper}>
                         {figurineUrl ? (
                           <Image
                             source={{ uri: figurineUrl }}
-                            style={styles.dayNowImage}
+                            style={styles.sideCardImage}
                             contentFit="cover"
                             cachePolicy="disk"
                           />
                         ) : (
-                          <View style={styles.dayNowPlaceholder}>
+                          <View style={styles.sideCardPlaceholder}>
                             <Icon name="person" size={32} color={theme.colors.text.tertiary} />
                           </View>
                         )}
                       </View>
                     </View>
-                  </View>
-                </View>
-
-                <View style={styles.profileCard}>
-                  <View
-                    style={[
-                      styles.profileCardInner,
-                      {
-                        paddingTop: theme.spacing.md,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.profileName} numberOfLines={1}>
-                      {userDisplayName}
-                    </Text>
-
-                    <View style={styles.levelBadgeRow}>
-                      <View style={[
-                        styles.levelBadgePill,
-                        currentOverallStats.level === 2 && styles.levelBadgePillLevel2
-                      ]}>
-                        {currentOverallStats.beforeLevel !== undefined && (
-                          <Text style={[
-                            styles.levelBadgePillText,
-                            currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
-                          ]}>
-                            Level {currentOverallStats.beforeLevel} → {currentOverallStats.level}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-
-                    <View style={styles.profileProgressWrap}>
-                      <Text style={styles.overallXpDeltaText}>{currentOverallXpDeltaText}</Text>
+                    <View style={styles.sideCard}>
+                      <Text style={styles.sideCardLevel}>Level {currentOverallStats.level}</Text>
+                      <Text style={styles.sideCardXp}>{currentOverallStats.xp.toLocaleString()} XP</Text>
                     </View>
                   </View>
                 </View>
@@ -930,68 +904,52 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
             {/* Dream You Tab UI */}
             {selectedTab === 'end2025' && (
               <>
-                <View style={styles.profileCard}>
-                  {figurineUrl && (
-                    <View
-                      style={[
-                        styles.profileFigurineWrap,
-                        {
-                          width: figurineSize,
-                          height: figurineSize,
-                          marginLeft: -figurineSize / 2,
-                          top: -figurineSize / 2,
-                        },
-                      ]}
-                    >
-                      <Image
-                        source={{ uri: figurineUrl }}
-                        style={[styles.figurineImage, { width: figurineSize, height: figurineSize }]}
-                        contentFit="cover"
-                        cachePolicy="disk"
-                      />
-                    </View>
-                  )}
-
-                  <View
-                    style={[
-                      styles.profileCardInner,
-                      {
-                        paddingTop: figurineUrl
-                          ? figurineSize / 2 + theme.spacing.md
-                          : theme.spacing.md,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.profileName} numberOfLines={1}>
-                      {userDisplayName}
-                    </Text>
-
-                    <View style={styles.levelBadgeRow}>
-                      <View style={[
-                        styles.levelBadgePill,
-                        styles.levelBadgePillProjected,
-                        currentOverallStats.level === 2 && styles.levelBadgePillLevel2
-                      ]}>
-                        <Text style={[
-                          styles.levelBadgePillText,
-                          styles.levelBadgePillTextProjected,
-                          currentOverallStats.level === 2 && styles.levelBadgePillTextLevel2
-                        ]}>
-                          Dream You: Level {currentOverallStats.level}
-                        </Text>
+                <View style={styles.twoContainerRow}>
+                  <View style={styles.twoColumnSide}>
+                    <View style={styles.sideHeader}>
+                      <Text style={styles.sideHeaderLabel}>Day 1</Text>
+                      <View style={styles.sideCardImageWrapper}>
+                        {originalFigurineUrl ? (
+                          <Image
+                            source={{ uri: originalFigurineUrl }}
+                            style={styles.sideCardImage}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                          />
+                        ) : (
+                          <View style={styles.sideCardPlaceholder}>
+                            <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                          </View>
+                        )}
                       </View>
-                      <Text style={styles.totalXpText}>
-                        {currentOverallStats.xp.toLocaleString()} XP earned
-                      </Text>
                     </View>
+                    <View style={styles.sideCard}>
+                      <Text style={styles.sideCardLevel}>Level 1</Text>
+                      <Text style={styles.sideCardXp}>0 XP</Text>
+                    </View>
+                  </View>
 
-                    <View style={styles.profileProgressWrap}>
-                      <View style={styles.skillBarBg}>
-                        <View style={[styles.skillBarFill, { width: `${currentOverallProgress.percent}%` }]} />
+                  <View style={styles.twoColumnSide}>
+                    <View style={styles.sideHeader}>
+                      <Text style={styles.sideHeaderLabel}>Dream You</Text>
+                      <View style={styles.sideCardImageWrapper}>
+                        {figurineUrl ? (
+                          <Image
+                            source={{ uri: figurineUrl }}
+                            style={styles.sideCardImage}
+                            contentFit="cover"
+                            cachePolicy="disk"
+                          />
+                        ) : (
+                          <View style={styles.sideCardPlaceholder}>
+                            <Icon name="person" size={32} color={theme.colors.text.tertiary} />
+                          </View>
+                        )}
                       </View>
-                      <Text style={styles.nextLevelText}>
-                        <Text style={styles.nextLevelXpBold}>{currentOverallRemainingXp} XP</Text> to Level {currentOverallStats.level + 1}
-                      </Text>
+                    </View>
+                    <View style={styles.sideCard}>
+                      <Text style={styles.sideCardLevel}>Level {currentOverallStats.level}</Text>
+                      <Text style={styles.sideCardXp}>{currentOverallStats.xp.toLocaleString()} XP</Text>
                     </View>
                   </View>
                 </View>
@@ -1017,11 +975,12 @@ export const SkillsSheet: React.FC<SkillsSheetProps> = ({
 
       <EvolutionSheet
         visible={showEvolutionSheet}
-        evolutionLevel={evolutionLevel || 0}
+        evolutionLevel={evolutionLevelToShow}
         figurineUrl={evolvedFigurineUrl || ''}
         onClose={() => {
           setShowEvolutionSheet(false);
           setEvolvedFigurineUrl(null);
+          setEvolutionLevelToShow(0);
         }}
       />
     </Modal>
@@ -1144,12 +1103,6 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
   nextLevelXpBold: {
     fontWeight: '700',
   },
-  overallXpDeltaText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-  },
   evolveButtonContainer: {
     width: '100%',
     marginTop: theme.spacing.md,
@@ -1270,52 +1223,66 @@ const createStyles = (theme: Theme, isDark?: boolean) => StyleSheet.create({
     opacity: 0.9,
   },
 
-  // Day 1 -> Now (top card): Before/After images (no divider)
-  dayNowCard: {
-    width: '100%',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 0,
-    marginBottom: theme.spacing.lg,
-  },
-  dayNowRow: {
+  // Two columns: title + image above (outside white), white card below with level + XP
+  twoContainerRow: {
     width: '100%',
     flexDirection: 'row',
     gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
-  dayNowSide: {
+  twoColumnSide: {
     flex: 1,
     gap: theme.spacing.sm,
+    alignItems: 'stretch',
   },
-  dayNowLabel: {
-    fontSize: 18,
+  sideHeader: {
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  sideHeaderLabel: {
+    fontSize: 16,
     fontWeight: '800',
     color: theme.colors.text.inverse,
     textAlign: 'center',
   },
-  dayNowImageWrapper: {
+  sideCard: {
+    backgroundColor: theme.colors.background.card,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.colors.border.default,
+  },
+  sideCardImageWrapper: {
     width: '100%',
     aspectRatio: 1,
     borderRadius: theme.radius.md,
     overflow: 'hidden',
     backgroundColor: theme.colors.disabled.inactive,
-    borderWidth: 0,
   },
-  dayNowImage: {
+  sideCardImage: {
     width: '100%',
     height: '100%',
   },
-  dayNowPlaceholder: {
+  sideCardPlaceholder: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.disabled.inactive,
   },
-  
+  sideCardLevel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+  },
+  sideCardXp: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.text.secondary,
+  },
+
   // Empty State
   emptyState: {
     padding: 40,

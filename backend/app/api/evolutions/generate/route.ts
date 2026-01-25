@@ -168,7 +168,7 @@ Based on the skill levels and dreams, evolve the figurine by:
 - Adjusting pose or action to show engagement with their skills
 - Subtle visual improvements that show progression (better posture, more confident stance, refined appearance)
 
-Keep the same isometric, realistic style on a dark blue background. Maintain 4K resolution, studio lighting, soft shadows, no text/logos. The evolution should be noticeable but not dramatic - show growth and refinement. Make the person slightly more attractive and fashionable.`;
+Keep the same isometric, realistic style on a solid dark blue background. Maintain 4K resolution, studio lighting, soft shadows, no text/logos. The evolution should be noticeable but not dramatic - show growth and refinement. Make the person slightly more attractive and fashionable.`;
 
     console.log('🎨 Generating evolved figurine...');
     let generatedImageData: string;

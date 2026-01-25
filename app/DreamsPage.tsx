@@ -60,6 +60,17 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
   const overallStreak = Math.max(...dreamsWithStats.map(d => d.current_streak || 0), 0);
   const [longestStreak, setLongestStreak] = useState<number>(0);
 
+  // Debug logging for streak updates
+  useEffect(() => {
+    if (dreamsWithStats.length > 0) {
+      const streakValues = dreamsWithStats.map(d => ({ title: d.title, streak: d.current_streak || 0 }));
+      console.log('[STREAK] DreamsPage - Overall streak:', overallStreak, 'Individual streaks:', streakValues);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/40853674-0114-49e6-bb6b-7006ee264c68',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'DreamsPage.tsx:67',message:'DreamsPage render with streak data',data:{overallStreak,streakValues},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [dreamsWithStats, overallStreak]);
+
   // Smooth crossfade: show overlay when we need skeleton; fade out when content is ready
   useEffect(() => {
     if (shouldShowSkeleton) {
@@ -96,6 +107,14 @@ const DreamsPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?: R
     };
     loadAchievements();
   }, [isAuthenticated, authLoading]);
+
+  // Refresh streak data when StreakSheet opens
+  useEffect(() => {
+    if (showStreakSheet) {
+      console.log('[STREAK] StreakSheet opened, refreshing streak data');
+      getDreamsWithStats({ force: true });
+    }
+  }, [showStreakSheet, getDreamsWithStats]);
 
   // Load historical longest streak (fallback to longest_streak if historical doesn't exist)
   useEffect(() => {

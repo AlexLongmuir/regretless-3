@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import { View, Text } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { CreateScreenHeader } from '../../components/create/CreateScreenHeader'
 import { Button } from '../../components/Button'
 import { useTheme } from '../../contexts/ThemeContext'
 import { trackEvent } from '../../lib/mixpanel'
@@ -20,8 +19,6 @@ export default function ConfirmStep() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.page }}>
-      <CreateScreenHeader step="confirm" />
-      
       <View style={{ 
         flex: 1, 
         justifyContent: 'flex-start', 

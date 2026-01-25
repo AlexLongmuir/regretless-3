@@ -53,6 +53,14 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
     loadAchievements();
   }, []);
 
+  // Refresh streak data when StreakSheet opens
+  useEffect(() => {
+    if (showStreakSheet) {
+      console.log('[STREAK] StreakSheet opened, refreshing streak data');
+      getDreamsWithStats({ force: true });
+    }
+  }, [showStreakSheet, getDreamsWithStats]);
+
   // Load historical longest streak (fallback to longest_streak if historical doesn't exist)
   useEffect(() => {
     const loadLongestStreak = async () => {
@@ -187,6 +195,14 @@ const ProgressPage = ({ navigation, scrollRef }: { navigation?: any; scrollRef?:
   // Since our new logic is dream-specific, aggregating is tricky without backend support
   const overallStreak = Math.max(...dreams.map(d => d.current_streak || 0), 0);
   const [longestStreak, setLongestStreak] = useState<number>(0);
+
+  // Debug logging for streak updates
+  useEffect(() => {
+    if (dreams.length > 0) {
+      const streakValues = dreams.map(d => ({ title: d.title, streak: d.current_streak || 0 }));
+      console.log('[STREAK] ProgressPage - Overall streak:', overallStreak, 'Individual streaks:', streakValues);
+    }
+  }, [dreams, overallStreak]);
 
   // Log if we have no data at all
   const hasRealData = dreams.length > 0 || progressPhotos.length > 0 || overallStreak > 0;

@@ -163,12 +163,33 @@ const AreaPage: React.FC<AreaPageProps> = ({ route, navigation }) => {
     // Find the occurrence and action details
     const occurrence = actions.find(action => action.id === occurrenceId);
     if (occurrence && navigation?.navigate) {
+      // Get the most up-to-date areaImageUrl at navigation time
+      // This ensures we have the latest value even if currentArea was updated
+      const latestArea = dreamId && areaId && state.dreamDetail[dreamId] 
+        ? state.dreamDetail[dreamId].areas.find((a: Area) => a.id === areaId)
+        : null;
+      const latestAreaImageUrl = latestArea?.image_url || initialAreaImageUrl || areaImageUrl;
+      
+      // Debug log to verify areaImageUrl is set
+      if (__DEV__) {
+        console.log('[AreaPage] Navigating to ActionOccurrence with areaImageUrl:', {
+          areaImageUrl,
+          latestAreaImageUrl,
+          currentAreaImageUrl: currentArea?.image_url,
+          latestAreaImageUrlFromState: latestArea?.image_url,
+          initialAreaImageUrl,
+          areaId,
+          dreamId
+        });
+      }
+      
       navigation.navigate('ActionOccurrence', {
         occurrenceId: occurrence.id,
         actionTitle: occurrence.title,
         dreamTitle: dreamTitle,
         areaName: areaTitle,
         areaEmoji: areaEmoji,
+        areaImageUrl: latestAreaImageUrl,
         actionDescription: 'Complete this action to progress toward your goal.',
         dueDate: occurrence.due_on,
         estimatedTime: occurrence.est_minutes,

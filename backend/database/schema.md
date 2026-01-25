@@ -1068,12 +1068,17 @@ An occurrence is overdue when:
 - `completed_at IS NULL` AND `due_on < CURRENT_DATE`
 
 ### Streak Calculation
-Current streak for a dream:
-1. Find the most recent completion date for the dream
-2. Start counting from that date and count backwards
-3. For each day, check if there's ≥1 completed occurrence
-4. Stop counting when a day has no completions
-5. The streak is maintained until it's actually broken by missing a day
+Current streak for a dream (via `current_streak` function):
+1. **If there's ANY overdue action**: Streak is 0 immediately
+   - An action is overdue if `completed_at IS NULL` AND `due_on < CURRENT_DATE`
+2. **If there are no overdue actions**: Count completed occurrences since the last overdue action
+   - Find the most recent overdue date (if any historical overdue actions exist)
+   - Count all completed occurrences that were due AFTER that overdue date
+   - If there's no historical overdue date, count all completed occurrences
+3. **Key behavior**: 
+   - Streaks are broken when ANY task becomes overdue (not just by missing days)
+   - Gaps in days without tasks don't break the streak, as long as no tasks become overdue
+   - When overdue actions are completed, the streak can start counting again from new completions
 
 ## JSON Schema Examples
 
